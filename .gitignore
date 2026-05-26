@@ -49,3 +49,4 @@ sysinfo.txt
 *.key
 *.pem
 *.pfx
+*.slnx
