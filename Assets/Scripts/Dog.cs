@@ -162,16 +162,34 @@ public class Dog : ScriptableObject
 
     public string GetTraitSummary()
     {
-        if (primaryTrait == DogTrait.None && secondaryTrait == DogTrait.None)
+        bool hasPrimaryTrait = primaryTrait != DogTrait.None;
+        bool hasSecondaryTrait = secondaryTrait != DogTrait.None;
+
+        if (!hasPrimaryTrait && !hasSecondaryTrait)
         {
             return "No Traits";
         }
 
-        if (secondaryTrait == DogTrait.None || secondaryTrait == primaryTrait)
+        if (hasPrimaryTrait && (!hasSecondaryTrait || secondaryTrait == primaryTrait))
         {
             return primaryTrait.ToString();
         }
 
+        if (!hasPrimaryTrait)
+        {
+            return secondaryTrait.ToString();
+        }
+
         return $"{primaryTrait} / {secondaryTrait}";
+    }
+
+    public bool HasTrait(DogTrait trait)
+    {
+        if (trait == DogTrait.None)
+        {
+            return false;
+        }
+
+        return primaryTrait == trait || secondaryTrait == trait;
     }
 }

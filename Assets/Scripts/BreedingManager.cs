@@ -190,23 +190,18 @@ public class BreedingManager : MonoBehaviour
 
     void ApplyTraitGrowthBonus(Dog dog)
     {
-        if (HasTrait(dog, DogTrait.Prodigy))
+        if (dog.HasTrait(DogTrait.Prodigy))
         {
             dog.growthRate = Mathf.Clamp(dog.growthRate + 0.15f, 0.5f, 2.0f);
         }
 
-        if (HasTrait(dog, DogTrait.LateBloomer))
+        if (dog.HasTrait(DogTrait.LateBloomer))
         {
             dog.growthRate = Mathf.Clamp(dog.growthRate + 0.08f, 0.5f, 2.0f);
             dog.strengthPotential = Mathf.Clamp(dog.strengthPotential + 3, 1, 120);
             dog.agilityPotential = Mathf.Clamp(dog.agilityPotential + 3, 1, 120);
             dog.staminaPotential = Mathf.Clamp(dog.staminaPotential + 3, 1, 120);
         }
-    }
-
-    bool HasTrait(Dog dog, DogTrait trait)
-    {
-        return dog.primaryTrait == trait || dog.secondaryTrait == trait;
     }
 
     FightStyle GetRandomFightStyle()

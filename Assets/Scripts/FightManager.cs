@@ -139,12 +139,12 @@ public class FightManager : MonoBehaviour
     {
         int health = dog.stamina * healthMultiplier;
 
-        if (HasTrait(dog, DogTrait.Durable))
+        if (dog.HasTrait(DogTrait.Durable))
         {
             health += Mathf.RoundToInt(dog.stamina * 0.25f);
         }
 
-        if (HasTrait(dog, DogTrait.GlassCannon))
+        if (dog.HasTrait(DogTrait.GlassCannon))
         {
             health -= Mathf.RoundToInt(dog.stamina * 0.15f);
         }
@@ -173,27 +173,27 @@ public class FightManager : MonoBehaviour
 
     int ApplyTraitModifiers(Dog attacker, Dog defender, int damage, int round)
     {
-        if (HasTrait(attacker, DogTrait.Aggressive))
+        if (attacker.HasTrait(DogTrait.Aggressive))
         {
             damage += 5;
         }
 
-        if (HasTrait(attacker, DogTrait.GlassCannon))
+        if (attacker.HasTrait(DogTrait.GlassCannon))
         {
             damage += 8;
         }
 
-        if (HasTrait(attacker, DogTrait.Clutch) && round >= maxRounds - 1)
+        if (attacker.HasTrait(DogTrait.Clutch) && round >= maxRounds - 1)
         {
             damage += 10;
         }
 
-        if (HasTrait(defender, DogTrait.Durable))
+        if (defender.HasTrait(DogTrait.Durable))
         {
             damage -= 4;
         }
 
-        if (HasTrait(defender, DogTrait.GlassCannon))
+        if (defender.HasTrait(DogTrait.GlassCannon))
         {
             damage += 4;
         }
@@ -517,7 +517,7 @@ public class FightManager : MonoBehaviour
     {
         int xpGain = won ? 35 : 15;
 
-        if (HasTrait(dog, DogTrait.Prodigy))
+        if (dog.HasTrait(DogTrait.Prodigy))
         {
             xpGain += 5;
         }
@@ -572,7 +572,7 @@ public class FightManager : MonoBehaviour
             int agilityGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 4) * dog.growthRate));
             int staminaGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 4) * dog.growthRate));
 
-            if (HasTrait(dog, DogTrait.LateBloomer) && dog.level >= 5)
+            if (dog.HasTrait(DogTrait.LateBloomer) && dog.level >= 5)
             {
                 strengthGain++;
                 agilityGain++;
@@ -586,11 +586,6 @@ public class FightManager : MonoBehaviour
             log += $"<b>{dog.dogName} leveled up to Level {dog.level}!</b>\n";
             log += $"{dog.dogName} gained +{strengthGain} STR, +{agilityGain} AGI, +{staminaGain} STA.\n";
         }
-    }
-
-    bool HasTrait(Dog dog, DogTrait trait)
-    {
-        return dog.primaryTrait == trait || dog.secondaryTrait == trait;
     }
 
     int CalculateXPToNextLevel(int level)

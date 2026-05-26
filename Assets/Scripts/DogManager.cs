@@ -569,47 +569,42 @@ public class DogManager : MonoBehaviour
     {
         int modifier = 0;
 
-        if (HasTrait(dog, DogTrait.Aggressive))
+        if (dog.HasTrait(DogTrait.Aggressive))
         {
             modifier += 10;
         }
 
-        if (HasTrait(dog, DogTrait.Durable))
+        if (dog.HasTrait(DogTrait.Durable))
         {
             modifier += 12;
         }
 
-        if (HasTrait(dog, DogTrait.GlassCannon))
+        if (dog.HasTrait(DogTrait.GlassCannon))
         {
             modifier += 8;
         }
 
-        if (HasTrait(dog, DogTrait.Clutch))
+        if (dog.HasTrait(DogTrait.Clutch))
         {
             modifier += 8;
         }
 
-        if (HasTrait(dog, DogTrait.LateBloomer) && dog.level >= 5)
+        if (dog.HasTrait(DogTrait.LateBloomer) && dog.level >= 5)
         {
             modifier += 8;
         }
 
-        if (HasTrait(dog, DogTrait.Prodigy))
+        if (dog.HasTrait(DogTrait.Prodigy))
         {
             modifier += 4;
         }
 
-        if (HasTrait(opponent, DogTrait.GlassCannon))
+        if (opponent.HasTrait(DogTrait.GlassCannon))
         {
             modifier += 4;
         }
 
         return modifier;
-    }
-
-    bool HasTrait(Dog dog, DogTrait trait)
-    {
-        return dog.primaryTrait == trait || dog.secondaryTrait == trait;
     }
 
     string GetStyleEdgeText(Dog d1, Dog d2)
