@@ -36,11 +36,12 @@ public class DogCardUI : MonoBehaviour
         }
         if (statsText != null)
         {
-            string status = GetStatusText();
+            string breedingStatus = GetBreedingStatusText();
 
             statsText.text =
                 $"Breed: {dog.breed}\n" +
-                $"Status: {status} | Age: {dog.age} | {dog.GetLifeStage()}\n" +
+                $"Gender: {dog.gender} | {breedingStatus}\n" +
+                $"Status: {dog.GetStatusText()} | Age: {dog.age} | Life Stage: {dog.GetLifeStage()}\n" +
                 $"STR {dog.strength}/{dog.strengthPotential} | " +
                 $"AGI {dog.agility}/{dog.agilityPotential} | " +
                 $"STA {dog.stamina}/{dog.staminaPotential}\n" +
@@ -72,28 +73,26 @@ public class DogCardUI : MonoBehaviour
         }
     }
 
-    string GetStatusText()
-    {
-        if (dog.isDead)
-        {
-            return "Deceased";
-        }
-
-        if (dog.isRetired)
-        {
-            return "Retired";
-        }
-
-        return "Active";
-    }
-
     bool CanSelectDog()
     {
         if (dog == null) return false;
-        if (dog.isDead) return false;
-        if (dog.isRetired) return false;
 
-        return true;
+        return dog.CanFight();
+    }
+
+    string GetBreedingStatusText()
+    {
+        if (dog == null || dogManager == null)
+        {
+            return "Last Bred Week: Unknown";
+        }
+
+        if (dog.CanBreedInWeek(dogManager.currentWeek))
+        {
+            return "Can Breed This Week";
+        }
+
+        return $"Already Bred This Week | Last Bred Week: {dog.lastBredWeek}";
     }
 
     void SelectAsFighter1()

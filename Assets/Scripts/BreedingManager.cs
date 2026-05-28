@@ -45,14 +45,37 @@ public class BreedingManager : MonoBehaviour
             return;
         }
 
+        if (!parent1.CanBreed() || !parent2.CanBreed())
+        {
+            SetLog(GetBreedingBlockedMessage(parent1, parent2));
+            return;
+        }
+
+        if (parent1.gender == parent2.gender)
+        {
+            SetLog("Breeding requires one female and one male.");
+            return;
+        }
+
+        if (!parent1.CanBreedInWeek(dogManager.currentWeek) || !parent2.CanBreedInWeek(dogManager.currentWeek))
+        {
+            SetLog("One or both dogs have already bred this week.");
+            return;
+        }
+
         Dog newborn = CreateNewborn(parent1, parent2);
 
+        parent1.lastBredWeek = dogManager.currentWeek;
+        parent2.lastBredWeek = dogManager.currentWeek;
+
         dogManager.AddOwnedDog(newborn);
+        dogManager.SaveStable();
 
         SetLog(
             $"<b>Newborn Created!</b>\n\n" +
             $"Name: {newborn.dogName}\n" +
             $"Breed: {newborn.breed}\n" +
+            $"Gender: {newborn.gender}\n" +
             $"Generation: {newborn.generation}\n\n" +
             $"STR: {newborn.strength}\n" +
             $"AGI: {newborn.agility}\n" +
@@ -61,7 +84,8 @@ public class BreedingManager : MonoBehaviour
             $"Growth: x{newborn.growthRate:F2}\n" +
             $"Style: {newborn.fightStyle}\n\n" +
             $"Traits: {newborn.GetTraitSummary()}\n\n" +
-            $"Parents: {parent1.dogName} x {parent2.dogName}"
+            $"Parents: {parent1.dogName} ({parent1.gender}) x {parent2.dogName} ({parent2.gender})\n" +
+            $"Week: {dogManager.currentWeek}"
         );
     }
 
@@ -73,6 +97,8 @@ public class BreedingManager : MonoBehaviour
 
         newborn.dogName = GenerateName();
         newborn.breed = GenerateBreed(parent1, parent2);
+        newborn.gender = GetRandomGender();
+        newborn.lastBredWeek = -999;
 
         newborn.parent1Id = parent1.dogId;
         newborn.parent2Id = parent2.dogId;
@@ -101,6 +127,41 @@ public class BreedingManager : MonoBehaviour
         newborn.totalFights = 0;
 
         return newborn;
+    }
+
+    string GetBreedingBlockedMessage(Dog parent1, Dog parent2)
+    {
+        if (parent1.isDead || parent2.isDead)
+        {
+            return "Deceased dogs cannot breed.";
+        }
+
+        if (parent1.isRetired || parent2.isRetired)
+        {
+            return "Retired dogs cannot breed for now.";
+        }
+
+        if (!parent1.CanBreedInWeek(dogManager.currentWeek))
+        {
+            return $"{parent1.dogName} has already bred this week.";
+        }
+
+        if (!parent2.CanBreedInWeek(dogManager.currentWeek))
+        {
+            return $"{parent2.dogName} has already bred this week.";
+        }
+
+        return "These dogs cannot breed right now.";
+    }
+
+    DogGender GetRandomGender()
+    {
+        if (Random.value < 0.5f)
+        {
+            return DogGender.Male;
+        }
+
+        return DogGender.Female;
     }
 
     int BreedPotential(int parentPotential1, int parentPotential2)

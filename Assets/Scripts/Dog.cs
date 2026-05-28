@@ -30,6 +30,12 @@ public enum DogTrait
     Prodigy
 }
 
+public enum DogGender
+{
+    Male,
+    Female
+}
+
 [CreateAssetMenu(fileName = "NewDog", menuName = "Dogs/Dog")]
 public class Dog : ScriptableObject
 {
@@ -37,6 +43,7 @@ public class Dog : ScriptableObject
     public string dogId = "dog_id";
     public string dogName = "New Dog";
     public string breed = "Pit Bull";
+    public DogGender gender = DogGender.Male;
 
     [Header("Age / Career")]
     public int age = 0;
@@ -52,10 +59,53 @@ public class Dog : ScriptableObject
         return "Elder";
     }
 
+    public bool CanFight()
+    {
+        return !isDead && !isRetired;
+    }
+
+    public bool CanBreed()
+    {
+        return !isDead && !isRetired;
+    }
+
+    public bool CanBreedInWeek(int currentWeek)
+    {
+        return CanBreed() && currentWeek > lastBredWeek;
+    }
+
+    public bool CanBreedWith(Dog otherDog, int currentWeek)
+    {
+        if (otherDog == null)
+        {
+            return false;
+        }
+
+        return CanBreedInWeek(currentWeek) &&
+               otherDog.CanBreedInWeek(currentWeek) &&
+               gender != otherDog.gender;
+    }
+
+    public string GetStatusText()
+    {
+        if (isDead)
+        {
+            return "Deceased";
+        }
+
+        if (isRetired)
+        {
+            return "Retired";
+        }
+
+        return "Active";
+    }
+
     [Header("Genetics")]
     public int generation = 0;
     public string parent1Id = "";
     public string parent2Id = "";
+    public int lastBredWeek = -999;
 
     [Header("Base Stats")]
     [Range(1, 100)] public int strength = 70;

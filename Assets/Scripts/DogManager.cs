@@ -10,6 +10,9 @@ public class DogManager : MonoBehaviour
     [Header("Owned Dogs")]
     public List<Dog> ownedDogs = new List<Dog>();
 
+    [Header("Game Time")]
+    public int currentWeek = 1;
+
     [Header("UI")]
     public Transform dogContainer;
     public GameObject dogCardPrefab;
@@ -38,7 +41,8 @@ public class DogManager : MonoBehaviour
     public FightStrategy fighter1Strategy = FightStrategy.Balanced;
     public FightStrategy fighter2Strategy = FightStrategy.Balanced;
 
-    private List<Dog> selectableDogs = new List<Dog>();
+    private List<Dog> selectableFighterDogs = new List<Dog>();
+    private List<Dog> selectableParentDogs = new List<Dog>();
     private bool isRefreshingDogDropdowns = false;
 
     void Start()
@@ -85,7 +89,26 @@ public class DogManager : MonoBehaviour
             dogInstance.dogId = fallbackId;
         }
 
+        ApplyStartingGenderFallback(dogInstance, fallbackId);
+
         ownedDogs.Add(dogInstance);
+    }
+
+    void ApplyStartingGenderFallback(Dog dog, string fallbackId)
+    {
+        if (dog == null) return;
+
+        switch (fallbackId)
+        {
+            case "luna":
+                dog.gender = DogGender.Female;
+                break;
+
+            case "spike":
+            case "rex":
+                dog.gender = DogGender.Male;
+                break;
+        }
     }
 
     public void DisplayDogs()
@@ -133,7 +156,7 @@ public class DogManager : MonoBehaviour
             return;
         }
 
-        if (!CanUseDog(dog))
+        if (!CanBreedDog(dog))
         {
             Debug.LogWarning($"{dog.dogName} cannot be selected as a parent.");
             return;
@@ -142,6 +165,13 @@ public class DogManager : MonoBehaviour
         if (selectedParent2 == dog)
         {
             Debug.LogWarning($"{dog.dogName} is already selected as Parent 2.");
+            RefreshDogSelectionDropdowns();
+            return;
+        }
+
+        if (selectedParent2 != null && selectedParent2.gender == dog.gender)
+        {
+            Debug.LogWarning($"{dog.dogName} needs a parent of the opposite gender.");
             RefreshDogSelectionDropdowns();
             return;
         }
@@ -159,7 +189,7 @@ public class DogManager : MonoBehaviour
             return;
         }
 
-        if (!CanUseDog(dog))
+        if (!CanBreedDog(dog))
         {
             Debug.LogWarning($"{dog.dogName} cannot be selected as a parent.");
             return;
@@ -168,6 +198,13 @@ public class DogManager : MonoBehaviour
         if (selectedParent1 == dog)
         {
             Debug.LogWarning($"{dog.dogName} is already selected as Parent 1.");
+            RefreshDogSelectionDropdowns();
+            return;
+        }
+
+        if (selectedParent1 != null && selectedParent1.gender == dog.gender)
+        {
+            Debug.LogWarning($"{dog.dogName} needs a parent of the opposite gender.");
             RefreshDogSelectionDropdowns();
             return;
         }
@@ -186,7 +223,7 @@ public class DogManager : MonoBehaviour
             return;
         }
 
-        if (!CanUseDog(dog))
+        if (!CanFightDog(dog))
         {
             Debug.LogWarning($"{dog.dogName} cannot be selected.");
             return;
@@ -219,7 +256,7 @@ public class DogManager : MonoBehaviour
             return;
         }
 
-        if (!CanUseDog(dog))
+        if (!CanFightDog(dog))
         {
             Debug.LogWarning($"{dog.dogName} cannot be selected.");
             return;
@@ -241,50 +278,102 @@ public class DogManager : MonoBehaviour
         RefreshDogSelectionDropdowns();
     }
 
-    bool CanUseDog(Dog dog)
+    bool CanFightDog(Dog dog)
     {
         if (dog == null) return false;
-        if (dog.isDead) return false;
-        if (dog.isRetired) return false;
 
-        return true;
+        return dog.CanFight();
     }
 
-    void RefreshDogSelectionDropdowns()
+    bool CanBreedDog(Dog dog)
+    {
+        if (dog == null) return false;
+
+        return dog.CanBreedInWeek(currentWeek);
+    }
+
+    public void RefreshDogSelectionDropdowns()
     {
         isRefreshingDogDropdowns = true;
 
-        selectableDogs.Clear();
+        selectableFighterDogs.Clear();
+        selectableParentDogs.Clear();
 
         foreach (Dog dog in ownedDogs)
         {
-            if (CanUseDog(dog))
+            if (CanFightDog(dog))
             {
-                selectableDogs.Add(dog);
+                selectableFighterDogs.Add(dog);
+            }
+
+            if (CanBreedDog(dog))
+            {
+                selectableParentDogs.Add(dog);
             }
         }
 
+        ClearInvalidSelections();
+
+        List<string> fighterOptions = BuildDogDropdownOptions(selectableFighterDogs);
+        List<string> parentOptions = BuildDogDropdownOptions(selectableParentDogs);
+
+        ConfigureDogDropdown(fighter1DogDropdown, fighterOptions, selectableFighterDogs, selectedFighter1, SetFighter1FromDropdown);
+        ConfigureDogDropdown(fighter2DogDropdown, fighterOptions, selectableFighterDogs, selectedFighter2, SetFighter2FromDropdown);
+
+        ConfigureDogDropdown(parent1DogDropdown, parentOptions, selectableParentDogs, selectedParent1, SetParent1FromDropdown);
+        ConfigureDogDropdown(parent2DogDropdown, parentOptions, selectableParentDogs, selectedParent2, SetParent2FromDropdown);
+
+        isRefreshingDogDropdowns = false;
+
+        UpdateSelectedFightersText();
+        UpdateMatchupPreview();
+    }
+
+    List<string> BuildDogDropdownOptions(List<Dog> dogs)
+    {
         List<string> options = new List<string>();
         options.Add("None");
 
-        foreach (Dog dog in selectableDogs)
+        foreach (Dog dog in dogs)
         {
-            options.Add(dog.dogName);
+            options.Add($"{dog.dogName} ({dog.gender})");
         }
 
-        ConfigureDogDropdown(fighter1DogDropdown, options, selectedFighter1, SetFighter1FromDropdown);
-        ConfigureDogDropdown(fighter2DogDropdown, options, selectedFighter2, SetFighter2FromDropdown);
+        return options;
+    }
 
-        ConfigureDogDropdown(parent1DogDropdown, options, selectedParent1, SetParent1FromDropdown);
-        ConfigureDogDropdown(parent2DogDropdown, options, selectedParent2, SetParent2FromDropdown);
+    void ClearInvalidSelections()
+    {
+        if (selectedFighter1 != null && !CanFightDog(selectedFighter1))
+        {
+            selectedFighter1 = null;
+        }
 
-        isRefreshingDogDropdowns = false;
+        if (selectedFighter2 != null && !CanFightDog(selectedFighter2))
+        {
+            selectedFighter2 = null;
+        }
+
+        if (selectedParent1 != null && !CanBreedDog(selectedParent1))
+        {
+            selectedParent1 = null;
+        }
+
+        if (selectedParent2 != null && !CanBreedDog(selectedParent2))
+        {
+            selectedParent2 = null;
+        }
+
+        if (selectedParent1 != null && selectedParent2 != null && selectedParent1.gender == selectedParent2.gender)
+        {
+            selectedParent2 = null;
+        }
     }
     void SetParent1FromDropdown(int index)
     {
         if (isRefreshingDogDropdowns) return;
 
-        Dog dog = GetDogFromDropdownIndex(index);
+        Dog dog = GetDogFromDropdownIndex(index, selectableParentDogs);
         SelectParent1(dog);
     }
 
@@ -292,12 +381,13 @@ public class DogManager : MonoBehaviour
     {
         if (isRefreshingDogDropdowns) return;
 
-        Dog dog = GetDogFromDropdownIndex(index);
+        Dog dog = GetDogFromDropdownIndex(index, selectableParentDogs);
         SelectParent2(dog);
     }
     void ConfigureDogDropdown(
         TMP_Dropdown dropdown,
         List<string> options,
+        List<Dog> selectableDogs,
         Dog selectedDog,
         UnityAction<int> callback
     )
@@ -308,7 +398,7 @@ public class DogManager : MonoBehaviour
         dropdown.ClearOptions();
         dropdown.AddOptions(options);
 
-        int selectedIndex = GetDropdownIndexForDog(selectedDog);
+        int selectedIndex = GetDropdownIndexForDog(selectedDog, selectableDogs);
 
         dropdown.SetValueWithoutNotify(selectedIndex);
         dropdown.RefreshShownValue();
@@ -318,7 +408,7 @@ public class DogManager : MonoBehaviour
         dropdown.onValueChanged.AddListener(callback);
     }
 
-    int GetDropdownIndexForDog(Dog dog)
+    int GetDropdownIndexForDog(Dog dog, List<Dog> selectableDogs)
     {
         if (dog == null) return 0;
 
@@ -332,7 +422,7 @@ public class DogManager : MonoBehaviour
         return dogIndex + 1;
     }
 
-    Dog GetDogFromDropdownIndex(int index)
+    Dog GetDogFromDropdownIndex(int index, List<Dog> selectableDogs)
     {
         if (index <= 0) return null;
 
@@ -350,7 +440,7 @@ public class DogManager : MonoBehaviour
     {
         if (isRefreshingDogDropdowns) return;
 
-        Dog dog = GetDogFromDropdownIndex(index);
+        Dog dog = GetDogFromDropdownIndex(index, selectableFighterDogs);
         SelectFighter1(dog);
     }
 
@@ -358,7 +448,7 @@ public class DogManager : MonoBehaviour
     {
         if (isRefreshingDogDropdowns) return;
 
-        Dog dog = GetDogFromDropdownIndex(index);
+        Dog dog = GetDogFromDropdownIndex(index, selectableFighterDogs);
         SelectFighter2(dog);
     }
 
@@ -659,6 +749,7 @@ public class DogManager : MonoBehaviour
     public void SaveStable()
     {
         StableSaveData saveData = new StableSaveData();
+        saveData.currentWeek = currentWeek;
 
         foreach (Dog dog in ownedDogs)
         {
@@ -669,10 +760,12 @@ public class DogManager : MonoBehaviour
                 dogId = dog.dogId,
                 dogName = dog.dogName,
                 breed = dog.breed,
+                gender = dog.gender,
 
                 generation = dog.generation,
                 parent1Id = dog.parent1Id,
                 parent2Id = dog.parent2Id,
+                lastBredWeek = dog.lastBredWeek,
 
                 age = dog.age,
                 isDead = dog.isDead,
@@ -727,6 +820,11 @@ public class DogManager : MonoBehaviour
             return;
         }
 
+        if (saveData.currentWeek > 0)
+        {
+            currentWeek = saveData.currentWeek;
+        }
+
         foreach (DogSaveData savedDog in saveData.dogs)
         {
             Dog dog = ownedDogs.Find(d => d != null && d.dogId == savedDog.dogId);
@@ -748,10 +846,12 @@ public class DogManager : MonoBehaviour
         dog.dogId = savedDog.dogId;
         dog.dogName = savedDog.dogName;
         dog.breed = savedDog.breed;
+        dog.gender = GetSavedGenderWithFallback(savedDog);
 
         dog.generation = savedDog.generation;
         dog.parent1Id = savedDog.parent1Id;
         dog.parent2Id = savedDog.parent2Id;
+        dog.lastBredWeek = savedDog.lastBredWeek;
 
         dog.age = savedDog.age;
         dog.isDead = savedDog.isDead;
@@ -779,6 +879,18 @@ public class DogManager : MonoBehaviour
         dog.totalFights = savedDog.totalFights;
     }
 
+    DogGender GetSavedGenderWithFallback(DogSaveData savedDog)
+    {
+        bool isLuna = savedDog.dogId == "luna" || savedDog.dogName == "Luna";
+
+        if (isLuna && savedDog.gender == DogGender.Male && savedDog.lastBredWeek == 0)
+        {
+            return DogGender.Female;
+        }
+
+        return savedDog.gender;
+    }
+
     public void ClearStableSave()
     {
         PlayerPrefs.DeleteKey(SaveKey);
@@ -791,6 +903,7 @@ public class DogManager : MonoBehaviour
 
         fighter1Strategy = FightStrategy.Balanced;
         fighter2Strategy = FightStrategy.Balanced;
+        currentWeek = 1;
 
         LoadStartingDogs();
 
@@ -803,11 +916,21 @@ public class DogManager : MonoBehaviour
 
         Debug.Log("Stable save cleared and stable reset.");
     }
+
+    public void AdvanceWeek()
+    {
+        currentWeek++;
+        RefreshDogSelectionDropdowns();
+        DisplayDogs();
+        SaveStable();
+        Debug.Log($"Advanced to Week {currentWeek}.");
+    }
 }
 
 [System.Serializable]
 public class StableSaveData
 {
+    public int currentWeek = 1;
     public List<DogSaveData> dogs = new List<DogSaveData>();
 }
 
@@ -817,10 +940,12 @@ public class DogSaveData
     public string dogId;
     public string dogName;
     public string breed;
+    public DogGender gender;
 
     public int generation;
     public string parent1Id;
     public string parent2Id;
+    public int lastBredWeek = -999;
 
     public int age;
     public bool isDead;
