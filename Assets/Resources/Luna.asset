@@ -12,11 +12,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a044911cf0c65824ea5ad36cd4f6e16b, type: 3}
   m_Name: Luna
   m_EditorClassIdentifier: Assembly-CSharp::Dog
+  dogId: dog_id
   dogName: Luna
   breed: German Shepard
+  gender: 1
+  age: 0
+  isDead: 0
+  isRetired: 0
+  generation: 0
+  parent1Id: 
+  parent2Id: 
+  lastBredWeek: -999
   strength: 75
   agility: 85
   stamina: 70
+  strengthPotential: 100
+  agilityPotential: 100
+  staminaPotential: 100
+  growthRate: 1
+  fightStyle: 0
+  primaryTrait: 0
+  secondaryTrait: 0
   level: 3
+  xp: 0
+  xpToNextLevel: 100
   wins: 4
+  losses: 0
+  totalFights: 0
   dogSprite: {fileID: 0}
