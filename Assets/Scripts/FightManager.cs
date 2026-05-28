@@ -5,6 +5,7 @@ public class FightManager : MonoBehaviour
 {
     [Header("References")]
     public DogManager dogManager;
+    public LeagueManager leagueManager;
     public TextMeshProUGUI fightLog;
 
     [Header("Fight Settings")]
@@ -17,6 +18,11 @@ public class FightManager : MonoBehaviour
         if (dogManager == null)
         {
             dogManager = GetComponent<DogManager>();
+        }
+
+        if (leagueManager == null)
+        {
+            leagueManager = GetComponent<LeagueManager>();
         }
     }
 
@@ -40,12 +46,6 @@ public class FightManager : MonoBehaviour
         if (dog1 == dog2)
         {
             SetLog("A fighter cannot fight itself.");
-            return;
-        }
-
-        if (!dog1.CanFight() || !dog2.CanFight())
-        {
-            SetLog("Retired or deceased dogs cannot fight.");
             return;
         }
 
@@ -119,7 +119,7 @@ public class FightManager : MonoBehaviour
             }
         }
 
-        FightResultData resultData = ResolveFightResult(
+        ResolveFightResult(
             d1,
             d2,
             health1,
@@ -131,24 +131,17 @@ public class FightManager : MonoBehaviour
             ref log
         );
 
-        AdvanceCareerAfterFight(
-            d1,
-            d2,
-            health1,
-            health2,
-            strategy1,
-            strategy2,
-            resultData,
-            ref log
-        );
-
         SetLog(log);
 
         if (dogManager != null)
         {
             dogManager.DisplayDogs();
-            dogManager.RefreshDogSelectionDropdowns();
             dogManager.SaveStable();
+        }
+
+        if (leagueManager != null)
+        {
+            leagueManager.RefreshLeagueProgress();
         }
 
         }
@@ -157,12 +150,12 @@ public class FightManager : MonoBehaviour
     {
         int health = dog.stamina * healthMultiplier;
 
-        if (dog.HasTrait(DogTrait.Durable))
+        if (HasTrait(dog, DogTrait.Durable))
         {
             health += Mathf.RoundToInt(dog.stamina * 0.25f);
         }
 
-        if (dog.HasTrait(DogTrait.GlassCannon))
+        if (HasTrait(dog, DogTrait.GlassCannon))
         {
             health -= Mathf.RoundToInt(dog.stamina * 0.15f);
         }
@@ -191,27 +184,27 @@ public class FightManager : MonoBehaviour
 
     int ApplyTraitModifiers(Dog attacker, Dog defender, int damage, int round)
     {
-        if (attacker.HasTrait(DogTrait.Aggressive))
+        if (HasTrait(attacker, DogTrait.Aggressive))
         {
             damage += 5;
         }
 
-        if (attacker.HasTrait(DogTrait.GlassCannon))
+        if (HasTrait(attacker, DogTrait.GlassCannon))
         {
             damage += 8;
         }
 
-        if (attacker.HasTrait(DogTrait.Clutch) && round >= maxRounds - 1)
+        if (HasTrait(attacker, DogTrait.Clutch) && round >= maxRounds - 1)
         {
             damage += 10;
         }
 
-        if (defender.HasTrait(DogTrait.Durable))
+        if (HasTrait(defender, DogTrait.Durable))
         {
             damage -= 4;
         }
 
-        if (defender.HasTrait(DogTrait.GlassCannon))
+        if (HasTrait(defender, DogTrait.GlassCannon))
         {
             damage += 4;
         }
@@ -416,7 +409,7 @@ public class FightManager : MonoBehaviour
         return "Both fighters reset after a dead-even exchange.";
     }
 
-    FightResultData ResolveFightResult(
+    void ResolveFightResult(
         Dog d1,
         Dog d2,
         int health1,
@@ -428,8 +421,6 @@ public class FightManager : MonoBehaviour
         ref string log
     )
     {
-        FightResultData resultData = new FightResultData();
-
         d1.totalFights++;
         d2.totalFights++;
 
@@ -446,10 +437,6 @@ public class FightManager : MonoBehaviour
                 startingHealth1,
                 d1WasBehind
             );
-
-            resultData.winner = d1;
-            resultData.loser = d2;
-            resultData.resultLabel = resultLabel;
 
             AwardFightXP(d1, true, resultLabel, ref log);
             AwardFightXP(d2, false, resultLabel, ref log);
@@ -471,10 +458,6 @@ public class FightManager : MonoBehaviour
                 d2WasBehind
             );
 
-            resultData.winner = d2;
-            resultData.loser = d1;
-            resultData.resultLabel = resultLabel;
-
             AwardFightXP(d2, true, resultLabel, ref log);
             AwardFightXP(d1, false, resultLabel, ref log);
 
@@ -486,104 +469,8 @@ public class FightManager : MonoBehaviour
             AwardFightXP(d1, false, "Draw", ref log);
             AwardFightXP(d2, false, "Draw", ref log);
 
-            resultData.resultLabel = "Draw";
-
             log += "<b>DRAW!</b>\n";
             log += "<b>Result Type: Dead Even</b>";
-        }
-
-        return resultData;
-    }
-
-    void AdvanceCareerAfterFight(
-        Dog d1,
-        Dog d2,
-        int health1,
-        int health2,
-        FightStrategy strategy1,
-        FightStrategy strategy2,
-        FightResultData resultData,
-        ref string log
-    )
-    {
-        int d1AgeAtFightStart = d1.age;
-        int d2AgeAtFightStart = d2.age;
-
-        d1.age++;
-        d2.age++;
-
-        RollMortalityAfterFight(
-            d1,
-            d1AgeAtFightStart,
-            d1 == resultData.loser,
-            health1 <= 0,
-            d1 == resultData.loser && resultData.resultLabel == "Dominant Finish",
-            strategy1,
-            ref log
-        );
-
-        RollMortalityAfterFight(
-            d2,
-            d2AgeAtFightStart,
-            d2 == resultData.loser,
-            health2 <= 0,
-            d2 == resultData.loser && resultData.resultLabel == "Dominant Finish",
-            strategy2,
-            ref log
-        );
-    }
-
-    void RollMortalityAfterFight(
-        Dog dog,
-        int ageAtFightStart,
-        bool lost,
-        bool endedAtZeroHp,
-        bool lostByDominantFinish,
-        FightStrategy strategy,
-        ref string log
-    )
-    {
-        if (dog == null || dog.isDead || ageAtFightStart < 19)
-        {
-            return;
-        }
-
-        float deathChance = ageAtFightStart >= 26 ? 0.03f : 0.01f;
-
-        if (lost)
-        {
-            deathChance += 0.005f;
-        }
-
-        if (endedAtZeroHp)
-        {
-            deathChance += 0.015f;
-        }
-
-        if (lostByDominantFinish)
-        {
-            deathChance += 0.02f;
-        }
-
-        if (strategy == FightStrategy.AllIn)
-        {
-            deathChance += 0.01f;
-        }
-
-        if (dog.stamina < 40)
-        {
-            deathChance += 0.005f;
-        }
-
-        deathChance = Mathf.Min(deathChance, 0.08f);
-
-        if (Random.value <= deathChance)
-        {
-            dog.isDead = true;
-            dog.isRetired = false;
-
-            log += "\n";
-            log += $"The arena feed goes quiet. {dog.dogName}'s active career ends here, and the bloodline record marks the loss.\n";
         }
     }
 
@@ -641,7 +528,7 @@ public class FightManager : MonoBehaviour
     {
         int xpGain = won ? 35 : 15;
 
-        if (dog.HasTrait(DogTrait.Prodigy))
+        if (HasTrait(dog, DogTrait.Prodigy))
         {
             xpGain += 5;
         }
@@ -696,7 +583,7 @@ public class FightManager : MonoBehaviour
             int agilityGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 4) * dog.growthRate));
             int staminaGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 4) * dog.growthRate));
 
-            if (dog.HasTrait(DogTrait.LateBloomer) && dog.level >= 5)
+            if (HasTrait(dog, DogTrait.LateBloomer) && dog.level >= 5)
             {
                 strengthGain++;
                 agilityGain++;
@@ -712,6 +599,11 @@ public class FightManager : MonoBehaviour
         }
     }
 
+    bool HasTrait(Dog dog, DogTrait trait)
+    {
+        return dog.primaryTrait == trait || dog.secondaryTrait == trait;
+    }
+
     int CalculateXPToNextLevel(int level)
     {
         return 100 + ((level - 1) * 50);
@@ -723,12 +615,5 @@ public class FightManager : MonoBehaviour
         {
             fightLog.text = message;
         }
-    }
-
-    class FightResultData
-    {
-        public Dog winner;
-        public Dog loser;
-        public string resultLabel = "";
     }
 }
