@@ -18,7 +18,8 @@ public class LeagueManager : MonoBehaviour
 
     [Header("References")]
     public DogManager dogManager;
-    public TextMeshProUGUI leagueStatusText;
+    public TextMeshProUGUI leagueQuickText;
+    public TextMeshProUGUI leagueFullStatusText;
 
     [Header("League Progress")]
     public List<LeagueData> leagues = new List<LeagueData>();
@@ -51,7 +52,8 @@ public class LeagueManager : MonoBehaviour
             league.isCompleted = IsLeagueCompleted(league, totalStableWins);
         }
 
-        UpdateLeagueStatusUI();
+        UpdateLeagueQuickText();
+        UpdateLeagueFullStatusText();
     }
 
     public string GetCurrentLeagueName()
@@ -89,17 +91,49 @@ public class LeagueManager : MonoBehaviour
         return summary.ToString();
     }
 
-    public void UpdateLeagueStatusUI()
+    public void UpdateLeagueQuickText()
     {
-        if (leagueStatusText == null)
+        if (leagueQuickText == null)
         {
             return;
         }
 
-        leagueStatusText.text =
-            $"<b>Total Stable Wins:</b> {GetTotalStableWins()}\n" +
-            $"<b>Current League:</b> {GetCurrentLeagueName()}\n\n" +
-            GetLeagueSummaryText();
+        int totalStableWins = GetTotalStableWins();
+        LeagueData nextLockedLeague = GetNextLockedLeague();
+        string nextText = nextLockedLeague != null
+            ? $"{nextLockedLeague.leagueName} at {nextLockedLeague.requiredWinsToUnlock} Wins"
+            : "All Leagues Unlocked";
+
+        leagueQuickText.text = $"League: {GetCurrentLeagueName()} | Wins: {totalStableWins} | Next: {nextText}";
+    }
+
+    public void UpdateLeagueFullStatusText()
+    {
+        if (leagueFullStatusText == null)
+        {
+            return;
+        }
+
+        int totalStableWins = GetTotalStableWins();
+        StringBuilder status = new StringBuilder();
+
+        status.AppendLine($"CURRENT LEAGUE: {GetCurrentLeagueName()}");
+        status.AppendLine($"TOTAL STABLE WINS: {totalStableWins}");
+        status.AppendLine();
+
+        foreach (LeagueData league in leagues)
+        {
+            if (league.isUnlocked)
+            {
+                status.AppendLine($"{league.leagueName} - UNLOCKED");
+            }
+            else
+            {
+                status.AppendLine($"{league.leagueName} - LOCKED: Need {league.requiredWinsToUnlock} Wins");
+            }
+        }
+
+        leagueFullStatusText.text = status.ToString();
     }
 
     public int GetTotalStableWins()
@@ -141,6 +175,19 @@ public class LeagueManager : MonoBehaviour
         }
 
         return currentLeague;
+    }
+
+    LeagueData GetNextLockedLeague()
+    {
+        foreach (LeagueData league in leagues)
+        {
+            if (!league.isUnlocked)
+            {
+                return league;
+            }
+        }
+
+        return null;
     }
 
     bool IsLeagueCompleted(LeagueData league, int totalStableWins)
