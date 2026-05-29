@@ -441,7 +441,7 @@ public class FightManager : MonoBehaviour
             AwardFightXP(d1, true, resultLabel, ref log);
             AwardFightXP(d2, false, resultLabel, ref log);
 
-            log += $"<b>🏆 {d1.dogName} WINS!</b>\n";
+            log += $"<b>WINNER: {d1.dogName}</b>\n";
             log += $"<b>Result Type: {resultLabel}</b>";
         }
         else if (health2 > health1)
@@ -461,7 +461,7 @@ public class FightManager : MonoBehaviour
             AwardFightXP(d2, true, resultLabel, ref log);
             AwardFightXP(d1, false, resultLabel, ref log);
 
-            log += $"<b>🏆 {d2.dogName} WINS!</b>\n";
+            log += $"<b>WINNER: {d2.dogName}</b>\n";
             log += $"<b>Result Type: {resultLabel}</b>";
         }
         else
