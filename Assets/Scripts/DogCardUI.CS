@@ -11,10 +11,6 @@ public class DogCardUI : MonoBehaviour
     [Header("Optional Image")]
     public Image dogImage;
 
-    [Header("Buttons")]
-    public Button selectAsFighter1Button;
-    public Button selectAsFighter2Button;
-
     private Dog dog;
     private DogManager dogManager;
 
@@ -57,27 +53,6 @@ public class DogCardUI : MonoBehaviour
             dogImage.sprite = dog.dogSprite;
             dogImage.enabled = true;
         }
-
-        if (selectAsFighter1Button != null)
-        {
-            selectAsFighter1Button.onClick.RemoveAllListeners();
-            selectAsFighter1Button.onClick.AddListener(SelectAsFighter1);
-            selectAsFighter1Button.interactable = CanSelectDog();
-        }
-
-        if (selectAsFighter2Button != null)
-        {
-            selectAsFighter2Button.onClick.RemoveAllListeners();
-            selectAsFighter2Button.onClick.AddListener(SelectAsFighter2);
-            selectAsFighter2Button.interactable = CanSelectDog();
-        }
-    }
-
-    bool CanSelectDog()
-    {
-        if (dog == null) return false;
-
-        return dog.CanFight();
     }
 
     string GetBreedingStatusText()
@@ -93,41 +68,5 @@ public class DogCardUI : MonoBehaviour
         }
 
         return $"Already Bred This Week | Last Bred Week: {dog.lastBredWeek}";
-    }
-
-    void SelectAsFighter1()
-    {
-        if (!CanSelectDog())
-        {
-            Debug.LogWarning($"{dog.dogName} cannot be selected.");
-            return;
-        }
-
-        if (dogManager != null)
-        {
-            dogManager.SelectFighter1(dog);
-        }
-        else
-        {
-            Debug.LogError("DogManager reference is missing on DogCardUI.");
-        }
-    }
-
-    void SelectAsFighter2()
-    {
-        if (!CanSelectDog())
-        {
-            Debug.LogWarning($"{dog.dogName} cannot be selected.");
-            return;
-        }
-
-        if (dogManager != null)
-        {
-            dogManager.SelectFighter2(dog);
-        }
-        else
-        {
-            Debug.LogError("DogManager reference is missing on DogCardUI.");
-        }
     }
 }
