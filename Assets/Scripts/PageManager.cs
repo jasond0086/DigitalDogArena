@@ -7,6 +7,7 @@ public class PageManager : MonoBehaviour
     public GameObject fightPage;
     public GameObject breedPage;
     public GameObject leaguePage;
+    public GameObject storyPage;
 
     void Start()
     {
@@ -33,6 +34,11 @@ public class PageManager : MonoBehaviour
         SetPage(leaguePage);
     }
 
+    public void ShowStoryPage()
+    {
+        SetPage(storyPage);
+    }
+
     void SetPage(GameObject pageToShow)
     {
         if (stablePage != null)
@@ -53,6 +59,11 @@ public class PageManager : MonoBehaviour
         if (leaguePage != null)
         {
             leaguePage.SetActive(pageToShow == leaguePage);
+        }
+
+        if (storyPage != null)
+        {
+            storyPage.SetActive(pageToShow == storyPage);
         }
     }
 }
