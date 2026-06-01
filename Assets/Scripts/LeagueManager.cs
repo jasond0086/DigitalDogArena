@@ -155,6 +155,21 @@ public class LeagueManager : MonoBehaviour
         return totalWins;
     }
 
+    public bool IsLeagueUnlocked(string leagueName)
+    {
+        RefreshLeagueProgress();
+
+        foreach (LeagueData league in leagues)
+        {
+            if (league.leagueName == leagueName)
+            {
+                return league.isUnlocked;
+            }
+        }
+
+        return false;
+    }
+
     LeagueData GetCurrentLeague()
     {
         LeagueData currentLeague = null;
