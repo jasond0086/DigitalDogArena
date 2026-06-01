@@ -177,11 +177,30 @@ public class RivalManager : MonoBehaviour
         }
     }
 
+    public void ClearRivalSave()
+    {
+        PlayerPrefs.DeleteKey(RivalSaveKey);
+
+        foreach (RivalHandlerData rival in rivals)
+        {
+            if (rival != null)
+            {
+                rival.isDefeated = false;
+            }
+        }
+
+        SaveRivalState();
+        RefreshRivalStatusUI();
+    }
+
     public void RefreshRivalStatusUI()
     {
+        string summaryText = GetRivalSummaryText();
+        Debug.Log($"Rival Status UI:\n{summaryText}");
+
         if (rivalStatusText != null)
         {
-            rivalStatusText.text = GetRivalSummaryText();
+            rivalStatusText.text = summaryText;
         }
     }
 
