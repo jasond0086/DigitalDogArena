@@ -6,6 +6,7 @@ public class FightManager : MonoBehaviour
     [Header("References")]
     public DogManager dogManager;
     public LeagueManager leagueManager;
+    public RivalManager rivalManager;
     public TextMeshProUGUI fightLog;
 
     [Header("Fight Settings")]
@@ -23,6 +24,11 @@ public class FightManager : MonoBehaviour
         if (leagueManager == null)
         {
             leagueManager = GetComponent<LeagueManager>();
+        }
+
+        if (rivalManager == null)
+        {
+            rivalManager = GetComponent<RivalManager>();
         }
     }
 
@@ -50,6 +56,61 @@ public class FightManager : MonoBehaviour
         }
 
         SimulateFight(dog1, dog2);
+    }
+
+    public void StartRivalFight()
+    {
+        if (dogManager == null)
+        {
+            SetLog("DogManager is missing!");
+            return;
+        }
+
+        Dog playerDog = dogManager.selectedFighter1;
+
+        if (playerDog == null)
+        {
+            SetLog("Select Fighter 1 before challenging a rival.");
+            return;
+        }
+
+        if (!playerDog.CanFight())
+        {
+            SetLog($"{playerDog.dogName} cannot enter the arena.");
+            return;
+        }
+
+        if (rivalManager == null)
+        {
+            SetLog("RivalManager is missing!");
+            return;
+        }
+
+        RivalHandlerData rival = rivalManager.GetCurrentRival();
+
+        if (rival == null || rival.rivalDog == null)
+        {
+            SetLog("No undefeated rival is currently available.");
+            return;
+        }
+
+        int playerWinsBeforeFight = playerDog.wins;
+
+        SimulateFight(playerDog, rival.rivalDog);
+
+        if (playerDog.wins > playerWinsBeforeFight)
+        {
+            rivalManager.MarkRivalDefeated(rival.rivalId);
+        }
+
+        rivalManager.RefreshRivalStatusUI();
+
+        if (leagueManager != null)
+        {
+            leagueManager.RefreshLeagueProgress();
+        }
+
+        dogManager.SaveStable();
     }
 
     void SimulateFight(Dog d1, Dog d2)
