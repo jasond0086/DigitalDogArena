@@ -140,7 +140,6 @@ public class StoryManager : MonoBehaviour
         InitializeDefaultEvents();
 
         List<StoryEventData> availableEvents = new List<StoryEventData>();
-        string currentLeagueName = leagueManager != null ? leagueManager.GetCurrentLeagueName() : "";
         int totalStableWins = leagueManager != null ? leagueManager.GetTotalStableWins() : 0;
 
         foreach (StoryEventData storyEvent in storyEvents)
@@ -156,7 +155,7 @@ public class StoryManager : MonoBehaviour
             }
 
             if (!string.IsNullOrEmpty(storyEvent.requiredLeagueName) &&
-                storyEvent.requiredLeagueName != currentLeagueName)
+                (leagueManager == null || !leagueManager.IsLeagueUnlocked(storyEvent.requiredLeagueName)))
             {
                 continue;
             }
