@@ -29,6 +29,7 @@ public class RivalManager : MonoBehaviour
     [Header("References")]
     public DogManager dogManager;
     public LeagueManager leagueManager;
+    public StoryManager storyManager;
     public TextMeshProUGUI rivalStatusText;
 
     [Header("Rival Handlers")]
@@ -44,6 +45,11 @@ public class RivalManager : MonoBehaviour
         if (leagueManager == null)
         {
             leagueManager = GetComponent<LeagueManager>();
+        }
+
+        if (storyManager == null)
+        {
+            storyManager = GetComponent<StoryManager>();
         }
 
         InitializeDefaultRivals();
@@ -99,6 +105,14 @@ public class RivalManager : MonoBehaviour
 
         summary.AppendLine("RIVAL HANDLERS");
         summary.AppendLine();
+
+        if (storyManager != null)
+        {
+            summary.AppendLine($"REPUTATION: {storyManager.reputation}");
+            summary.AppendLine($"UNDERGROUND REPUTATION: {storyManager.undergroundReputation}");
+            summary.AppendLine($"RISK MODIFIER: {storyManager.riskModifier:+0.00;-0.00;0.00}");
+            summary.AppendLine();
+        }
 
         if (currentRival != null)
         {

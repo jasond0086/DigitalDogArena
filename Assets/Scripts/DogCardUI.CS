@@ -45,7 +45,7 @@ public class DogCardUI : MonoBehaviour
                 $"Style: {dog.fightStyle} | Traits: {dog.GetTraitSummary()}\n" +
                 $"Growth: x{dog.growthRate:F2}\n" +
                 $"Gen {dog.generation} | Lvl {dog.level} | XP {dog.xp}/{dog.xpToNextLevel}\n" +
-                $"Record: {dog.wins}-{dog.losses}";
+                $"Record: {dog.wins}W - {dog.losses}L | Fights: {dog.totalFights}";
         }
 
         if (dogImage != null && dog.dogSprite != null)
