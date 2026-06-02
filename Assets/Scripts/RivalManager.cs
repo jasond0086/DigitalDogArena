@@ -134,6 +134,7 @@ public class RivalManager : MonoBehaviour
         }
 
         rival.isDefeated = true;
+        RefreshCompletedLeagues();
         SaveRivalState();
         RefreshRivalStatusUI();
     }
@@ -175,6 +176,8 @@ public class RivalManager : MonoBehaviour
             rival.isDefeated = saveData.defeatedRivalIds != null &&
                                saveData.defeatedRivalIds.Contains(rival.rivalId);
         }
+
+        RefreshCompletedLeagues();
     }
 
     public void ClearRivalSave()
@@ -187,6 +190,11 @@ public class RivalManager : MonoBehaviour
             {
                 rival.isDefeated = false;
             }
+        }
+
+        if (leagueManager != null)
+        {
+            leagueManager.ClearRivalLeagueCompletions();
         }
 
         SaveRivalState();
@@ -326,5 +334,53 @@ public class RivalManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    public void RefreshCompletedLeagues()
+    {
+        if (leagueManager == null)
+        {
+            return;
+        }
+
+        HashSet<string> leagueNames = new HashSet<string>();
+
+        foreach (RivalHandlerData rival in rivals)
+        {
+            if (rival != null)
+            {
+                leagueNames.Add(rival.leagueName);
+            }
+        }
+
+        foreach (string leagueName in leagueNames)
+        {
+            if (AreAllRivalsInLeagueDefeated(leagueName))
+            {
+                leagueManager.MarkLeagueCompleted(leagueName);
+            }
+        }
+    }
+
+    bool AreAllRivalsInLeagueDefeated(string leagueName)
+    {
+        bool foundRival = false;
+
+        foreach (RivalHandlerData rival in rivals)
+        {
+            if (rival == null || rival.leagueName != leagueName)
+            {
+                continue;
+            }
+
+            foundRival = true;
+
+            if (!rival.isDefeated)
+            {
+                return false;
+            }
+        }
+
+        return foundRival;
     }
 }

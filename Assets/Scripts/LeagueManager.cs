@@ -24,6 +24,8 @@ public class LeagueManager : MonoBehaviour
     [Header("League Progress")]
     public List<LeagueData> leagues = new List<LeagueData>();
 
+    private readonly HashSet<string> manuallyCompletedLeagueNames = new HashSet<string>();
+
     void Awake()
     {
         if (dogManager == null)
@@ -49,7 +51,8 @@ public class LeagueManager : MonoBehaviour
         foreach (LeagueData league in leagues)
         {
             league.isUnlocked = totalStableWins >= league.requiredWinsToUnlock;
-            league.isCompleted = IsLeagueCompleted(league, totalStableWins);
+            league.isCompleted = IsLeagueCompleted(league, totalStableWins) ||
+                                 manuallyCompletedLeagueNames.Contains(league.leagueName);
         }
 
         UpdateLeagueQuickText();
@@ -123,7 +126,11 @@ public class LeagueManager : MonoBehaviour
 
         foreach (LeagueData league in leagues)
         {
-            if (league.isUnlocked)
+            if (league.isCompleted)
+            {
+                status.AppendLine($"{league.leagueName} - COMPLETED");
+            }
+            else if (league.isUnlocked)
             {
                 status.AppendLine($"{league.leagueName} - UNLOCKED");
             }
@@ -168,6 +175,22 @@ public class LeagueManager : MonoBehaviour
         }
 
         return false;
+    }
+
+    public void MarkLeagueCompleted(string leagueName)
+    {
+        if (!string.IsNullOrEmpty(leagueName))
+        {
+            manuallyCompletedLeagueNames.Add(leagueName);
+        }
+
+        RefreshLeagueProgress();
+    }
+
+    public void ClearRivalLeagueCompletions()
+    {
+        manuallyCompletedLeagueNames.Clear();
+        RefreshLeagueProgress();
     }
 
     LeagueData GetCurrentLeague()

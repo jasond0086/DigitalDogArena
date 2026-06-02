@@ -7,6 +7,7 @@ public class FightManager : MonoBehaviour
     public DogManager dogManager;
     public LeagueManager leagueManager;
     public RivalManager rivalManager;
+    public StoryManager storyManager;
     public TextMeshProUGUI fightLog;
 
     [Header("Fight Settings")]
@@ -29,6 +30,11 @@ public class FightManager : MonoBehaviour
         if (rivalManager == null)
         {
             rivalManager = GetComponent<RivalManager>();
+        }
+
+        if (storyManager == null)
+        {
+            storyManager = GetComponent<StoryManager>();
         }
     }
 
@@ -101,6 +107,11 @@ public class FightManager : MonoBehaviour
         if (playerDog.wins > playerWinsBeforeFight)
         {
             rivalManager.MarkRivalDefeated(rival.rivalId);
+            ApplyRivalWinReward(rival.leagueName);
+        }
+        else if (storyManager != null)
+        {
+            storyManager.AddRiskModifier(0.02f);
         }
 
         rivalManager.RefreshRivalStatusUI();
@@ -111,6 +122,38 @@ public class FightManager : MonoBehaviour
         }
 
         dogManager.SaveStable();
+    }
+
+    void ApplyRivalWinReward(string leagueName)
+    {
+        if (storyManager == null)
+        {
+            return;
+        }
+
+        switch (leagueName)
+        {
+            case "Street League":
+                storyManager.AddReputation(2);
+                break;
+
+            case "Local Circuit":
+                storyManager.AddReputation(3);
+                break;
+
+            case "Underground Circuit":
+                storyManager.AddReputation(2);
+                storyManager.AddUndergroundReputation(2);
+                break;
+
+            case "Elite Circuit":
+                storyManager.AddReputation(5);
+                break;
+
+            case "Apex League":
+                storyManager.AddReputation(8);
+                break;
+        }
     }
 
     void SimulateFight(Dog d1, Dog d2)

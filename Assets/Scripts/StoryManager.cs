@@ -327,6 +327,27 @@ public class StoryManager : MonoBehaviour
         ShowNextAvailableEvent();
     }
 
+    public void AddReputation(int amount)
+    {
+        reputation += amount;
+        SaveStoryState();
+        RefreshStoryUI();
+    }
+
+    public void AddUndergroundReputation(int amount)
+    {
+        undergroundReputation += amount;
+        SaveStoryState();
+        RefreshStoryUI();
+    }
+
+    public void AddRiskModifier(float amount)
+    {
+        riskModifier += amount;
+        SaveStoryState();
+        RefreshStoryUI();
+    }
+
     public void RefreshStoryUI()
     {
         if (activeStoryEvent == null)
