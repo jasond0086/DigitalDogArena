@@ -8,6 +8,7 @@ public class FightManager : MonoBehaviour
     public LeagueManager leagueManager;
     public RivalManager rivalManager;
     public StoryManager storyManager;
+    public EconomyManager economyManager;
     public TextMeshProUGUI fightLog;
 
     [Header("Fight Settings")]
@@ -36,6 +37,11 @@ public class FightManager : MonoBehaviour
         {
             storyManager = GetComponent<StoryManager>();
         }
+
+        if (economyManager == null)
+        {
+            economyManager = GetComponent<EconomyManager>();
+        }
     }
 
     public void StartFight()
@@ -61,7 +67,22 @@ public class FightManager : MonoBehaviour
             return;
         }
 
+        int dog1WinsBeforeFight = dog1.wins;
+        int dog2WinsBeforeFight = dog2.wins;
+
         SimulateFight(dog1, dog2);
+
+        if (economyManager != null)
+        {
+            if (dog1.wins > dog1WinsBeforeFight)
+            {
+                economyManager.AddCredits(50, $"Normal fight win by {dog1.dogName}");
+            }
+            else if (dog2.wins > dog2WinsBeforeFight)
+            {
+                economyManager.AddCredits(50, $"Normal fight win by {dog2.dogName}");
+            }
+        }
     }
 
     public void StartRivalFight()
@@ -108,6 +129,7 @@ public class FightManager : MonoBehaviour
         {
             rivalManager.MarkRivalDefeated(rival.rivalId);
             ApplyRivalWinReward(rival.leagueName);
+            ApplyRivalCreditReward(rival.leagueName);
         }
         else if (storyManager != null)
         {
@@ -152,6 +174,37 @@ public class FightManager : MonoBehaviour
 
             case "Apex League":
                 storyManager.AddReputation(8);
+                break;
+        }
+    }
+
+    void ApplyRivalCreditReward(string leagueName)
+    {
+        if (economyManager == null)
+        {
+            return;
+        }
+
+        switch (leagueName)
+        {
+            case "Street League":
+                economyManager.AddCredits(150, "Street League rival defeated");
+                break;
+
+            case "Local Circuit":
+                economyManager.AddCredits(250, "Local Circuit rival defeated");
+                break;
+
+            case "Underground Circuit":
+                economyManager.AddCredits(400, "Underground Circuit rival defeated");
+                break;
+
+            case "Elite Circuit":
+                economyManager.AddCredits(650, "Elite Circuit rival defeated");
+                break;
+
+            case "Apex League":
+                economyManager.AddCredits(1000, "Apex League rival defeated");
                 break;
         }
     }

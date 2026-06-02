@@ -5,6 +5,7 @@ public class BreedingManager : MonoBehaviour
 {
     [Header("References")]
     public DogManager dogManager;
+    public EconomyManager economyManager;
     public TextMeshProUGUI breedingLog;
 
     [Header("Breeding Settings")]
@@ -19,6 +20,11 @@ public class BreedingManager : MonoBehaviour
         if (dogManager == null)
         {
             dogManager = GetComponent<DogManager>();
+        }
+
+        if (economyManager == null)
+        {
+            economyManager = GetComponent<EconomyManager>();
         }
     }
 
@@ -63,6 +69,22 @@ public class BreedingManager : MonoBehaviour
             return;
         }
 
+        int breedingCost = CalculateBreedingCost(parent1, parent2);
+
+        if (economyManager == null)
+        {
+            SetLog("EconomyManager is missing!");
+            return;
+        }
+
+        if (!economyManager.CanAfford(breedingCost))
+        {
+            SetLog($"Breeding costs {breedingCost} credits. Not enough credits.");
+            return;
+        }
+
+        economyManager.SpendCredits(breedingCost, $"Breeding {parent1.dogName} and {parent2.dogName}");
+
         Dog newborn = CreateNewborn(parent1, parent2);
 
         parent1.lastBredWeek = dogManager.currentWeek;
@@ -85,8 +107,55 @@ public class BreedingManager : MonoBehaviour
             $"Style: {newborn.fightStyle}\n\n" +
             $"Traits: {newborn.GetTraitSummary()}\n\n" +
             $"Parents: {parent1.dogName} ({parent1.gender}) x {parent2.dogName} ({parent2.gender})\n" +
-            $"Week: {dogManager.currentWeek}"
+            $"Week: {dogManager.currentWeek}\n" +
+            $"Breeding Cost: {breedingCost} credits"
         );
+    }
+
+    public int CalculateBreedingCost(Dog parent1, Dog parent2)
+    {
+        if (parent1 == null || parent2 == null)
+        {
+            return 0;
+        }
+
+        return 100 +
+               GetTierCost(parent1.GetPotentialTier()) +
+               GetTierCost(parent2.GetPotentialTier()) +
+               GetTraitPremium(parent1.primaryTrait) +
+               GetTraitPremium(parent1.secondaryTrait) +
+               GetTraitPremium(parent2.primaryTrait) +
+               GetTraitPremium(parent2.secondaryTrait);
+    }
+
+    int GetTierCost(string tier)
+    {
+        switch (tier)
+        {
+            case "Street": return 25;
+            case "Prospect": return 50;
+            case "Contender": return 100;
+            case "Elite": return 200;
+            case "Apex": return 400;
+            case "Legendary": return 800;
+            default: return 0;
+        }
+    }
+
+    int GetTraitPremium(DogTrait trait)
+    {
+        switch (trait)
+        {
+            case DogTrait.Prodigy: return 150;
+            case DogTrait.LateBloomer: return 100;
+            case DogTrait.Clutch: return 75;
+            case DogTrait.Durable: return 75;
+            case DogTrait.Aggressive: return 50;
+            case DogTrait.GlassCannon: return 50;
+            case DogTrait.None:
+            default:
+                return 0;
+        }
     }
 
     Dog CreateNewborn(Dog parent1, Dog parent2)
