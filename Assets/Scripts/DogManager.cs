@@ -19,6 +19,9 @@ public class DogManager : MonoBehaviour
     public TextMeshProUGUI selectedFightersText;
     public TextMeshProUGUI matchupPreviewText;
 
+    [Header("Economy")]
+    public EconomyManager economyManager;
+
     [Header("Dog Selection Dropdowns")]
     public TMP_Dropdown fighter1DogDropdown;
     public TMP_Dropdown fighter2DogDropdown;
@@ -47,6 +50,11 @@ public class DogManager : MonoBehaviour
 
     void Start()
     {
+        if (economyManager == null)
+        {
+            economyManager = GetComponent<EconomyManager>();
+        }
+
         LoadStartingDogs();
         LoadStable();
 
@@ -919,6 +927,15 @@ public class DogManager : MonoBehaviour
 
     public void AdvanceWeek()
     {
+        if (economyManager != null)
+        {
+            economyManager.PayWeeklyUpkeep(ownedDogs);
+        }
+        else
+        {
+            Debug.LogWarning("EconomyManager is missing. Advanced week without paying upkeep.");
+        }
+
         currentWeek++;
         RefreshDogSelectionDropdowns();
         DisplayDogs();

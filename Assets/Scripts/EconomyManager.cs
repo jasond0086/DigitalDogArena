@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -56,6 +57,42 @@ public class EconomyManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    public int CalculateWeeklyUpkeep(List<Dog> dogs)
+    {
+        int activeDogCount = 0;
+
+        if (dogs != null)
+        {
+            foreach (Dog dog in dogs)
+            {
+                if (dog != null && !dog.isDead && !dog.isRetired)
+                {
+                    activeDogCount++;
+                }
+            }
+        }
+
+        return 50 + (activeDogCount * 10);
+    }
+
+    public bool PayWeeklyUpkeep(List<Dog> dogs)
+    {
+        int upkeepCost = CalculateWeeklyUpkeep(dogs);
+
+        if (SpendCredits(upkeepCost, "Weekly kennel upkeep"))
+        {
+            Debug.Log($"Paid {upkeepCost} credits in weekly upkeep.");
+            return true;
+        }
+
+        credits = 0;
+        RefreshCreditsUI();
+        SaveEconomy();
+        Debug.Log("Could not afford full upkeep. Credits dropped to 0.");
+
+        return false;
     }
 
     public void SaveEconomy()
