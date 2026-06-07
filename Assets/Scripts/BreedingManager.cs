@@ -6,6 +6,7 @@ public class BreedingManager : MonoBehaviour
     [Header("References")]
     public DogManager dogManager;
     public EconomyManager economyManager;
+    public NarratorManager narratorManager;
     public TextMeshProUGUI breedingLog;
 
     [Header("Breeding Settings")]
@@ -26,13 +27,18 @@ public class BreedingManager : MonoBehaviour
         {
             economyManager = GetComponent<EconomyManager>();
         }
+
+        if (narratorManager == null)
+        {
+            narratorManager = GetComponent<NarratorManager>();
+        }
     }
 
     public void BreedSelectedFighters()
     {
         if (dogManager == null)
         {
-            SetLog("DogManager is missing!");
+            BlockBreeding("DogManager is missing!");
             return;
         }
 
@@ -41,31 +47,31 @@ public class BreedingManager : MonoBehaviour
 
         if (parent1 == null || parent2 == null)
         {
-            SetLog("Select two parents first.");
+            BlockBreeding("Select two parents first.");
             return;
         }
 
         if (parent1 == parent2)
         {
-            SetLog("A dog cannot breed with itself.");
+            BlockBreeding("A dog cannot breed with itself.");
             return;
         }
 
         if (!parent1.CanBreed() || !parent2.CanBreed())
         {
-            SetLog(GetBreedingBlockedMessage(parent1, parent2));
+            BlockBreeding(GetBreedingBlockedMessage(parent1, parent2));
             return;
         }
 
         if (parent1.gender == parent2.gender)
         {
-            SetLog("Breeding requires one female and one male.");
+            BlockBreeding("Breeding requires one female and one male.");
             return;
         }
 
         if (!parent1.CanBreedInWeek(dogManager.currentWeek) || !parent2.CanBreedInWeek(dogManager.currentWeek))
         {
-            SetLog("One or both dogs have already bred this week.");
+            BlockBreeding("One or both dogs have already bred this week.");
             return;
         }
 
@@ -73,13 +79,13 @@ public class BreedingManager : MonoBehaviour
 
         if (economyManager == null)
         {
-            SetLog("EconomyManager is missing!");
+            BlockBreeding("EconomyManager is missing!");
             return;
         }
 
         if (!economyManager.CanAfford(breedingCost))
         {
-            SetLog($"Breeding costs {breedingCost} credits. Not enough credits.");
+            BlockBreeding($"Breeding costs {breedingCost} credits. Not enough credits.");
             return;
         }
 
@@ -110,6 +116,8 @@ public class BreedingManager : MonoBehaviour
             $"Week: {dogManager.currentWeek}\n" +
             $"Breeding Cost: {breedingCost} credits"
         );
+
+        SetNarration($"{newborn.dogName} enters the kennel. The bloodline grows.");
     }
 
     public int CalculateBreedingCost(Dog parent1, Dog parent2)
@@ -397,6 +405,20 @@ public class BreedingManager : MonoBehaviour
         if (breedingLog != null)
         {
             breedingLog.text = message;
+        }
+    }
+
+    void BlockBreeding(string message)
+    {
+        SetLog(message);
+        SetNarration(message);
+    }
+
+    void SetNarration(string message)
+    {
+        if (narratorManager != null)
+        {
+            narratorManager.SetNarration(message);
         }
     }
 

@@ -21,6 +21,7 @@ public class DogManager : MonoBehaviour
 
     [Header("Economy")]
     public EconomyManager economyManager;
+    public NarratorManager narratorManager;
 
     [Header("Dog Selection Dropdowns")]
     public TMP_Dropdown fighter1DogDropdown;
@@ -53,6 +54,11 @@ public class DogManager : MonoBehaviour
         if (economyManager == null)
         {
             economyManager = GetComponent<EconomyManager>();
+        }
+
+        if (narratorManager == null)
+        {
+            narratorManager = GetComponent<NarratorManager>();
         }
 
         LoadStartingDogs();
@@ -927,9 +933,13 @@ public class DogManager : MonoBehaviour
 
     public void AdvanceWeek()
     {
+        bool paidUpkeep = false;
+        int upkeepCost = 0;
+
         if (economyManager != null)
         {
-            economyManager.PayWeeklyUpkeep(ownedDogs);
+            upkeepCost = economyManager.CalculateWeeklyUpkeep(ownedDogs);
+            paidUpkeep = economyManager.PayWeeklyUpkeep(ownedDogs);
         }
         else
         {
@@ -941,6 +951,27 @@ public class DogManager : MonoBehaviour
         DisplayDogs();
         SaveStable();
         Debug.Log($"Advanced to Week {currentWeek}.");
+
+        if (economyManager != null)
+        {
+            string upkeepText = paidUpkeep
+                ? $"Paid {upkeepCost} credits in upkeep."
+                : "Could not afford upkeep. Credits dropped to 0.";
+
+            SetNarration($"Week {currentWeek} begins. {upkeepText}");
+        }
+        else
+        {
+            SetNarration($"Week {currentWeek} begins.");
+        }
+    }
+
+    void SetNarration(string message)
+    {
+        if (narratorManager != null)
+        {
+            narratorManager.SetNarration(message);
+        }
     }
 }
 

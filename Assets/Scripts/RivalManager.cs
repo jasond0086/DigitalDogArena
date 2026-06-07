@@ -30,6 +30,7 @@ public class RivalManager : MonoBehaviour
     public DogManager dogManager;
     public LeagueManager leagueManager;
     public StoryManager storyManager;
+    public NarratorManager narratorManager;
     public TextMeshProUGUI rivalStatusText;
 
     [Header("Rival Handlers")]
@@ -50,6 +51,11 @@ public class RivalManager : MonoBehaviour
         if (storyManager == null)
         {
             storyManager = GetComponent<StoryManager>();
+        }
+
+        if (narratorManager == null)
+        {
+            narratorManager = GetComponent<NarratorManager>();
         }
 
         InitializeDefaultRivals();
@@ -151,6 +157,7 @@ public class RivalManager : MonoBehaviour
         RefreshCompletedLeagues();
         SaveRivalState();
         RefreshRivalStatusUI();
+        SetNarration($"{rival.handlerName} has been defeated.");
     }
 
     public void SaveRivalState()
@@ -396,5 +403,13 @@ public class RivalManager : MonoBehaviour
         }
 
         return foundRival;
+    }
+
+    void SetNarration(string message)
+    {
+        if (narratorManager != null)
+        {
+            narratorManager.SetNarration(message);
+        }
     }
 }

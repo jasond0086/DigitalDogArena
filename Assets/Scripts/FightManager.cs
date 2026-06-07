@@ -9,6 +9,7 @@ public class FightManager : MonoBehaviour
     public RivalManager rivalManager;
     public StoryManager storyManager;
     public EconomyManager economyManager;
+    public NarratorManager narratorManager;
     public TextMeshProUGUI fightLog;
 
     [Header("Fight Settings")]
@@ -41,6 +42,11 @@ public class FightManager : MonoBehaviour
         if (economyManager == null)
         {
             economyManager = GetComponent<EconomyManager>();
+        }
+
+        if (narratorManager == null)
+        {
+            narratorManager = GetComponent<NarratorManager>();
         }
     }
 
@@ -82,6 +88,19 @@ public class FightManager : MonoBehaviour
             {
                 economyManager.AddCredits(50, $"Normal fight win by {dog2.dogName}");
             }
+        }
+
+        if (dog1.wins > dog1WinsBeforeFight)
+        {
+            SetNarration($"{dog1.dogName} wins in the arena. The stable earns 50 credits.");
+        }
+        else if (dog2.wins > dog2WinsBeforeFight)
+        {
+            SetNarration($"{dog2.dogName} wins in the arena. The stable earns 50 credits.");
+        }
+        else
+        {
+            SetNarration($"{dog1.dogName} and {dog2.dogName} leave the arena with no clear winner.");
         }
     }
 
@@ -130,10 +149,12 @@ public class FightManager : MonoBehaviour
             rivalManager.MarkRivalDefeated(rival.rivalId);
             ApplyRivalWinReward(rival.leagueName);
             ApplyRivalCreditReward(rival.leagueName);
+            SetNarration($"{playerDog.dogName} defeats {rival.handlerName}. A rival gate falls.");
         }
         else if (storyManager != null)
         {
             storyManager.AddRiskModifier(0.02f);
+            SetNarration($"{rival.handlerName} holds the line. The stable leaves with sharper risk.");
         }
 
         rivalManager.RefreshRivalStatusUI();
@@ -771,6 +792,14 @@ public class FightManager : MonoBehaviour
         if (fightLog != null)
         {
             fightLog.text = message;
+        }
+    }
+
+    void SetNarration(string message)
+    {
+        if (narratorManager != null)
+        {
+            narratorManager.SetNarration(message);
         }
     }
 }

@@ -11,9 +11,15 @@ public class EconomyManager : MonoBehaviour
 
     [Header("Optional UI")]
     public TextMeshProUGUI creditsText;
+    public NarratorManager narratorManager;
 
     void Awake()
     {
+        if (narratorManager == null)
+        {
+            narratorManager = GetComponent<NarratorManager>();
+        }
+
         LoadEconomy();
         RefreshCreditsUI();
     }
@@ -32,6 +38,7 @@ public class EconomyManager : MonoBehaviour
         if (!string.IsNullOrEmpty(reason))
         {
             Debug.Log($"Credits +{amount}: {reason}. Balance: {credits}");
+            SetNarration($"+{amount} credits. {reason}.");
         }
     }
 
@@ -54,6 +61,7 @@ public class EconomyManager : MonoBehaviour
         if (!string.IsNullOrEmpty(reason))
         {
             Debug.Log($"Credits -{amount}: {reason}. Balance: {credits}");
+            SetNarration($"-{amount} credits. {reason}.");
         }
 
         return true;
@@ -91,6 +99,7 @@ public class EconomyManager : MonoBehaviour
         RefreshCreditsUI();
         SaveEconomy();
         Debug.Log("Could not afford full upkeep. Credits dropped to 0.");
+        SetNarration("Could not afford full upkeep. Credits dropped to 0.");
 
         return false;
     }
@@ -117,5 +126,13 @@ public class EconomyManager : MonoBehaviour
     public string GetCreditsSummaryText()
     {
         return $"Credits: {credits}";
+    }
+
+    void SetNarration(string message)
+    {
+        if (narratorManager != null)
+        {
+            narratorManager.SetNarration(message);
+        }
     }
 }

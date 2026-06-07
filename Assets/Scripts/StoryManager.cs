@@ -43,6 +43,7 @@ public class StoryManager : MonoBehaviour
     [Header("References")]
     public DogManager dogManager;
     public LeagueManager leagueManager;
+    public NarratorManager narratorManager;
 
     [Header("Story UI")]
     public TextMeshProUGUI storyText;
@@ -73,6 +74,11 @@ public class StoryManager : MonoBehaviour
         if (leagueManager == null)
         {
             leagueManager = GetComponent<LeagueManager>();
+        }
+
+        if (narratorManager == null)
+        {
+            narratorManager = GetComponent<NarratorManager>();
         }
 
         InitializeDefaultEvents();
@@ -223,6 +229,7 @@ public class StoryManager : MonoBehaviour
         }
 
         SaveStoryState();
+        SetNarration($"Story choice made: {choice.choiceText}");
         ShowChoiceResult(choice);
     }
 
@@ -362,6 +369,7 @@ public class StoryManager : MonoBehaviour
 
         if (activeStoryEvent == null)
         {
+            SetNarration("No new story events are available right now.");
             SetStoryText(GetStorySummaryText());
             ConfigureChoiceButton(choice1Button, choice1Text, null, -1);
             ConfigureChoiceButton(choice2Button, choice2Text, null, -1);
@@ -495,5 +503,13 @@ public class StoryManager : MonoBehaviour
             riskModifierChange = riskModifierChange,
             unlockEventId = unlockEventId
         };
+    }
+
+    void SetNarration(string message)
+    {
+        if (narratorManager != null)
+        {
+            narratorManager.SetNarration(message);
+        }
     }
 }
