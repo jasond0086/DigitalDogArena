@@ -6112,6 +6112,7 @@ MonoBehaviour:
   dogCardPrefab: {fileID: 3822243240600474280, guid: 33e323764d3db0e4b87ddf12b5ff9fba, type: 3}
   selectedFightersText: {fileID: 624626475}
   matchupPreviewText: {fileID: 1905001609}
+  economyManager: {fileID: 867636177}
   fighter1DogDropdown: {fileID: 1021408379}
   fighter2DogDropdown: {fileID: 1504322686}
   parent1DogDropdown: {fileID: 1162447805}
@@ -6371,7 +6372,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 709ba2c9b17bad34f962561099e95552, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EconomyManager
-  credits: 500
+  credits: 20
   creditsText: {fileID: 952860815}
 --- !u!1 &913637382
 GameObject:
