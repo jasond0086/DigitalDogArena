@@ -42,6 +42,32 @@ public class BreedingManager : MonoBehaviour
             return;
         }
 
+        dogManager.RefreshDogSelectionDropdowns();
+
+        if (dogManager.parent1DogDropdown == null || dogManager.parent2DogDropdown == null)
+        {
+            BlockBreeding("Parent dropdown is missing.");
+            return;
+        }
+
+        if (dogManager.parent1DogDropdown.options == null ||
+            dogManager.parent2DogDropdown.options == null ||
+            dogManager.parent1DogDropdown.options.Count <= 1 ||
+            dogManager.parent2DogDropdown.options.Count <= 1)
+        {
+            BlockBreeding("No eligible parents are available.");
+            return;
+        }
+
+        if (dogManager.parent1DogDropdown.value < 0 ||
+            dogManager.parent1DogDropdown.value >= dogManager.parent1DogDropdown.options.Count ||
+            dogManager.parent2DogDropdown.value < 0 ||
+            dogManager.parent2DogDropdown.value >= dogManager.parent2DogDropdown.options.Count)
+        {
+            BlockBreeding("Invalid parent selection.");
+            return;
+        }
+
         Dog parent1 = dogManager.selectedParent1;
         Dog parent2 = dogManager.selectedParent2;
 
@@ -57,9 +83,15 @@ public class BreedingManager : MonoBehaviour
             return;
         }
 
-        if (!parent1.CanBreed() || !parent2.CanBreed())
+        if (parent1.isDead || parent2.isDead)
         {
-            BlockBreeding(GetBreedingBlockedMessage(parent1, parent2));
+            BlockBreeding("Deceased dogs cannot breed.");
+            return;
+        }
+
+        if (parent1.isRetired || parent2.isRetired)
+        {
+            BlockBreeding("Retired dogs cannot breed for now.");
             return;
         }
 
@@ -93,13 +125,26 @@ public class BreedingManager : MonoBehaviour
 
         Dog newborn = CreateNewborn(parent1, parent2);
 
+        if (newborn == null)
+        {
+            BlockBreeding("Puppy creation failed.");
+            return;
+        }
+
         parent1.lastBredWeek = dogManager.currentWeek;
         parent2.lastBredWeek = dogManager.currentWeek;
 
         dogManager.AddOwnedDog(newborn);
+
+        if (!dogManager.ownedDogs.Contains(newborn))
+        {
+            BlockBreeding("Dog manager add failed.");
+            return;
+        }
+
         dogManager.SaveStable();
 
-        SetLog(
+        LogBreedingMessage(
             $"<b>Newborn Created!</b>\n\n" +
             $"Name: {newborn.dogName}\n" +
             $"Breed: {newborn.breed}\n" +
@@ -116,8 +161,6 @@ public class BreedingManager : MonoBehaviour
             $"Week: {dogManager.currentWeek}\n" +
             $"Breeding Cost: {breedingCost} credits"
         );
-
-        SetNarration($"{newborn.dogName} enters the kennel. The bloodline grows.");
     }
 
     public int CalculateBreedingCost(Dog parent1, Dog parent2)
@@ -400,26 +443,35 @@ public class BreedingManager : MonoBehaviour
         return prefix + suffix;
     }
 
-    void SetLog(string message)
+    void BlockBreeding(string message)
     {
-        if (breedingLog != null)
+        LogBreedingMessage(message);
+    }
+
+    private void LogBreedingMessage(string message)
+    {
+        if (narratorManager == null)
+        {
+            Debug.LogWarning("Breeding narratorManager is null.");
+            narratorManager = GetComponent<NarratorManager>();
+        }
+
+        if (narratorManager == null)
+        {
+            narratorManager = FindFirstObjectByType<NarratorManager>();
+        }
+
+        if (narratorManager != null)
+        {
+            Debug.Log("Sending breeding message to NarratorManager.");
+            narratorManager.SetNarration(message);
+        }
+        else if (breedingLog != null)
         {
             breedingLog.text = message;
         }
-    }
 
-    void BlockBreeding(string message)
-    {
-        SetLog(message);
-        SetNarration(message);
-    }
-
-    void SetNarration(string message)
-    {
-        if (narratorManager != null)
-        {
-            narratorManager.SetNarration(message);
-        }
+        Debug.Log(message);
     }
 
     class ListTraitPool

@@ -55,8 +55,6 @@ public class NarratorManager : MonoBehaviour
         TrimNarratorLog();
         RefreshNarratorLogUI();
         SaveNarratorLog();
-
-        Debug.Log($"Narrator: {currentMessage}");
     }
 
     public void ClearNarration()
@@ -105,18 +103,25 @@ public class NarratorManager : MonoBehaviour
 
         narrationLog = new List<string>(saveData.entries);
         TrimNarratorLog();
+
+        if (string.IsNullOrEmpty(currentMessage) && narrationLog.Count > 0)
+        {
+            currentMessage = narrationLog[narrationLog.Count - 1];
+        }
     }
 
     public void RefreshNarratorLogUI()
     {
+        string visibleMessage = GetVisibleNarratorMessage(currentMessage);
+
         if (narratorText != null)
         {
-            narratorText.text = currentMessage;
+            narratorText.text = visibleMessage;
         }
 
         if (narratorLogText != null)
         {
-            narratorLogText.text = string.Join("\n", narrationLog.ToArray());
+            narratorLogText.text = visibleMessage;
         }
 
         ScrollToBottom();
@@ -140,6 +145,25 @@ public class NarratorManager : MonoBehaviour
         {
             narrationLog.RemoveAt(0);
         }
+    }
+
+    private string GetVisibleNarratorMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "";
+        }
+
+        string cleaned = message.Replace("\r", " ").Replace("\n", " ").Trim();
+
+        const int maxLength = 110;
+
+        if (cleaned.Length > maxLength)
+        {
+            cleaned = cleaned.Substring(0, maxLength) + "...";
+        }
+
+        return cleaned;
     }
 
     void ScrollToBottom()
