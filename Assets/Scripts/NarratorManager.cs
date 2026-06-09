@@ -7,6 +7,12 @@ public class NarratorManager : MonoBehaviour
 {
     private const string NarratorLogSaveKey = "NARRATOR_LOG_SAVE";
 
+    private enum NarratorTab
+    {
+        Feed,
+        Details
+    }
+
     [Header("Narrator UI")]
     public TextMeshProUGUI narratorText;
     public TextMeshProUGUI narratorLogText;
@@ -17,8 +23,11 @@ public class NarratorManager : MonoBehaviour
 
     [Header("Current Message")]
     public string currentMessage;
+    public string currentHeadline;
+    public string currentDetails;
 
     private List<string> narrationLog = new List<string>();
+    private NarratorTab currentNarratorTab = NarratorTab.Feed;
 
     [System.Serializable]
     private class NarratorLogSaveData
@@ -40,6 +49,8 @@ public class NarratorManager : MonoBehaviour
         }
 
         currentMessage = narrationLog[narrationLog.Count - 1];
+        currentHeadline = GetVisibleNarratorMessage(currentMessage);
+        currentDetails = currentMessage;
         RefreshNarratorLogUI();
     }
 
@@ -51,6 +62,24 @@ public class NarratorManager : MonoBehaviour
         }
 
         currentMessage = message;
+        currentHeadline = GetVisibleNarratorMessage(message);
+        currentDetails = message;
+        narrationLog.Add(currentMessage);
+        TrimNarratorLog();
+        RefreshNarratorLogUI();
+        SaveNarratorLog();
+    }
+
+    public void SetNarration(string headline, string details)
+    {
+        if (string.IsNullOrEmpty(headline) && string.IsNullOrEmpty(details))
+        {
+            return;
+        }
+
+        currentHeadline = GetVisibleNarratorMessage(string.IsNullOrEmpty(headline) ? details : headline);
+        currentDetails = string.IsNullOrEmpty(details) ? headline : details;
+        currentMessage = currentDetails;
         narrationLog.Add(currentMessage);
         TrimNarratorLog();
         RefreshNarratorLogUI();
@@ -60,6 +89,8 @@ public class NarratorManager : MonoBehaviour
     public void ClearNarration()
     {
         currentMessage = "";
+        currentHeadline = "";
+        currentDetails = "";
 
         if (narratorText != null)
         {
@@ -108,11 +139,23 @@ public class NarratorManager : MonoBehaviour
         {
             currentMessage = narrationLog[narrationLog.Count - 1];
         }
+
+        if (string.IsNullOrEmpty(currentDetails))
+        {
+            currentDetails = currentMessage;
+        }
+
+        if (string.IsNullOrEmpty(currentHeadline))
+        {
+            currentHeadline = GetVisibleNarratorMessage(currentMessage);
+        }
     }
 
     public void RefreshNarratorLogUI()
     {
-        string visibleMessage = GetVisibleNarratorMessage(currentMessage);
+        string visibleMessage = currentNarratorTab == NarratorTab.Details
+            ? currentDetails
+            : currentHeadline;
 
         if (narratorText != null)
         {
@@ -127,10 +170,34 @@ public class NarratorManager : MonoBehaviour
         ScrollToBottom();
     }
 
+    public void ShowFeedTab()
+    {
+        currentNarratorTab = NarratorTab.Feed;
+        RefreshNarratorLogUI();
+    }
+
+    public void ShowDetailsTab()
+    {
+        currentNarratorTab = NarratorTab.Details;
+        RefreshNarratorLogUI();
+    }
+
+    public void ButtonShowFeedTab()
+    {
+        ShowFeedTab();
+    }
+
+    public void ButtonShowDetailsTab()
+    {
+        ShowDetailsTab();
+    }
+
     public void ClearNarratorLog()
     {
         narrationLog.Clear();
         currentMessage = "";
+        currentHeadline = "";
+        currentDetails = "";
         PlayerPrefs.DeleteKey(NarratorLogSaveKey);
         PlayerPrefs.Save();
         RefreshNarratorLogUI();
