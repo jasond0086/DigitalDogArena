@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class EconomyManager : MonoBehaviour
 {
-    private const string EconomySaveKey = "ECONOMY_STATE_SAVE";
+    private const string SaveKey = "ECONOMY_STATE_SAVE";
 
     [Header("Economy")]
     public int credits = 500;
@@ -33,7 +33,6 @@ public class EconomyManager : MonoBehaviour
     {
         credits += amount;
         SaveEconomy();
-        RefreshCreditsUI();
 
         if (!string.IsNullOrEmpty(reason))
         {
@@ -56,7 +55,6 @@ public class EconomyManager : MonoBehaviour
 
         credits -= amount;
         SaveEconomy();
-        RefreshCreditsUI();
 
         if (!string.IsNullOrEmpty(reason))
         {
@@ -106,13 +104,32 @@ public class EconomyManager : MonoBehaviour
 
     public void SaveEconomy()
     {
-        PlayerPrefs.SetInt(EconomySaveKey, credits);
+        PlayerPrefs.SetInt(SaveKey, credits);
         PlayerPrefs.Save();
+        RefreshCreditsUI();
     }
 
     public void LoadEconomy()
     {
-        credits = PlayerPrefs.GetInt(EconomySaveKey, credits);
+        if (PlayerPrefs.HasKey(SaveKey))
+        {
+            credits = PlayerPrefs.GetInt(SaveKey);
+        }
+
+        RefreshCreditsUI();
+    }
+
+    public void ClearEconomySave()
+    {
+        PlayerPrefs.DeleteKey(SaveKey);
+        credits = 500;
+        RefreshCreditsUI();
+        SaveEconomy();
+    }
+
+    public void AddTestCredits()
+    {
+        AddCredits(1000, "Debug credit grant");
     }
 
     public void RefreshCreditsUI()
