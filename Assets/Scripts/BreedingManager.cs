@@ -144,8 +144,9 @@ public class BreedingManager : MonoBehaviour
 
         dogManager.SaveStable();
 
-        LogBreedingMessage(
-            $"<b>Newborn Created!</b>\n\n" +
+        string headline = $"Newborn created: {newborn.dogName} ({newborn.gender}) - {newborn.GetPotentialTitle()}";
+        string details =
+            "Newborn Created!\n\n" +
             $"Name: {newborn.dogName}\n" +
             $"Breed: {newborn.breed}\n" +
             $"Gender: {newborn.gender}\n" +
@@ -159,8 +160,17 @@ public class BreedingManager : MonoBehaviour
             $"Traits: {newborn.GetTraitSummary()}\n\n" +
             $"Parents: {parent1.dogName} ({parent1.gender}) x {parent2.dogName} ({parent2.gender})\n" +
             $"Week: {dogManager.currentWeek}\n" +
-            $"Breeding Cost: {breedingCost} credits"
-        );
+            $"Breeding Cost: {breedingCost} credits";
+
+        if (narratorManager != null)
+        {
+            narratorManager.SetNarration(headline, details);
+            Debug.Log(details);
+        }
+        else
+        {
+            LogBreedingMessage(details);
+        }
     }
 
     public int CalculateBreedingCost(Dog parent1, Dog parent2)

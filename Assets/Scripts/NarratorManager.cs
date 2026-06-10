@@ -18,6 +18,13 @@ public class NarratorManager : MonoBehaviour
     public TextMeshProUGUI narratorLogText;
     public ScrollRect narratorScrollRect;
 
+    [Header("Narrator Tabs")]
+    public GameObject feedPanel;
+    public GameObject detailsPanel;
+    public TextMeshProUGUI feedText;
+    public TextMeshProUGUI detailsText;
+    public ScrollRect detailsScrollRect;
+
     [Header("Narrator Settings")]
     public int maxLogEntries = 100;
 
@@ -96,6 +103,21 @@ public class NarratorManager : MonoBehaviour
         {
             narratorText.text = "";
         }
+
+        if (narratorLogText != null)
+        {
+            narratorLogText.text = "";
+        }
+
+        if (feedText != null)
+        {
+            feedText.text = "";
+        }
+
+        if (detailsText != null)
+        {
+            detailsText.text = "";
+        }
     }
 
     public void ShowDefaultMessage()
@@ -153,32 +175,28 @@ public class NarratorManager : MonoBehaviour
 
     public void RefreshNarratorLogUI()
     {
-        string visibleMessage = currentNarratorTab == NarratorTab.Details
-            ? currentDetails
-            : currentHeadline;
-
-        if (narratorText != null)
+        if (currentNarratorTab == NarratorTab.Details)
         {
-            narratorText.text = visibleMessage;
+            UpdateDetailsText();
+            return;
         }
 
-        if (narratorLogText != null)
-        {
-            narratorLogText.text = visibleMessage;
-        }
-
-        ScrollToBottom();
+        UpdateFeedText();
     }
 
     public void ShowFeedTab()
     {
         currentNarratorTab = NarratorTab.Feed;
+        SetPanelActive(feedPanel, true);
+        SetPanelActive(detailsPanel, false);
         RefreshNarratorLogUI();
     }
 
     public void ShowDetailsTab()
     {
         currentNarratorTab = NarratorTab.Details;
+        SetPanelActive(feedPanel, false);
+        SetPanelActive(detailsPanel, true);
         RefreshNarratorLogUI();
     }
 
@@ -233,14 +251,44 @@ public class NarratorManager : MonoBehaviour
         return cleaned;
     }
 
-    void ScrollToBottom()
+    void UpdateFeedText()
     {
-        if (narratorScrollRect == null)
+        if (feedText != null)
         {
-            return;
+            feedText.text = currentHeadline;
+        }
+
+        if (narratorText != null)
+        {
+            narratorText.text = currentHeadline;
+        }
+
+        if (narratorLogText != null)
+        {
+            narratorLogText.text = currentHeadline;
+        }
+    }
+
+    void UpdateDetailsText()
+    {
+        if (detailsText != null)
+        {
+            detailsText.text = currentDetails;
         }
 
         Canvas.ForceUpdateCanvases();
-        narratorScrollRect.verticalNormalizedPosition = 0f;
+
+        if (detailsScrollRect != null)
+        {
+            detailsScrollRect.verticalNormalizedPosition = 1f;
+        }
+    }
+
+    void SetPanelActive(GameObject panel, bool isActive)
+    {
+        if (panel != null)
+        {
+            panel.SetActive(isActive);
+        }
     }
 }
