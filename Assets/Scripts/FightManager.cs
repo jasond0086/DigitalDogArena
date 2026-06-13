@@ -48,6 +48,11 @@ public class FightManager : MonoBehaviour
         {
             narratorManager = GetComponent<NarratorManager>();
         }
+
+        if (narratorManager == null)
+        {
+            narratorManager = FindFirstObjectByType<NarratorManager>();
+        }
     }
 
     public void StartFight()
@@ -76,7 +81,7 @@ public class FightManager : MonoBehaviour
         int dog1WinsBeforeFight = dog1.wins;
         int dog2WinsBeforeFight = dog2.wins;
 
-        SimulateFight(dog1, dog2);
+        string fightDetails = SimulateFight(dog1, dog2);
 
         if (economyManager != null)
         {
@@ -92,15 +97,24 @@ public class FightManager : MonoBehaviour
 
         if (dog1.wins > dog1WinsBeforeFight)
         {
-            SetNarration($"{dog1.dogName} wins in the arena. The stable earns 50 credits.");
+            SetFightNarration(
+                $"Fight Result: {dog1.dogName} defeated {dog2.dogName} - 50 credits",
+                fightDetails
+            );
         }
         else if (dog2.wins > dog2WinsBeforeFight)
         {
-            SetNarration($"{dog2.dogName} wins in the arena. The stable earns 50 credits.");
+            SetFightNarration(
+                $"Fight Result: {dog2.dogName} defeated {dog1.dogName} - 50 credits",
+                fightDetails
+            );
         }
         else
         {
-            SetNarration($"{dog1.dogName} and {dog2.dogName} leave the arena with no clear winner.");
+            SetFightNarration(
+                $"Fight Result: {dog1.dogName} and {dog2.dogName} fought to a draw",
+                fightDetails
+            );
         }
     }
 
@@ -141,20 +155,41 @@ public class FightManager : MonoBehaviour
         }
 
         int playerWinsBeforeFight = playerDog.wins;
+        int rivalWinsBeforeFight = rival.rivalDog.wins;
 
-        SimulateFight(playerDog, rival.rivalDog);
+        string fightDetails = SimulateFight(playerDog, rival.rivalDog);
 
         if (playerDog.wins > playerWinsBeforeFight)
         {
             rivalManager.MarkRivalDefeated(rival.rivalId);
             ApplyRivalWinReward(rival.leagueName);
             ApplyRivalCreditReward(rival.leagueName);
-            SetNarration($"{playerDog.dogName} defeats {rival.handlerName}. A rival gate falls.");
+            SetFightNarration(
+                $"Fight Result: {playerDog.dogName} defeated {rival.rivalDog.dogName} - {rival.leagueName} - {GetRivalCreditReward(rival.leagueName)} credits",
+                fightDetails
+            );
         }
-        else if (storyManager != null)
+        else
         {
-            storyManager.AddRiskModifier(0.02f);
-            SetNarration($"{rival.handlerName} holds the line. The stable leaves with sharper risk.");
+            if (storyManager != null)
+            {
+                storyManager.AddRiskModifier(0.02f);
+            }
+
+            if (rival.rivalDog.wins > rivalWinsBeforeFight)
+            {
+                SetFightNarration(
+                    $"Fight Result: {rival.rivalDog.dogName} defeated {playerDog.dogName} - {rival.leagueName}",
+                    fightDetails
+                );
+            }
+            else
+            {
+                SetFightNarration(
+                    $"Fight Result: {playerDog.dogName} and {rival.rivalDog.dogName} fought to a draw - {rival.leagueName}",
+                    fightDetails
+                );
+            }
         }
 
         rivalManager.RefreshRivalStatusUI();
@@ -230,7 +265,20 @@ public class FightManager : MonoBehaviour
         }
     }
 
-    void SimulateFight(Dog d1, Dog d2)
+    int GetRivalCreditReward(string leagueName)
+    {
+        switch (leagueName)
+        {
+            case "Street League": return 150;
+            case "Local Circuit": return 250;
+            case "Underground Circuit": return 400;
+            case "Elite Circuit": return 650;
+            case "Apex League": return 1000;
+            default: return 0;
+        }
+    }
+
+    string SimulateFight(Dog d1, Dog d2)
     {
         FightStrategy strategy1 = dogManager.fighter1Strategy;
         FightStrategy strategy2 = dogManager.fighter2Strategy;
@@ -322,6 +370,7 @@ public class FightManager : MonoBehaviour
             leagueManager.RefreshLeagueProgress();
         }
 
+        return log;
         }
 
     int CalculateStartingHealth(Dog dog)
@@ -795,11 +844,21 @@ public class FightManager : MonoBehaviour
         }
     }
 
-    void SetNarration(string message)
+    void SetFightNarration(string headline, string details)
     {
+        if (narratorManager == null)
+        {
+            narratorManager = GetComponent<NarratorManager>();
+        }
+
+        if (narratorManager == null)
+        {
+            narratorManager = FindFirstObjectByType<NarratorManager>();
+        }
+
         if (narratorManager != null)
         {
-            narratorManager.SetNarration(message);
+            narratorManager.SetNarration(headline, details);
         }
     }
 }
