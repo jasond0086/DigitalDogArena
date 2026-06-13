@@ -12,6 +12,8 @@ public class StoryEventData
     [TextArea] public string bodyText;
     public string requiredLeagueName;
     public int requiredTotalWins;
+    public int requiredUndergroundReputation;
+    public string requiredSeenEventId;
     public bool hasBeenSeen;
     public List<StoryChoiceData> choices = new List<StoryChoiceData>();
 }
@@ -95,6 +97,7 @@ public class StoryManager : MonoBehaviour
     {
         if (storyEvents.Count > 0)
         {
+            EnsureUndergroundPathEvent();
             return;
         }
 
@@ -107,10 +110,12 @@ public class StoryManager : MonoBehaviour
             new List<StoryChoiceData>
             {
                 CreateChoice("Stay clean and build slow.", "You keep the stable above board. The bloodline grows without shortcuts.", 2, 0, 0f, ""),
-                CreateChoice("Take the underground invitation.", "You step through a side door in the circuit. The risk rises, but so does your shadow reputation.", 0, 2, 0.05f, ""),
+                CreateChoice("Take the underground invitation.", "You step through a side door in the circuit. The risk rises, but so does your shadow reputation.", 0, 2, 0.05f, "choose_underground_path"),
                 CreateChoice("Ignore both and focus on breeding.", "You turn away from the noise and study the bloodline records.", 1, 0, 0f, "")
             }
         ));
+
+        EnsureUndergroundPathEvent();
 
         storyEvents.Add(CreateStoryEvent(
             "handler_watches",
@@ -141,6 +146,38 @@ public class StoryManager : MonoBehaviour
         ));
     }
 
+    void EnsureUndergroundPathEvent()
+    {
+        StoryEventData firstOffer = FindStoryEvent("first_offer");
+
+        if (firstOffer != null && firstOffer.choices != null && firstOffer.choices.Count > 1)
+        {
+            firstOffer.choices[1].unlockEventId = "choose_underground_path";
+        }
+
+        if (FindStoryEvent("choose_underground_path") != null)
+        {
+            return;
+        }
+
+        StoryEventData undergroundPathEvent = CreateStoryEvent(
+            "choose_underground_path",
+            "Choose Your Underground Path",
+            "The invitation leads below the official circuit, where every opportunity carries a different price. Decide what kind of foothold your stable will build.",
+            "Street League",
+            0,
+            new List<StoryChoiceData>
+            {
+                CreateChoice("Chase fast money", "You take the quickest-paying matches. Credits may come fast, but attention follows the noise.", 0, 2, 0.10f, ""),
+                CreateChoice("Build underground reputation", "You choose opponents and allies carefully, building a name that carries weight below the official circuit.", 1, 4, 0.05f, ""),
+                CreateChoice("Stay cautious and gather intel", "You keep the stable out of the brightest danger while learning who controls the hidden arenas.", 1, 1, -0.02f, "")
+            }
+        );
+        undergroundPathEvent.requiredUndergroundReputation = 2;
+        undergroundPathEvent.requiredSeenEventId = "first_offer";
+        storyEvents.Add(undergroundPathEvent);
+    }
+
     public List<StoryEventData> GetAvailableStoryEvents()
     {
         InitializeDefaultEvents();
@@ -158,6 +195,21 @@ public class StoryManager : MonoBehaviour
             if (totalStableWins < storyEvent.requiredTotalWins)
             {
                 continue;
+            }
+
+            if (undergroundReputation < storyEvent.requiredUndergroundReputation)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(storyEvent.requiredSeenEventId))
+            {
+                StoryEventData requiredEvent = FindStoryEvent(storyEvent.requiredSeenEventId);
+
+                if (requiredEvent == null || !requiredEvent.hasBeenSeen)
+                {
+                    continue;
+                }
             }
 
             if (!string.IsNullOrEmpty(storyEvent.requiredLeagueName) &&
@@ -207,6 +259,8 @@ public class StoryManager : MonoBehaviour
 
     public void ChooseStoryOption(int choiceIndex)
     {
+        EnsureUndergroundPathEvent();
+
         if (activeStoryEvent == null ||
             activeStoryEvent.choices == null ||
             choiceIndex < 0 ||
@@ -215,14 +269,21 @@ public class StoryManager : MonoBehaviour
             return;
         }
 
+        string activeEventId = activeStoryEvent.eventId;
         StoryChoiceData choice = activeStoryEvent.choices[choiceIndex];
+        string nextEventId = choice.unlockEventId;
+
+        if (activeEventId == "first_offer" && choiceIndex == 1)
+        {
+            nextEventId = "choose_underground_path";
+        }
 
         reputation += choice.reputationChange;
         undergroundReputation += choice.undergroundReputationChange;
         riskModifier += choice.riskModifierChange;
         activeStoryEvent.hasBeenSeen = true;
 
-        StoryEventData unlockedEvent = FindStoryEvent(choice.unlockEventId);
+        StoryEventData unlockedEvent = FindStoryEvent(nextEventId);
         if (unlockedEvent != null)
         {
             unlockedEvent.hasBeenSeen = false;
@@ -230,6 +291,13 @@ public class StoryManager : MonoBehaviour
 
         SaveStoryState();
         SetNarration($"Story choice made: {choice.choiceText}");
+
+        if (unlockedEvent != null)
+        {
+            ShowStoryEvent(unlockedEvent);
+            return;
+        }
+
         ShowChoiceResult(choice);
     }
 
@@ -250,7 +318,7 @@ public class StoryManager : MonoBehaviour
             summary.AppendLine("Available Event:");
             summary.AppendLine(availableEvents[0].title);
             summary.AppendLine();
-            summary.AppendLine("Open the Story page to choose a path.");
+            summary.AppendLine("A new story choice is ready.");
         }
         else
         {
@@ -394,6 +462,15 @@ public class StoryManager : MonoBehaviour
     {
         activeStoryEvent = null;
 
+        List<StoryEventData> availableEvents = GetAvailableStoryEvents();
+
+        if (availableEvents.Count > 0)
+        {
+            activeStoryEvent = availableEvents[0];
+            RefreshStoryUI();
+            return;
+        }
+
         SetStoryText(
             $"{choice.resultText}\n\n" +
             GetStorySummaryText()
@@ -419,17 +496,11 @@ public class StoryManager : MonoBehaviour
             return;
         }
 
-        button.onClick.RemoveAllListeners();
         button.gameObject.SetActive(choice != null);
 
         if (buttonText != null)
         {
             buttonText.text = choice != null ? choice.choiceText : "";
-        }
-
-        if (choice != null)
-        {
-            button.onClick.AddListener(() => ChooseStoryOption(choiceIndex));
         }
     }
 
@@ -480,6 +551,8 @@ public class StoryManager : MonoBehaviour
             bodyText = bodyText,
             requiredLeagueName = requiredLeagueName,
             requiredTotalWins = requiredTotalWins,
+            requiredUndergroundReputation = 0,
+            requiredSeenEventId = "",
             hasBeenSeen = false,
             choices = choices
         };

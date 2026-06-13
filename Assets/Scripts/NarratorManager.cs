@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -44,6 +45,7 @@ public class NarratorManager : MonoBehaviour
 
     void Awake()
     {
+        ConfigureScrollableFeed();
         LoadNarratorLog();
     }
 
@@ -87,7 +89,7 @@ public class NarratorManager : MonoBehaviour
         currentHeadline = GetVisibleNarratorMessage(string.IsNullOrEmpty(headline) ? details : headline);
         currentDetails = string.IsNullOrEmpty(details) ? headline : details;
         currentMessage = currentDetails;
-        narrationLog.Add(currentMessage);
+        narrationLog.Add(currentHeadline);
         TrimNarratorLog();
         RefreshNarratorLogUI();
         SaveNarratorLog();
@@ -224,7 +226,7 @@ public class NarratorManager : MonoBehaviour
 
     void TrimNarratorLog()
     {
-        int entryLimit = Mathf.Max(1, maxLogEntries);
+        int entryLimit = Mathf.Max(1000, maxLogEntries);
 
         while (narrationLog.Count > entryLimit)
         {
@@ -253,20 +255,101 @@ public class NarratorManager : MonoBehaviour
 
     void UpdateFeedText()
     {
+        string fullFeed = GetFullFeedText();
+
         if (feedText != null)
         {
-            feedText.text = currentHeadline;
+            feedText.text = fullFeed;
         }
 
-        if (narratorText != null)
+        if (narratorText != null && narratorText != feedText)
         {
-            narratorText.text = currentHeadline;
+            narratorText.text = fullFeed;
         }
 
-        if (narratorLogText != null)
+        if (narratorLogText != null && narratorLogText != feedText && narratorLogText != narratorText)
         {
-            narratorLogText.text = currentHeadline;
+            narratorLogText.text = fullFeed;
         }
+
+        Canvas.ForceUpdateCanvases();
+
+        if (narratorScrollRect != null)
+        {
+            narratorScrollRect.verticalNormalizedPosition = 0f;
+        }
+    }
+
+    string GetFullFeedText()
+    {
+        StringBuilder feedBuilder = new StringBuilder();
+
+        foreach (string entry in narrationLog)
+        {
+            string visibleEntry = GetVisibleNarratorMessage(entry);
+
+            if (string.IsNullOrEmpty(visibleEntry))
+            {
+                continue;
+            }
+
+            if (feedBuilder.Length > 0)
+            {
+                feedBuilder.AppendLine();
+                feedBuilder.AppendLine();
+            }
+
+            feedBuilder.Append(visibleEntry);
+        }
+
+        return feedBuilder.ToString();
+    }
+
+    void ConfigureScrollableFeed()
+    {
+        if (feedPanel == null || feedText == null)
+        {
+            return;
+        }
+
+        narratorScrollRect = feedPanel.GetComponent<ScrollRect>();
+
+        if (narratorScrollRect == null)
+        {
+            narratorScrollRect = feedPanel.AddComponent<ScrollRect>();
+        }
+
+        RectTransform feedPanelRect = feedPanel.GetComponent<RectTransform>();
+        RectTransform feedTextRect = feedText.rectTransform;
+
+        narratorScrollRect.content = feedTextRect;
+        narratorScrollRect.viewport = feedPanelRect;
+        narratorScrollRect.horizontal = false;
+        narratorScrollRect.vertical = true;
+        narratorScrollRect.movementType = ScrollRect.MovementType.Clamped;
+        narratorScrollRect.scrollSensitivity = 20f;
+
+        if (feedPanel.GetComponent<RectMask2D>() == null)
+        {
+            feedPanel.AddComponent<RectMask2D>();
+        }
+
+        ContentSizeFitter sizeFitter = feedText.GetComponent<ContentSizeFitter>();
+
+        if (sizeFitter == null)
+        {
+            sizeFitter = feedText.gameObject.AddComponent<ContentSizeFitter>();
+        }
+
+        sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        feedTextRect.anchorMin = new Vector2(0f, 1f);
+        feedTextRect.anchorMax = new Vector2(1f, 1f);
+        feedTextRect.pivot = new Vector2(0.5f, 1f);
+        feedTextRect.anchoredPosition = Vector2.zero;
+        feedTextRect.sizeDelta = Vector2.zero;
+        feedText.alignment = TextAlignmentOptions.TopLeft;
     }
 
     void UpdateDetailsText()
