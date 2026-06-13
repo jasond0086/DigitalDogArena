@@ -144,20 +144,22 @@ public class BreedingManager : MonoBehaviour
 
         dogManager.SaveStable();
 
-        string headline = $"Newborn created: {newborn.dogName} ({newborn.gender}) - {newborn.GetPotentialTitle()}";
+        string headline = $"Newborn Created: {newborn.dogName} • {newborn.gender} • Gen {newborn.generation} • {newborn.breed}";
         string details =
-            "Newborn Created!\n\n" +
+            "NEWBORN BIRTH REPORT\n\n" +
             $"Name: {newborn.dogName}\n" +
             $"Breed: {newborn.breed}\n" +
             $"Gender: {newborn.gender}\n" +
             $"Generation: {newborn.generation}\n\n" +
-            $"STR: {newborn.strength}\n" +
-            $"AGI: {newborn.agility}\n" +
-            $"STA: {newborn.stamina}\n" +
+            "STATS\n" +
+            $"Strength: {newborn.strength} / {newborn.strengthPotential} potential\n" +
+            $"Agility: {newborn.agility} / {newborn.agilityPotential} potential\n" +
+            $"Stamina: {newborn.stamina} / {newborn.staminaPotential} potential\n\n" +
             $"Potential: {newborn.GetPotentialTitle()}\n" +
             $"Growth: x{newborn.growthRate:F2}\n" +
-            $"Style: {newborn.fightStyle}\n\n" +
+            $"Fight Style: {newborn.fightStyle}\n" +
             $"Traits: {newborn.GetTraitSummary()}\n\n" +
+            "BLOODLINE\n" +
             $"Parents: {parent1.dogName} ({parent1.gender}) x {parent2.dogName} ({parent2.gender})\n" +
             $"Week: {dogManager.currentWeek}\n" +
             $"Breeding Cost: {breedingCost} credits";
