@@ -17,6 +17,24 @@ public class FightManager : MonoBehaviour
     public int healthMultiplier = 2;
     public int damageVariance = 15;
 
+    [Header("Active Fight State")]
+    public bool fightInProgress;
+    public int currentRound;
+    public Dog activeFighter1;
+    public Dog activeFighter2;
+    public int currentFighter1Health;
+    public int currentFighter2Health;
+    [TextArea] public string runningFightLog = "";
+
+    private int startingFighter1Health;
+    private int startingFighter2Health;
+    private bool fighter1WasBehind;
+    private bool fighter2WasBehind;
+    private bool activeFightIsRival;
+    private RivalHandlerData activeRival;
+    private int fighter1WinsBeforeFight;
+    private int fighter2WinsBeforeFight;
+
     void Awake()
     {
         if (dogManager == null)
@@ -57,6 +75,12 @@ public class FightManager : MonoBehaviour
 
     public void StartFight()
     {
+        if (fightInProgress)
+        {
+            SetLog("Finish the current fight before starting another one.");
+            return;
+        }
+
         if (dogManager == null)
         {
             SetLog("DogManager is missing!");
@@ -78,48 +102,17 @@ public class FightManager : MonoBehaviour
             return;
         }
 
-        int dog1WinsBeforeFight = dog1.wins;
-        int dog2WinsBeforeFight = dog2.wins;
-
-        string fightDetails = SimulateFight(dog1, dog2);
-
-        if (economyManager != null)
-        {
-            if (dog1.wins > dog1WinsBeforeFight)
-            {
-                economyManager.AddCredits(50, $"Normal fight win by {dog1.dogName}");
-            }
-            else if (dog2.wins > dog2WinsBeforeFight)
-            {
-                economyManager.AddCredits(50, $"Normal fight win by {dog2.dogName}");
-            }
-        }
-
-        if (dog1.wins > dog1WinsBeforeFight)
-        {
-            SetFightNarration(
-                $"Fight Result: {dog1.dogName} defeated {dog2.dogName} - 50 credits",
-                fightDetails
-            );
-        }
-        else if (dog2.wins > dog2WinsBeforeFight)
-        {
-            SetFightNarration(
-                $"Fight Result: {dog2.dogName} defeated {dog1.dogName} - 50 credits",
-                fightDetails
-            );
-        }
-        else
-        {
-            SetFightNarration(
-                $"Fight Result: {dog1.dogName} and {dog2.dogName} fought to a draw",
-                fightDetails
-            );
-        }
+        InitializeFight(dog1, dog2, false, null);
     }
 
     public void StartRivalFight()
     {
+        if (fightInProgress)
+        {
+            SetLog("Finish the current fight before starting another one.");
+            return;
+        }
+
         if (dogManager == null)
         {
             SetLog("DogManager is missing!");
@@ -154,52 +147,113 @@ public class FightManager : MonoBehaviour
             return;
         }
 
-        int playerWinsBeforeFight = playerDog.wins;
-        int rivalWinsBeforeFight = rival.rivalDog.wins;
+        InitializeFight(playerDog, rival.rivalDog, true, rival);
+    }
 
-        string fightDetails = SimulateFight(playerDog, rival.rivalDog);
+    void InitializeFight(Dog fighter1, Dog fighter2, bool isRivalFight, RivalHandlerData rival)
+    {
+        activeFighter1 = fighter1;
+        activeFighter2 = fighter2;
+        activeFightIsRival = isRivalFight;
+        activeRival = rival;
+        currentRound = 0;
+        startingFighter1Health = CalculateStartingHealth(activeFighter1);
+        startingFighter2Health = CalculateStartingHealth(activeFighter2);
+        currentFighter1Health = startingFighter1Health;
+        currentFighter2Health = startingFighter2Health;
+        fighter1WasBehind = false;
+        fighter2WasBehind = false;
+        fighter1WinsBeforeFight = activeFighter1.wins;
+        fighter2WinsBeforeFight = activeFighter2.wins;
 
-        if (playerDog.wins > playerWinsBeforeFight)
+        FightStrategy strategy1 = dogManager.fighter1Strategy;
+        FightStrategy strategy2 = dogManager.fighter2Strategy;
+
+        runningFightLog = $"<b>{activeFighter1.dogName} vs {activeFighter2.dogName}</b>\n\n";
+        runningFightLog += $"{activeFighter1.dogName} Style: {activeFighter1.fightStyle} | Starting Strategy: {strategy1}\n";
+        runningFightLog += $"{activeFighter2.dogName} Style: {activeFighter2.fightStyle} | Starting Strategy: {strategy2}\n\n";
+        runningFightLog += $"{activeFighter1.dogName} Traits: {activeFighter1.GetTraitSummary()}\n";
+        runningFightLog += $"{activeFighter2.dogName} Traits: {activeFighter2.GetTraitSummary()}\n\n";
+        runningFightLog += $"{activeFighter1.dogName} Starting HP: {currentFighter1Health}\n";
+        runningFightLog += $"{activeFighter2.dogName} Starting HP: {currentFighter2Health}\n\n";
+
+        fightInProgress = true;
+        SetLog(runningFightLog);
+        SetFightNarration(
+            $"Fight Started: {activeFighter1.dogName} vs {activeFighter2.dogName}",
+            runningFightLog
+        );
+    }
+
+    public void PlayNextRound()
+    {
+        if (!fightInProgress || activeFighter1 == null || activeFighter2 == null)
         {
-            rivalManager.MarkRivalDefeated(rival.rivalId);
-            ApplyRivalWinReward(rival.leagueName);
-            ApplyRivalCreditReward(rival.leagueName);
-            SetFightNarration(
-                $"Fight Result: {playerDog.dogName} defeated {rival.rivalDog.dogName} - {rival.leagueName} - {GetRivalCreditReward(rival.leagueName)} credits",
-                fightDetails
-            );
+            return;
         }
-        else
+
+        currentRound++;
+
+        FightStrategy strategy1 = dogManager.fighter1Strategy;
+        FightStrategy strategy2 = dogManager.fighter2Strategy;
+
+        int rawDmg1 = Random.Range(
+            activeFighter1.strength - damageVariance,
+            activeFighter1.strength + damageVariance + 1
+        ) - (activeFighter2.agility / 6);
+
+        int rawDmg2 = Random.Range(
+            activeFighter2.strength - damageVariance,
+            activeFighter2.strength + damageVariance + 1
+        ) - (activeFighter1.agility / 6);
+
+        int dmg1 = CalculateFinalDamage(activeFighter1, activeFighter2, rawDmg1, currentRound, strategy1, strategy2);
+        int dmg2 = CalculateFinalDamage(activeFighter2, activeFighter1, rawDmg2, currentRound, strategy2, strategy1);
+
+        currentFighter2Health = Mathf.Max(0, currentFighter2Health - dmg1);
+        currentFighter1Health = Mathf.Max(0, currentFighter1Health - dmg2);
+
+        if (currentFighter1Health < currentFighter2Health)
         {
-            if (storyManager != null)
-            {
-                storyManager.AddRiskModifier(0.02f);
-            }
-
-            if (rival.rivalDog.wins > rivalWinsBeforeFight)
-            {
-                SetFightNarration(
-                    $"Fight Result: {rival.rivalDog.dogName} defeated {playerDog.dogName} - {rival.leagueName}",
-                    fightDetails
-                );
-            }
-            else
-            {
-                SetFightNarration(
-                    $"Fight Result: {playerDog.dogName} and {rival.rivalDog.dogName} fought to a draw - {rival.leagueName}",
-                    fightDetails
-                );
-            }
+            fighter1WasBehind = true;
         }
 
-        rivalManager.RefreshRivalStatusUI();
-
-        if (leagueManager != null)
+        if (currentFighter2Health < currentFighter1Health)
         {
-            leagueManager.RefreshLeagueProgress();
+            fighter2WasBehind = true;
         }
 
-        dogManager.SaveStable();
+        string roundFlavor = GetRoundFlavor(
+            activeFighter1,
+            activeFighter2,
+            dmg1,
+            dmg2,
+            currentRound,
+            strategy1,
+            strategy2
+        );
+
+        runningFightLog += $"<b>Round {currentRound}</b>: {roundFlavor}\n";
+        runningFightLog += $"Strategies: {activeFighter1.dogName} {strategy1} | {activeFighter2.dogName} {strategy2}\n";
+        runningFightLog += $"{activeFighter1.dogName} impact: {dmg1} | {activeFighter2.dogName} impact: {dmg2}\n";
+        runningFightLog += $"{activeFighter1.dogName} HP: {currentFighter1Health} | {activeFighter2.dogName} HP: {currentFighter2Health}\n\n";
+
+        SetLog(runningFightLog);
+
+        bool fightShouldEnd = currentRound >= maxRounds ||
+                              currentFighter1Health <= 0 ||
+                              currentFighter2Health <= 0;
+
+        if (fightShouldEnd)
+        {
+            FinishActiveFight();
+            return;
+        }
+
+        SetFightNarration(
+            $"Round {currentRound}: {activeFighter1.dogName} {currentFighter1Health} HP - {activeFighter2.dogName} {currentFighter2Health} HP",
+            runningFightLog
+        );
     }
 
     void ApplyRivalWinReward(string leagueName)
@@ -278,86 +332,32 @@ public class FightManager : MonoBehaviour
         }
     }
 
-    string SimulateFight(Dog d1, Dog d2)
+    void FinishActiveFight()
     {
-        FightStrategy strategy1 = dogManager.fighter1Strategy;
-        FightStrategy strategy2 = dogManager.fighter2Strategy;
-
-        string log = $"<b>{d1.dogName} vs {d2.dogName}</b>\n\n";
-
-        log += $"{d1.dogName} Style: {d1.fightStyle} | Strategy: {strategy1}\n";
-        log += $"{d2.dogName} Style: {d2.fightStyle} | Strategy: {strategy2}\n\n";
-        log += $"{d1.dogName} Traits: {d1.GetTraitSummary()}\n";
-        log += $"{d2.dogName} Traits: {d2.GetTraitSummary()}\n\n";
-
-        int health1 = CalculateStartingHealth(d1);
-        int health2 = CalculateStartingHealth(d2);
-
-        int startingHealth1 = health1;
-        int startingHealth2 = health2;
-
-        bool d1WasBehind = false;
-        bool d2WasBehind = false;
-
-        log += $"{d1.dogName} Starting HP: {health1}\n";
-        log += $"{d2.dogName} Starting HP: {health2}\n\n";
-
-        for (int round = 1; round <= maxRounds; round++)
-        {
-            int rawDmg1 = Random.Range(
-                d1.strength - damageVariance,
-                d1.strength + damageVariance + 1
-            ) - (d2.agility / 6);
-
-            int rawDmg2 = Random.Range(
-                d2.strength - damageVariance,
-                d2.strength + damageVariance + 1
-            ) - (d1.agility / 6);
-
-            int dmg1 = CalculateFinalDamage(d1, d2, rawDmg1, round, strategy1, strategy2);
-            int dmg2 = CalculateFinalDamage(d2, d1, rawDmg2, round, strategy2, strategy1);
-
-            health2 = Mathf.Max(0, health2 - dmg1);
-            health1 = Mathf.Max(0, health1 - dmg2);
-
-            if (health1 < health2)
-            {
-                d1WasBehind = true;
-            }
-
-            if (health2 < health1)
-            {
-                d2WasBehind = true;
-            }
-
-            string roundFlavor = GetRoundFlavor(d1, d2, dmg1, dmg2, round, strategy1, strategy2);
-
-            log += $"<b>Round {round}</b>: {roundFlavor}\n";
-            log += $"{d1.dogName} impact: {dmg1} | ";
-            log += $"{d2.dogName} impact: {dmg2}\n";
-
-            log += $"{d1.dogName} HP: {health1} | ";
-            log += $"{d2.dogName} HP: {health2}\n\n";
-
-            if (health1 <= 0 || health2 <= 0)
-            {
-                break;
-            }
-        }
-
         ResolveFightResult(
-            d1,
-            d2,
-            health1,
-            health2,
-            startingHealth1,
-            startingHealth2,
-            d1WasBehind,
-            d2WasBehind,
-            ref log
+            activeFighter1,
+            activeFighter2,
+            currentFighter1Health,
+            currentFighter2Health,
+            startingFighter1Health,
+            startingFighter2Health,
+            fighter1WasBehind,
+            fighter2WasBehind,
+            ref runningFightLog
         );
 
-        SetLog(log);
+        fightInProgress = false;
+
+        if (activeFightIsRival)
+        {
+            FinishRivalFight();
+        }
+        else
+        {
+            FinishNormalFight();
+        }
+
+        SetLog(runningFightLog);
 
         if (dogManager != null)
         {
@@ -369,9 +369,88 @@ public class FightManager : MonoBehaviour
         {
             leagueManager.RefreshLeagueProgress();
         }
+    }
 
-        return log;
+    void FinishNormalFight()
+    {
+        if (economyManager != null)
+        {
+            if (activeFighter1.wins > fighter1WinsBeforeFight)
+            {
+                economyManager.AddCredits(50, $"Normal fight win by {activeFighter1.dogName}");
+            }
+            else if (activeFighter2.wins > fighter2WinsBeforeFight)
+            {
+                economyManager.AddCredits(50, $"Normal fight win by {activeFighter2.dogName}");
+            }
         }
+
+        if (activeFighter1.wins > fighter1WinsBeforeFight)
+        {
+            SetFightNarration(
+                $"Fight Result: {activeFighter1.dogName} defeated {activeFighter2.dogName} - 50 credits",
+                runningFightLog
+            );
+        }
+        else if (activeFighter2.wins > fighter2WinsBeforeFight)
+        {
+            SetFightNarration(
+                $"Fight Result: {activeFighter2.dogName} defeated {activeFighter1.dogName} - 50 credits",
+                runningFightLog
+            );
+        }
+        else
+        {
+            SetFightNarration(
+                $"Fight Result: {activeFighter1.dogName} and {activeFighter2.dogName} fought to a draw",
+                runningFightLog
+            );
+        }
+    }
+
+    void FinishRivalFight()
+    {
+        if (activeRival == null)
+        {
+            FinishNormalFight();
+            return;
+        }
+
+        if (activeFighter1.wins > fighter1WinsBeforeFight)
+        {
+            rivalManager.MarkRivalDefeated(activeRival.rivalId);
+            ApplyRivalWinReward(activeRival.leagueName);
+            ApplyRivalCreditReward(activeRival.leagueName);
+            SetFightNarration(
+                $"Fight Result: {activeFighter1.dogName} defeated {activeFighter2.dogName} - {activeRival.leagueName} - {GetRivalCreditReward(activeRival.leagueName)} credits",
+                runningFightLog
+            );
+        }
+        else
+        {
+            if (storyManager != null)
+            {
+                storyManager.AddRiskModifier(0.02f);
+            }
+
+            if (activeFighter2.wins > fighter2WinsBeforeFight)
+            {
+                SetFightNarration(
+                    $"Fight Result: {activeFighter2.dogName} defeated {activeFighter1.dogName} - {activeRival.leagueName}",
+                    runningFightLog
+                );
+            }
+            else
+            {
+                SetFightNarration(
+                    $"Fight Result: {activeFighter1.dogName} and {activeFighter2.dogName} fought to a draw - {activeRival.leagueName}",
+                    runningFightLog
+                );
+            }
+        }
+
+        rivalManager.RefreshRivalStatusUI();
+    }
 
     int CalculateStartingHealth(Dog dog)
     {
