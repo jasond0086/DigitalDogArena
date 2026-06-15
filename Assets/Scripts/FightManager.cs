@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class FightManager : MonoBehaviour
 {
@@ -11,6 +12,12 @@ public class FightManager : MonoBehaviour
     public EconomyManager economyManager;
     public NarratorManager narratorManager;
     public TextMeshProUGUI fightLog;
+    public ScrollRect fightLogScrollRect;
+
+    [Header("Fight Controls")]
+    public Button startFightButton;
+    public Button nextRoundButton;
+    public TextMeshProUGUI roundStatusText;
 
     [Header("Fight Settings")]
     public int maxRounds = 6;
@@ -37,6 +44,8 @@ public class FightManager : MonoBehaviour
 
     void Awake()
     {
+        ConfigureScrollableFightLog();
+
         if (dogManager == null)
         {
             dogManager = GetComponent<DogManager>();
@@ -71,6 +80,11 @@ public class FightManager : MonoBehaviour
         {
             narratorManager = FindFirstObjectByType<NarratorManager>();
         }
+    }
+
+    void Start()
+    {
+        UpdateFightUIState("Choose fighters and start a fight.");
     }
 
     public void StartFight()
@@ -178,6 +192,7 @@ public class FightManager : MonoBehaviour
         runningFightLog += $"{activeFighter2.dogName} Starting HP: {currentFighter2Health}\n\n";
 
         fightInProgress = true;
+        UpdateFightUIState();
         SetLog(runningFightLog);
         SetFightNarration(
             $"Fight Started: {activeFighter1.dogName} vs {activeFighter2.dogName}",
@@ -254,6 +269,7 @@ public class FightManager : MonoBehaviour
             $"Round {currentRound}: {activeFighter1.dogName} {currentFighter1Health} HP - {activeFighter2.dogName} {currentFighter2Health} HP",
             runningFightLog
         );
+        UpdateFightUIState();
     }
 
     void ApplyRivalWinReward(string leagueName)
@@ -347,6 +363,7 @@ public class FightManager : MonoBehaviour
         );
 
         fightInProgress = false;
+        string finalStatus = GetFinalFightStatus();
 
         if (activeFightIsRival)
         {
@@ -368,6 +385,57 @@ public class FightManager : MonoBehaviour
         if (leagueManager != null)
         {
             leagueManager.RefreshLeagueProgress();
+        }
+
+        UpdateFightUIState(finalStatus);
+    }
+
+    string GetFinalFightStatus()
+    {
+        if (activeFighter1.wins > fighter1WinsBeforeFight)
+        {
+            return $"Fight complete - {activeFighter1.dogName} defeated {activeFighter2.dogName}.";
+        }
+
+        if (activeFighter2.wins > fighter2WinsBeforeFight)
+        {
+            return $"Fight complete - {activeFighter2.dogName} defeated {activeFighter1.dogName}.";
+        }
+
+        return $"Fight complete - {activeFighter1.dogName} and {activeFighter2.dogName} fought to a draw.";
+    }
+
+    void UpdateFightUIState(string statusOverride = "")
+    {
+        if (startFightButton != null)
+        {
+            startFightButton.interactable = !fightInProgress;
+        }
+
+        if (nextRoundButton != null)
+        {
+            nextRoundButton.interactable = fightInProgress;
+        }
+
+        if (roundStatusText == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(statusOverride))
+        {
+            roundStatusText.text = statusOverride;
+            return;
+        }
+
+        if (fightInProgress)
+        {
+            int nextRound = Mathf.Min(currentRound + 1, maxRounds);
+            roundStatusText.text = $"Round {nextRound} / {maxRounds} — adjust strategy, then play next round.";
+        }
+        else
+        {
+            roundStatusText.text = "Choose fighters and start a fight.";
         }
     }
 
@@ -921,6 +989,65 @@ public class FightManager : MonoBehaviour
         {
             fightLog.text = message;
         }
+
+        Canvas.ForceUpdateCanvases();
+
+        if (fightLogScrollRect != null)
+        {
+            fightLogScrollRect.verticalNormalizedPosition = 0f;
+        }
+    }
+
+    void ConfigureScrollableFightLog()
+    {
+        if (fightLog == null)
+        {
+            return;
+        }
+
+        RectTransform fightLogRect = fightLog.rectTransform;
+        RectTransform panelRect = fightLogRect.parent as RectTransform;
+
+        if (panelRect == null)
+        {
+            return;
+        }
+
+        fightLogScrollRect = panelRect.GetComponent<ScrollRect>();
+
+        if (fightLogScrollRect == null)
+        {
+            fightLogScrollRect = panelRect.gameObject.AddComponent<ScrollRect>();
+        }
+
+        fightLogScrollRect.content = fightLogRect;
+        fightLogScrollRect.viewport = panelRect;
+        fightLogScrollRect.horizontal = false;
+        fightLogScrollRect.vertical = true;
+        fightLogScrollRect.movementType = ScrollRect.MovementType.Clamped;
+        fightLogScrollRect.scrollSensitivity = 20f;
+
+        if (panelRect.GetComponent<RectMask2D>() == null)
+        {
+            panelRect.gameObject.AddComponent<RectMask2D>();
+        }
+
+        ContentSizeFitter sizeFitter = fightLog.GetComponent<ContentSizeFitter>();
+
+        if (sizeFitter == null)
+        {
+            sizeFitter = fightLog.gameObject.AddComponent<ContentSizeFitter>();
+        }
+
+        sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        fightLogRect.anchorMin = new Vector2(0f, 1f);
+        fightLogRect.anchorMax = new Vector2(1f, 1f);
+        fightLogRect.pivot = new Vector2(0.5f, 1f);
+        fightLogRect.anchoredPosition = Vector2.zero;
+        fightLogRect.sizeDelta = Vector2.zero;
+        fightLog.alignment = TextAlignmentOptions.TopLeft;
     }
 
     void SetFightNarration(string headline, string details)
