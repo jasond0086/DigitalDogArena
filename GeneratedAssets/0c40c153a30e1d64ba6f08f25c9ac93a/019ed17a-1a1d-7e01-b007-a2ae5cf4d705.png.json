@@ -1,0 +1,31 @@
+{
+    "asset": "0c40c153a30e1d64ba6f08f25c9ac93a",
+    "fileName": "019ed17a-1a1d-7e01-b007-a2ae5cf4d705.png",
+    "prompt": "Gritty industrial tactical UI panel frame for a split fight page. Dark metallic surveillance terminal frame, riveted steel plating, cold dark blue-gray textures, symmetrical left and right sections for fighter cards, a central split and a structured panel area at the bottom for combat logs and control buttons, high-contrast and clean layout, isolated on transparent background, gritty but modern management simulator UI style",
+    "negativePrompt": "",
+    "model": "gemini-3.1-flash",
+    "modelName": "Gemini 3.1 Nano Banana 2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0,
+    "dynamicParams": {
+        "serializedData": []
+    }
+}

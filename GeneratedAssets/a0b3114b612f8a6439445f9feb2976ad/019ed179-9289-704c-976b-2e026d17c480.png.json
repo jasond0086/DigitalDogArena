@@ -1,0 +1,31 @@
+{
+    "asset": "a0b3114b612f8a6439445f9feb2976ad",
+    "fileName": "019ed179-9289-704c-976b-2e026d17c480.png",
+    "prompt": "Local Circuit badge. A weathered concrete plaque inset with a heavy rusty brass knuckle-duster icon. Gritty, physical, hand-made feel, underground fight club aesthetic, isolated game asset icon.",
+    "negativePrompt": "",
+    "model": "gemini-3.1-flash",
+    "modelName": "Gemini 3.1 Nano Banana 2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "pixelateTargetSize": 0,
+    "pixelateKeepImageSize": false,
+    "pixelatePixelBlockSize": 0,
+    "pixelatePixelGridSize": 0,
+    "pixelateMode": 0,
+    "pixelateOutlineThickness": 0,
+    "doodles": {
+        "m_Items": []
+    },
+    "upscaleFactor": 0,
+    "dimensions": {
+        "width": 1024,
+        "height": 1024
+    },
+    "spriteSheet": false,
+    "duration": 0.0,
+    "dynamicParams": {
+        "serializedData": []
+    }
+}
