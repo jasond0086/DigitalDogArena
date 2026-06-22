@@ -15,6 +15,7 @@ public class DogCardUI : MonoBehaviour
 
     [Header("Optional Image")]
     public Image dogImage;
+    public Sprite defaultDogSprite;
 
     private Dog dog;
     private DogManager dogManager;
@@ -54,15 +55,11 @@ public class DogCardUI : MonoBehaviour
         SetText(winsLossesValueText, $"Record {dog.wins}W - {dog.losses}L");
         SetText(levelValueText, $"Level {dog.level}");
 
-        if (dogImage != null && dog.dogSprite != null)
+        if (dogImage != null)
         {
-            dogImage.sprite = dog.dogSprite;
+            dogImage.sprite = dog.dogSprite != null ? dog.dogSprite : defaultDogSprite;
             dogImage.color = Color.white;
-            dogImage.enabled = true;
-        }
-        else if (dogImage != null)
-        {
-            dogImage.enabled = false;
+            dogImage.enabled = dogImage.sprite != null;
         }
     }
 

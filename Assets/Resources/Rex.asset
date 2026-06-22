@@ -19,4 +19,4 @@ MonoBehaviour:
   stamina: 75
   level: 4
   wins: 2
-  dogSprite: {fileID: 0}
+  dogSprite: {fileID: 21300000, guid: 335788dbb6e13a94d8eea1b4ac9aa5b1, type: 3}

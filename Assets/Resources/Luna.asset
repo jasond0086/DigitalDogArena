@@ -39,4 +39,4 @@ MonoBehaviour:
   wins: 4
   losses: 0
   totalFights: 0
-  dogSprite: {fileID: 0}
+  dogSprite: {fileID: 21300000, guid: 63f6a16b374e79d43b722ca1b853747a, type: 3}
