@@ -7,6 +7,11 @@ public class DogCardUI : MonoBehaviour
     [Header("UI Text")]
     public TextMeshProUGUI nameText;
     public TextMeshProUGUI statsText;
+    public TextMeshProUGUI strengthValueText;
+    public TextMeshProUGUI agilityValueText;
+    public TextMeshProUGUI staminaValueText;
+    public TextMeshProUGUI winsLossesValueText;
+    public TextMeshProUGUI levelValueText;
 
     [Header("Optional Image")]
     public Image dogImage;
@@ -35,23 +40,29 @@ public class DogCardUI : MonoBehaviour
             string breedingStatus = GetBreedingStatusText();
 
             statsText.text =
-                $"Breed: {dog.breed}\n" +
-                $"Gender: {dog.gender} | {breedingStatus}\n" +
-                $"Status: {dog.GetStatusText()} | Age: {dog.age} | Life Stage: {dog.GetLifeStage()}\n" +
-                $"STR {dog.strength}/{dog.strengthPotential} | " +
-                $"AGI {dog.agility}/{dog.agilityPotential} | " +
-                $"STA {dog.stamina}/{dog.staminaPotential}\n" +
+                $"{dog.breed} | {dog.gender}\n" +
+                $"Age {dog.age} | {dog.GetLifeStage()}\n" +
+                $"{dog.GetStatusText()} | {breedingStatus}\n" +
                 $"{dog.GetPotentialTier()} | {dog.GetPotentialTitle()}\n" +
-                $"Style: {dog.fightStyle} | Traits: {dog.GetTraitSummary()}\n" +
-                $"Growth: x{dog.growthRate:F2}\n" +
-                $"Gen {dog.generation} | Lvl {dog.level} | XP {dog.xp}/{dog.xpToNextLevel}\n" +
-                $"Record: {dog.wins}W - {dog.losses}L | Fights: {dog.totalFights}";
+                $"Style: {dog.fightStyle}\n" +
+                $"Traits: {dog.GetTraitSummary()}";
         }
+
+        SetText(strengthValueText, $"STR {dog.strength}/{dog.strengthPotential}");
+        SetText(agilityValueText, $"AGI {dog.agility}/{dog.agilityPotential}");
+        SetText(staminaValueText, $"STA {dog.stamina}/{dog.staminaPotential}");
+        SetText(winsLossesValueText, $"Record {dog.wins}W - {dog.losses}L");
+        SetText(levelValueText, $"Level {dog.level}");
 
         if (dogImage != null && dog.dogSprite != null)
         {
             dogImage.sprite = dog.dogSprite;
+            dogImage.color = Color.white;
             dogImage.enabled = true;
+        }
+        else if (dogImage != null)
+        {
+            dogImage.enabled = false;
         }
     }
 
@@ -68,5 +79,13 @@ public class DogCardUI : MonoBehaviour
         }
 
         return $"Already Bred This Week | Last Bred Week: {dog.lastBredWeek}";
+    }
+
+    void SetText(TextMeshProUGUI textField, string value)
+    {
+        if (textField != null)
+        {
+            textField.text = value;
+        }
     }
 }
