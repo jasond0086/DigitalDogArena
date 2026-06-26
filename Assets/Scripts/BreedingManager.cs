@@ -151,6 +151,8 @@ public class BreedingManager : MonoBehaviour
 
         dogManager.SaveStable();
 
+        string bloodlineDetails = BuildBloodlineDetails(newborn, parent1, parent2);
+
         string headline = $"Newborn Created: {newborn.dogName} • {newborn.gender} • Gen {newborn.generation} • {newborn.breed}";
         string details =
             "NEWBORN BIRTH REPORT\n\n" +
@@ -167,8 +169,7 @@ public class BreedingManager : MonoBehaviour
             $"Fight Style: {newborn.fightStyle}\n" +
             $"Traits: {newborn.GetTraitSummary()}\n\n" +
             "BLOODLINE\n" +
-            $"Parents: {parent1.dogName} ({parent1.gender}) x {parent2.dogName} ({parent2.gender})\n" +
-            $"{newborn.ancestorBonusSummary}\n" +
+            bloodlineDetails +
             $"Week: {dogManager.currentWeek}\n" +
             $"Breeding Cost: {breedingCost} credits";
 
@@ -197,6 +198,63 @@ public class BreedingManager : MonoBehaviour
                GetTraitPremium(parent1.secondaryTrait) +
                GetTraitPremium(parent2.primaryTrait) +
                GetTraitPremium(parent2.secondaryTrait);
+    }
+
+    string BuildBloodlineDetails(Dog newborn, Dog parent1, Dog parent2)
+    {
+        string fatherName = GetParentNameByGender(parent1, parent2, DogGender.Male);
+        string motherName = GetParentNameByGender(parent1, parent2, DogGender.Female);
+        string bloodlineName = string.IsNullOrWhiteSpace(newborn.bloodlineName)
+            ? "None"
+            : newborn.bloodlineName;
+
+        return
+            $"Puppy: {newborn.dogName}\n" +
+            $"Breed: {newborn.breed}\n" +
+            $"Father: {fatherName}\n" +
+            $"Mother: {motherName}\n" +
+            $"Bloodline: {bloodlineName}\n" +
+            $"{BuildAncestorResultLine(newborn)}\n";
+    }
+
+    string GetParentNameByGender(Dog parent1, Dog parent2, DogGender gender)
+    {
+        if (parent1 != null && parent1.gender == gender)
+        {
+            return parent1.dogName;
+        }
+
+        if (parent2 != null && parent2.gender == gender)
+        {
+            return parent2.dogName;
+        }
+
+        return "Unknown";
+    }
+
+    string BuildAncestorResultLine(Dog newborn)
+    {
+        if (newborn == null)
+        {
+            return "Ancestor Bonus: None triggered";
+        }
+
+        bool hasStatBonus =
+            newborn.ancestorStrengthBonus > 0 ||
+            newborn.ancestorAgilityBonus > 0 ||
+            newborn.ancestorStaminaBonus > 0;
+
+        if (hasStatBonus)
+        {
+            return $"Ancestor Bonus: {newborn.bloodlineName} {FormatAncestorBonusShort(newborn.ancestorStrengthBonus, newborn.ancestorAgilityBonus, newborn.ancestorStaminaBonus)}";
+        }
+
+        if (newborn.isBloodlineCarrier && !string.IsNullOrWhiteSpace(newborn.bloodlineName))
+        {
+            return $"Dormant Bloodline Carrier: {newborn.bloodlineName}";
+        }
+
+        return "Ancestor Bonus: None triggered";
     }
 
     int GetTierCost(string tier)
@@ -692,6 +750,28 @@ public class BreedingManager : MonoBehaviour
         if (staminaBonus > 0)
         {
             parts.Add($"+{staminaBonus} STA potential");
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    string FormatAncestorBonusShort(int strengthBonus, int agilityBonus, int staminaBonus)
+    {
+        System.Collections.Generic.List<string> parts = new System.Collections.Generic.List<string>();
+
+        if (strengthBonus > 0)
+        {
+            parts.Add($"+{strengthBonus} STR Pot");
+        }
+
+        if (agilityBonus > 0)
+        {
+            parts.Add($"+{agilityBonus} AGI Pot");
+        }
+
+        if (staminaBonus > 0)
+        {
+            parts.Add($"+{staminaBonus} STA Pot");
         }
 
         return string.Join(", ", parts);
