@@ -105,7 +105,17 @@ public class Dog : ScriptableObject
     public int generation = 0;
     public string parent1Id = "";
     public string parent2Id = "";
+    public string fatherId = "";
+    public string motherId = "";
     public int lastBredWeek = -999;
+
+    [Header("Bloodline")]
+    public string bloodlineName = "";
+    public int ancestorStrengthBonus = 0;
+    public int ancestorAgilityBonus = 0;
+    public int ancestorStaminaBonus = 0;
+    public string ancestorBonusSummary = "";
+    public bool isBloodlineCarrier = false;
 
     [Header("Base Stats")]
     [Range(1, 100)] public int strength = 70;

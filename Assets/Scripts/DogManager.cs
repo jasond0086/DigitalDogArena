@@ -779,7 +779,16 @@ public class DogManager : MonoBehaviour
                 generation = dog.generation,
                 parent1Id = dog.parent1Id,
                 parent2Id = dog.parent2Id,
+                fatherId = dog.fatherId,
+                motherId = dog.motherId,
                 lastBredWeek = dog.lastBredWeek,
+
+                bloodlineName = dog.bloodlineName,
+                ancestorStrengthBonus = dog.ancestorStrengthBonus,
+                ancestorAgilityBonus = dog.ancestorAgilityBonus,
+                ancestorStaminaBonus = dog.ancestorStaminaBonus,
+                ancestorBonusSummary = dog.ancestorBonusSummary,
+                isBloodlineCarrier = dog.isBloodlineCarrier,
 
                 age = dog.age,
                 isDead = dog.isDead,
@@ -865,7 +874,16 @@ public class DogManager : MonoBehaviour
         dog.generation = savedDog.generation;
         dog.parent1Id = savedDog.parent1Id;
         dog.parent2Id = savedDog.parent2Id;
+        dog.fatherId = savedDog.fatherId;
+        dog.motherId = savedDog.motherId;
         dog.lastBredWeek = savedDog.lastBredWeek;
+
+        dog.bloodlineName = savedDog.bloodlineName;
+        dog.ancestorStrengthBonus = savedDog.ancestorStrengthBonus;
+        dog.ancestorAgilityBonus = savedDog.ancestorAgilityBonus;
+        dog.ancestorStaminaBonus = savedDog.ancestorStaminaBonus;
+        dog.ancestorBonusSummary = savedDog.ancestorBonusSummary;
+        dog.isBloodlineCarrier = savedDog.isBloodlineCarrier;
 
         dog.age = savedDog.age;
         dog.isDead = savedDog.isDead;
@@ -993,7 +1011,16 @@ public class DogSaveData
     public int generation;
     public string parent1Id;
     public string parent2Id;
+    public string fatherId;
+    public string motherId;
     public int lastBredWeek = -999;
+
+    public string bloodlineName;
+    public int ancestorStrengthBonus;
+    public int ancestorAgilityBonus;
+    public int ancestorStaminaBonus;
+    public string ancestorBonusSummary;
+    public bool isBloodlineCarrier;
 
     public int age;
     public bool isDead;

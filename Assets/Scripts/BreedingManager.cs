@@ -16,6 +16,13 @@ public class BreedingManager : MonoBehaviour
     [Range(0f, 1f)] public float styleMutationChance = 0.10f;
     [Range(0f, 1f)] public float traitMutationChance = 0.15f;
 
+    const int MaxTotalAncestorBonus = 5;
+    const int MaxSingleStatAncestorBonus = 3;
+    const float ParentBloodlineChance = 0.30f;
+    const float GrandparentBloodlineChance = 0.18f;
+    const float GreatGrandparentBloodlineChance = 0.08f;
+    const float DormantCarrierChance = 0.20f;
+
     void Awake()
     {
         if (dogManager == null)
@@ -161,6 +168,7 @@ public class BreedingManager : MonoBehaviour
             $"Traits: {newborn.GetTraitSummary()}\n\n" +
             "BLOODLINE\n" +
             $"Parents: {parent1.dogName} ({parent1.gender}) x {parent2.dogName} ({parent2.gender})\n" +
+            $"{newborn.ancestorBonusSummary}\n" +
             $"Week: {dogManager.currentWeek}\n" +
             $"Breeding Cost: {breedingCost} credits";
 
@@ -234,6 +242,8 @@ public class BreedingManager : MonoBehaviour
 
         newborn.parent1Id = parent1.dogId;
         newborn.parent2Id = parent2.dogId;
+        newborn.fatherId = parent1.gender == DogGender.Male ? parent1.dogId : parent2.dogId;
+        newborn.motherId = parent1.gender == DogGender.Female ? parent1.dogId : parent2.dogId;
         newborn.generation = Mathf.Max(parent1.generation, parent2.generation) + 1;
 
         newborn.strengthPotential = BreedPotential(parent1.strengthPotential, parent2.strengthPotential);
@@ -249,6 +259,7 @@ public class BreedingManager : MonoBehaviour
         newborn.fightStyle = BreedFightStyle(parent1.fightStyle, parent2.fightStyle);
         BreedTraits(parent1, parent2, newborn);
         ApplyTraitGrowthBonus(newborn);
+        ApplyAncestorBloodlineBonus(parent1, parent2, newborn);
 
         newborn.level = 1;
         newborn.xp = 0;
@@ -397,6 +408,305 @@ public class BreedingManager : MonoBehaviour
         }
     }
 
+    void ApplyAncestorBloodlineBonus(Dog parent1, Dog parent2, Dog newborn)
+    {
+        if (newborn == null)
+        {
+            return;
+        }
+
+        int totalBonus = 0;
+        int strengthBonus = 0;
+        int agilityBonus = 0;
+        int staminaBonus = 0;
+        string bloodlineName = "";
+        System.Collections.Generic.List<string> rollLog = new System.Collections.Generic.List<string>();
+
+        System.Collections.Generic.List<BloodlineCandidate> candidates =
+            new System.Collections.Generic.List<BloodlineCandidate>();
+
+        AddBloodlineCandidate(candidates, parent1, ParentBloodlineChance, "parent");
+        AddBloodlineCandidate(candidates, parent2, ParentBloodlineChance, "parent");
+
+        Dog parent1Father = FindAncestor(parent1.fatherId, parent1.parent1Id);
+        Dog parent1Mother = FindAncestor(parent1.motherId, parent1.parent2Id);
+        Dog parent2Father = FindAncestor(parent2.fatherId, parent2.parent1Id);
+        Dog parent2Mother = FindAncestor(parent2.motherId, parent2.parent2Id);
+
+        AddBloodlineCandidate(candidates, parent1Father, GrandparentBloodlineChance, "grandparent");
+        AddBloodlineCandidate(candidates, parent1Mother, GrandparentBloodlineChance, "grandparent");
+        AddBloodlineCandidate(candidates, parent2Father, GrandparentBloodlineChance, "grandparent");
+        AddBloodlineCandidate(candidates, parent2Mother, GrandparentBloodlineChance, "grandparent");
+
+        AddGreatGrandparentCandidates(candidates, parent1Father);
+        AddGreatGrandparentCandidates(candidates, parent1Mother);
+        AddGreatGrandparentCandidates(candidates, parent2Father);
+        AddGreatGrandparentCandidates(candidates, parent2Mother);
+
+        foreach (BloodlineCandidate candidate in candidates)
+        {
+            if (candidate.dog == null || totalBonus >= MaxTotalAncestorBonus)
+            {
+                continue;
+            }
+
+            float roll = Random.value;
+            bool triggered = roll < candidate.chance;
+            rollLog.Add($"{candidate.label} {candidate.dog.dogName}: {roll:0.00}/{candidate.chance:0.00}");
+
+            if (!triggered)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(bloodlineName))
+            {
+                bloodlineName = GetBloodlineName(candidate.dog);
+            }
+
+            int bonusToApply = Mathf.Min(Random.Range(1, 4), MaxTotalAncestorBonus - totalBonus);
+            ApplyRandomAncestorStatBonus(
+                bonusToApply,
+                ref strengthBonus,
+                ref agilityBonus,
+                ref staminaBonus,
+                ref totalBonus);
+        }
+
+        if (totalBonus > 0)
+        {
+            newborn.bloodlineName = bloodlineName;
+            newborn.isBloodlineCarrier = true;
+
+            int originalStrengthPotential = newborn.strengthPotential;
+            int originalAgilityPotential = newborn.agilityPotential;
+            int originalStaminaPotential = newborn.staminaPotential;
+
+            newborn.strengthPotential = Mathf.Clamp(originalStrengthPotential + strengthBonus, 1, 120);
+            newborn.agilityPotential = Mathf.Clamp(originalAgilityPotential + agilityBonus, 1, 120);
+            newborn.staminaPotential = Mathf.Clamp(originalStaminaPotential + staminaBonus, 1, 120);
+
+            newborn.ancestorStrengthBonus = newborn.strengthPotential - originalStrengthPotential;
+            newborn.ancestorAgilityBonus = newborn.agilityPotential - originalAgilityPotential;
+            newborn.ancestorStaminaBonus = newborn.staminaPotential - originalStaminaPotential;
+
+            string appliedBonusSummary = FormatAncestorBonus(
+                newborn.ancestorStrengthBonus,
+                newborn.ancestorAgilityBonus,
+                newborn.ancestorStaminaBonus);
+
+            if (string.IsNullOrWhiteSpace(appliedBonusSummary))
+            {
+                appliedBonusSummary = "no potential room after cap";
+            }
+
+            newborn.ancestorBonusSummary =
+                $"Ancestor bonus triggered: {bloodlineName} {appliedBonusSummary}";
+
+            LogAncestorRolls(newborn, rollLog);
+            return;
+        }
+
+        Dog carrierSource = GetBloodlineCarrierSource(parent1, parent2);
+
+        if (carrierSource != null && Random.value < DormantCarrierChance)
+        {
+            newborn.bloodlineName = GetBloodlineName(carrierSource);
+            newborn.isBloodlineCarrier = true;
+            newborn.ancestorBonusSummary = $"Dormant carrier: carries {newborn.bloodlineName}";
+            LogAncestorRolls(newborn, rollLog);
+            return;
+        }
+
+        newborn.ancestorBonusSummary = "No ancestor bonus triggered";
+
+        if (rollLog.Count > 0)
+        {
+            newborn.ancestorBonusSummary += $" ({string.Join(", ", rollLog)})";
+        }
+
+        LogAncestorRolls(newborn, rollLog);
+    }
+
+    void AddBloodlineCandidate(
+        System.Collections.Generic.List<BloodlineCandidate> candidates,
+        Dog dog,
+        float chance,
+        string label)
+    {
+        if (dog == null || candidates == null)
+        {
+            return;
+        }
+
+        candidates.Add(new BloodlineCandidate
+        {
+            dog = dog,
+            chance = chance,
+            label = label
+        });
+    }
+
+    void AddGreatGrandparentCandidates(System.Collections.Generic.List<BloodlineCandidate> candidates, Dog grandparent)
+    {
+        if (grandparent == null)
+        {
+            return;
+        }
+
+        AddBloodlineCandidate(candidates, FindAncestor(grandparent.fatherId, grandparent.parent1Id), GreatGrandparentBloodlineChance, "great-grandparent");
+        AddBloodlineCandidate(candidates, FindAncestor(grandparent.motherId, grandparent.parent2Id), GreatGrandparentBloodlineChance, "great-grandparent");
+    }
+
+    Dog FindAncestor(string preferredId, string fallbackId)
+    {
+        Dog ancestor = FindDogById(preferredId);
+
+        if (ancestor != null)
+        {
+            return ancestor;
+        }
+
+        return FindDogById(fallbackId);
+    }
+
+    Dog FindDogById(string dogId)
+    {
+        if (dogManager == null ||
+            dogManager.ownedDogs == null ||
+            string.IsNullOrWhiteSpace(dogId))
+        {
+            return null;
+        }
+
+        return dogManager.ownedDogs.Find(dog => dog != null && dog.dogId == dogId);
+    }
+
+    void ApplyRandomAncestorStatBonus(
+        int bonusToApply,
+        ref int strengthBonus,
+        ref int agilityBonus,
+        ref int staminaBonus,
+        ref int totalBonus)
+    {
+        int safety = 0;
+
+        while (bonusToApply > 0 &&
+               totalBonus < MaxTotalAncestorBonus &&
+               safety < 30)
+        {
+            safety++;
+            int statIndex = Random.Range(0, 3);
+
+            if (statIndex == 0 && strengthBonus < MaxSingleStatAncestorBonus)
+            {
+                strengthBonus++;
+                totalBonus++;
+                bonusToApply--;
+            }
+            else if (statIndex == 1 && agilityBonus < MaxSingleStatAncestorBonus)
+            {
+                agilityBonus++;
+                totalBonus++;
+                bonusToApply--;
+            }
+            else if (statIndex == 2 && staminaBonus < MaxSingleStatAncestorBonus)
+            {
+                staminaBonus++;
+                totalBonus++;
+                bonusToApply--;
+            }
+        }
+    }
+
+    string GetBloodlineName(Dog dog)
+    {
+        if (dog != null && !string.IsNullOrWhiteSpace(dog.bloodlineName))
+        {
+            return dog.bloodlineName;
+        }
+
+        string[] bloodlineNames =
+        {
+            "Ironjaw Blood",
+            "Apex Line",
+            "Street King Blood",
+            "Prodigy Spark",
+            "Old Yard Stock"
+        };
+
+        if (dog != null && dog.HasTrait(DogTrait.Prodigy))
+        {
+            return "Prodigy Spark";
+        }
+
+        if (dog != null && dog.GetPotentialTier() == "Apex")
+        {
+            return "Apex Line";
+        }
+
+        if (dog != null && dog.strengthPotential >= dog.agilityPotential &&
+            dog.strengthPotential >= dog.staminaPotential)
+        {
+            return "Ironjaw Blood";
+        }
+
+        return bloodlineNames[Random.Range(0, bloodlineNames.Length)];
+    }
+
+    Dog GetBloodlineCarrierSource(Dog parent1, Dog parent2)
+    {
+        if (HasBloodline(parent1))
+        {
+            return parent1;
+        }
+
+        if (HasBloodline(parent2))
+        {
+            return parent2;
+        }
+
+        return null;
+    }
+
+    bool HasBloodline(Dog dog)
+    {
+        return dog != null &&
+               (dog.isBloodlineCarrier || !string.IsNullOrWhiteSpace(dog.bloodlineName));
+    }
+
+    string FormatAncestorBonus(int strengthBonus, int agilityBonus, int staminaBonus)
+    {
+        System.Collections.Generic.List<string> parts = new System.Collections.Generic.List<string>();
+
+        if (strengthBonus > 0)
+        {
+            parts.Add($"+{strengthBonus} STR potential");
+        }
+
+        if (agilityBonus > 0)
+        {
+            parts.Add($"+{agilityBonus} AGI potential");
+        }
+
+        if (staminaBonus > 0)
+        {
+            parts.Add($"+{staminaBonus} STA potential");
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    void LogAncestorRolls(Dog newborn, System.Collections.Generic.List<string> rollLog)
+    {
+        if (newborn == null || rollLog == null || rollLog.Count == 0)
+        {
+            return;
+        }
+
+        Debug.Log($"Ancestor bloodline rolls for {newborn.dogName}: {string.Join(", ", rollLog)}");
+    }
+
     FightStyle GetRandomFightStyle()
     {
         int styleCount = System.Enum.GetValues(typeof(FightStyle)).Length;
@@ -508,5 +818,12 @@ public class BreedingManager : MonoBehaviour
 
             return traits[Random.Range(0, traits.Count)];
         }
+    }
+
+    class BloodlineCandidate
+    {
+        public Dog dog;
+        public float chance;
+        public string label;
     }
 }
