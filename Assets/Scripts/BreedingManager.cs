@@ -797,12 +797,7 @@ public class BreedingManager : MonoBehaviour
 
     string GenerateBreed(Dog parent1, Dog parent2)
     {
-        if (parent1.breed == parent2.breed)
-        {
-            return parent1.breed;
-        }
-
-        return $"{parent1.breed} / {parent2.breed}";
+        return BreedLibrary.GetHybridBreedName(parent1.breed, parent2.breed);
     }
 
     string GenerateName()
