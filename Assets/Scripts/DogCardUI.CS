@@ -12,6 +12,7 @@ public class DogCardUI : MonoBehaviour
     public TextMeshProUGUI staminaValueText;
     public TextMeshProUGUI winsLossesValueText;
     public TextMeshProUGUI levelValueText;
+    public TextMeshProUGUI bloodlineText;
 
     [Header("Optional Image")]
     public Image dogImage;
@@ -54,6 +55,7 @@ public class DogCardUI : MonoBehaviour
         SetText(staminaValueText, $"STA {dog.stamina}/{dog.staminaPotential}");
         SetText(winsLossesValueText, $"Record {dog.wins}W - {dog.losses}L");
         SetText(levelValueText, $"Level {dog.level}");
+        SetText(bloodlineText, GetBloodlineText());
 
         if (dogImage != null)
         {
@@ -84,5 +86,31 @@ public class DogCardUI : MonoBehaviour
         {
             textField.text = value;
         }
+    }
+
+    string GetBloodlineText()
+    {
+        bool hasBloodline = !string.IsNullOrWhiteSpace(dog.bloodlineName);
+        bool hasAncestorSummary = !string.IsNullOrWhiteSpace(dog.ancestorBonusSummary);
+
+        if (!hasBloodline && !dog.isBloodlineCarrier)
+        {
+            return "Bloodline: None";
+        }
+
+        string bloodlineName = hasBloodline ? dog.bloodlineName : "Unknown";
+        string text = $"Bloodline: {bloodlineName}";
+
+        if (hasAncestorSummary)
+        {
+            text += $"\nAncestor: {dog.ancestorBonusSummary}";
+        }
+
+        if (dog.isBloodlineCarrier)
+        {
+            text += "\nCarrier";
+        }
+
+        return text;
     }
 }
