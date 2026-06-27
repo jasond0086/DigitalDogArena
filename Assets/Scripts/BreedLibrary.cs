@@ -50,13 +50,13 @@ public static class BreedLibrary
 
     public static bool TryGetBaseBreed(string breedName, out BreedInfo breedInfo)
     {
-        return baseBreeds.TryGetValue(NormalizeBreedName(breedName), out breedInfo);
+        return baseBreeds.TryGetValue(CleanBreedName(breedName), out breedInfo);
     }
 
     public static string GetHybridBreedName(string parentBreed1, string parentBreed2)
     {
-        string breed1 = NormalizeBreedName(parentBreed1);
-        string breed2 = NormalizeBreedName(parentBreed2);
+        string breed1 = CleanBreedName(parentBreed1);
+        string breed2 = CleanBreedName(parentBreed2);
 
         if (string.Equals(breed1, breed2, StringComparison.OrdinalIgnoreCase))
         {
@@ -70,17 +70,10 @@ public static class BreedLibrary
             return hybridName;
         }
 
-        string reversedPairKey = MakePairKey(breed2, breed1);
-
-        if (hybridNames.TryGetValue(reversedPairKey, out hybridName))
-        {
-            return hybridName;
-        }
-
         return BuildFallbackHybridName(breed1, breed2);
     }
 
-    public static string NormalizeBreedName(string breedName)
+    public static string CleanBreedName(string breedName)
     {
         if (string.IsNullOrWhiteSpace(breedName))
         {
@@ -90,9 +83,38 @@ public static class BreedLibrary
         return breedName.Trim();
     }
 
+    public static string NormalizeBreedName(string breedName)
+    {
+        return CleanBreedName(breedName);
+    }
+
     private static string MakePairKey(string breed1, string breed2)
     {
-        return $"{NormalizeBreedName(breed1)}|{NormalizeBreedName(breed2)}";
+        string orderedBreed1;
+        string orderedBreed2;
+        GetOrderedPair(breed1, breed2, out orderedBreed1, out orderedBreed2);
+
+        return $"{orderedBreed1}|{orderedBreed2}";
+    }
+
+    private static void GetOrderedPair(
+        string breed1,
+        string breed2,
+        out string orderedBreed1,
+        out string orderedBreed2)
+    {
+        string cleanBreed1 = CleanBreedName(breed1);
+        string cleanBreed2 = CleanBreedName(breed2);
+
+        if (string.Compare(cleanBreed1, cleanBreed2, StringComparison.OrdinalIgnoreCase) <= 0)
+        {
+            orderedBreed1 = cleanBreed1;
+            orderedBreed2 = cleanBreed2;
+            return;
+        }
+
+        orderedBreed1 = cleanBreed2;
+        orderedBreed2 = cleanBreed1;
     }
 
     private static Dictionary<string, string> BuildHybridNames()
@@ -117,7 +139,6 @@ public static class BreedLibrary
         AddHybridName(names, "Doberman", "Cane Corso", "Dobocorso");
         AddHybridName(names, "Boxer", "Rottweiler", "Boxweiler");
         AddHybridName(names, "German Shepherd", "Mastiff", "Shepiff");
-        AddHybridName(names, "Dogo Argentino", "German Shepherd", "Argenshep");
         AddHybridName(names, "Belgian Malinois", "Doberman", "Maliberman");
 
         return names;
@@ -134,14 +155,38 @@ public static class BreedLibrary
 
     private static string BuildFallbackHybridName(string breed1, string breed2)
     {
-        return $"{GetBreedWord(breed1, 0)}{GetBreedWord(breed2, 1)}";
+        string orderedBreed1;
+        string orderedBreed2;
+        GetOrderedPair(breed1, breed2, out orderedBreed1, out orderedBreed2);
+
+        return $"{GetFirstWord(orderedBreed1)}{GetSecondWordOrFirst(orderedBreed2)}";
+    }
+
+    private static string GetFirstWord(string breedName)
+    {
+        return GetBreedWord(breedName, 0);
+    }
+
+    private static string GetSecondWordOrFirst(string breedName)
+    {
+        string[] words = GetBreedWords(breedName);
+
+        if (words.Length == 0)
+        {
+            return "Hybrid";
+        }
+
+        if (words.Length > 1)
+        {
+            return words[1];
+        }
+
+        return words[0];
     }
 
     private static string GetBreedWord(string breedName, int wordIndex)
     {
-        string[] words = NormalizeBreedName(breedName).Split(
-            new[] { ' ', '-', '/' },
-            StringSplitOptions.RemoveEmptyEntries);
+        string[] words = GetBreedWords(breedName);
 
         if (words.Length == 0)
         {
@@ -150,5 +195,12 @@ public static class BreedLibrary
 
         int safeIndex = Math.Min(wordIndex, words.Length - 1);
         return words[safeIndex];
+    }
+
+    private static string[] GetBreedWords(string breedName)
+    {
+        return CleanBreedName(breedName).Split(
+            new[] { ' ', '-', '/' },
+            StringSplitOptions.RemoveEmptyEntries);
     }
 }
