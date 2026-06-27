@@ -42,7 +42,8 @@ public class DogCardUI : MonoBehaviour
             string breedingStatus = GetBreedingStatusText();
 
             statsText.text =
-                $"{dog.breed} | {dog.gender}\n" +
+                $"Breed: {dog.breed}\n" +
+                $"Gender: {dog.gender}\n" +
                 $"Age {dog.age} | {dog.GetLifeStage()}\n" +
                 $"{dog.GetStatusText()} | {breedingStatus}\n" +
                 $"{dog.GetPotentialTier()} | {dog.GetPotentialTitle()}\n" +

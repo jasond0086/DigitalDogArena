@@ -151,15 +151,17 @@ public class BreedingManager : MonoBehaviour
 
         dogManager.SaveStable();
 
+        string breedDetails = BuildBreedDetails(newborn, parent1, parent2);
         string bloodlineDetails = BuildBloodlineDetails(newborn, parent1, parent2);
 
         string headline = $"Newborn Created: {newborn.dogName} • {newborn.gender} • Gen {newborn.generation} • {newborn.breed}";
         string details =
             "NEWBORN BIRTH REPORT\n\n" +
             $"Name: {newborn.dogName}\n" +
-            $"Breed: {newborn.breed}\n" +
             $"Gender: {newborn.gender}\n" +
             $"Generation: {newborn.generation}\n\n" +
+            "BREED\n" +
+            breedDetails +
             "STATS\n" +
             $"Strength: {newborn.strength} / {newborn.strengthPotential} potential\n" +
             $"Agility: {newborn.agility} / {newborn.agilityPotential} potential\n" +
@@ -210,11 +212,22 @@ public class BreedingManager : MonoBehaviour
 
         return
             $"Puppy: {newborn.dogName}\n" +
-            $"Breed: {newborn.breed}\n" +
             $"Father: {fatherName}\n" +
             $"Mother: {motherName}\n" +
             $"Bloodline: {bloodlineName}\n" +
             $"{BuildAncestorResultLine(newborn)}\n";
+    }
+
+    string BuildBreedDetails(Dog newborn, Dog parent1, Dog parent2)
+    {
+        string fatherBreed = GetParentBreedByGender(parent1, parent2, DogGender.Male);
+        string motherBreed = GetParentBreedByGender(parent1, parent2, DogGender.Female);
+        bool isHybrid = IsHybridBreed(parent1, parent2);
+
+        return
+            $"Breed: {newborn.breed}\n" +
+            $"Hybrid: {(isHybrid ? "Yes" : "No")}\n" +
+            $"Parents: {fatherBreed} x {motherBreed}\n\n";
     }
 
     string GetParentNameByGender(Dog parent1, Dog parent2, DogGender gender)
@@ -230,6 +243,34 @@ public class BreedingManager : MonoBehaviour
         }
 
         return "Unknown";
+    }
+
+    string GetParentBreedByGender(Dog parent1, Dog parent2, DogGender gender)
+    {
+        if (parent1 != null && parent1.gender == gender)
+        {
+            return parent1.breed;
+        }
+
+        if (parent2 != null && parent2.gender == gender)
+        {
+            return parent2.breed;
+        }
+
+        return "Unknown";
+    }
+
+    bool IsHybridBreed(Dog parent1, Dog parent2)
+    {
+        if (parent1 == null || parent2 == null)
+        {
+            return false;
+        }
+
+        string parent1Breed = parent1.breed == null ? "" : parent1.breed.Trim();
+        string parent2Breed = parent2.breed == null ? "" : parent2.breed.Trim();
+
+        return !string.Equals(parent1Breed, parent2Breed, System.StringComparison.OrdinalIgnoreCase);
     }
 
     string BuildAncestorResultLine(Dog newborn)
