@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class BreedingManager : MonoBehaviour
 {
@@ -8,6 +9,11 @@ public class BreedingManager : MonoBehaviour
     public EconomyManager economyManager;
     public NarratorManager narratorManager;
     public TextMeshProUGUI breedingLog;
+
+    [Header("Parent Portraits")]
+    public Image parent1PortraitImage;
+    public Image parent2PortraitImage;
+    public Sprite defaultDogPortraitSprite;
 
     [Header("Breeding Settings")]
     [Range(0, 20)] public int statVariance = 8;
@@ -22,6 +28,9 @@ public class BreedingManager : MonoBehaviour
     const float GrandparentBloodlineChance = 0.18f;
     const float GreatGrandparentBloodlineChance = 0.08f;
     const float DormantCarrierChance = 0.20f;
+
+    Dog lastDisplayedParent1;
+    Dog lastDisplayedParent2;
 
     void Awake()
     {
@@ -39,6 +48,19 @@ public class BreedingManager : MonoBehaviour
         {
             narratorManager = GetComponent<NarratorManager>();
         }
+
+        ConfigurePortraitImage(parent1PortraitImage);
+        ConfigurePortraitImage(parent2PortraitImage);
+    }
+
+    void Start()
+    {
+        RefreshParentPortraits(true);
+    }
+
+    void Update()
+    {
+        RefreshParentPortraits(false);
     }
 
     public void BreedSelectedFighters()
@@ -910,6 +932,58 @@ public class BreedingManager : MonoBehaviour
         }
 
         Debug.Log(message);
+    }
+
+    void RefreshParentPortraits(bool forceRefresh)
+    {
+        if (dogManager == null)
+        {
+            return;
+        }
+
+        if (forceRefresh || dogManager.selectedParent1 != lastDisplayedParent1)
+        {
+            lastDisplayedParent1 = dogManager.selectedParent1;
+            SetParentPortrait(parent1PortraitImage, lastDisplayedParent1);
+        }
+
+        if (forceRefresh || dogManager.selectedParent2 != lastDisplayedParent2)
+        {
+            lastDisplayedParent2 = dogManager.selectedParent2;
+            SetParentPortrait(parent2PortraitImage, lastDisplayedParent2);
+        }
+    }
+
+    void SetParentPortrait(Image portraitImage, Dog selectedDog)
+    {
+        if (portraitImage == null)
+        {
+            return;
+        }
+
+        Sprite portraitSprite = defaultDogPortraitSprite;
+
+        if (selectedDog != null && selectedDog.dogSprite != null)
+        {
+            portraitSprite = selectedDog.dogSprite;
+        }
+
+        portraitImage.sprite = portraitSprite;
+        portraitImage.color = Color.white;
+        portraitImage.enabled = portraitSprite != null;
+        portraitImage.raycastTarget = false;
+        portraitImage.preserveAspect = true;
+    }
+
+    void ConfigurePortraitImage(Image portraitImage)
+    {
+        if (portraitImage == null)
+        {
+            return;
+        }
+
+        portraitImage.raycastTarget = false;
+        portraitImage.preserveAspect = true;
     }
 
     class ListTraitPool
