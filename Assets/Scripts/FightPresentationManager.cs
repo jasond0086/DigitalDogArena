@@ -90,6 +90,46 @@ public class FightPresentationManager : MonoBehaviour
         Debug.Log($"Digital arena round {roundNumber}: {dogA.dogName} HP {dogAHealth} vs {dogB.dogName} HP {dogBHealth}.");
     }
 
+    public void PresentFightResult(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
+    {
+        if (dogA == null || dogB == null)
+        {
+            Debug.LogWarning("FightPresentationManager could not present result because one or both dogs were missing.");
+            return;
+        }
+
+        EnsureArenaRoot();
+
+        if (arenaRoot == null)
+        {
+            Debug.LogWarning("FightPresentationManager could not present result because ArenaRoot was missing.");
+            return;
+        }
+
+        CreateArenaObjectsIfNeeded();
+        arenaRoot.SetActive(true);
+
+        if (dogAHealth > dogBHealth)
+        {
+            MarkWinner(fighterATransform);
+            MarkLoser(fighterBTransform);
+            Debug.Log($"Digital arena result: {dogA.dogName} imprint wins. {dogB.dogName} imprint falls back.");
+            return;
+        }
+
+        if (dogBHealth > dogAHealth)
+        {
+            MarkWinner(fighterBTransform);
+            MarkLoser(fighterATransform);
+            Debug.Log($"Digital arena result: {dogB.dogName} imprint wins. {dogA.dogName} imprint falls back.");
+            return;
+        }
+
+        MarkDraw(fighterATransform);
+        MarkDraw(fighterBTransform);
+        Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
+    }
+
     void EnsureArenaRoot()
     {
         if (arenaRoot != null)
@@ -177,6 +217,42 @@ public class FightPresentationManager : MonoBehaviour
         fighter.transform.localScale = new Vector3(0.7f, 1.2f, 0.7f);
         SetObjectColor(fighter, color);
         return fighter;
+    }
+
+    void MarkWinner(Transform fighterTransform)
+    {
+        if (fighterTransform == null)
+        {
+            return;
+        }
+
+        fighterTransform.localPosition = new Vector3(fighterTransform.localPosition.x, 0.9f, fighterTransform.localPosition.z);
+        fighterTransform.localScale = new Vector3(0.95f, 1.55f, 0.95f);
+        SetObjectColor(fighterTransform.gameObject, new Color(0.1f, 1f, 0.35f));
+    }
+
+    void MarkLoser(Transform fighterTransform)
+    {
+        if (fighterTransform == null)
+        {
+            return;
+        }
+
+        fighterTransform.localPosition = new Vector3(fighterTransform.localPosition.x, 0.35f, fighterTransform.localPosition.z);
+        fighterTransform.localScale = new Vector3(0.55f, 0.75f, 0.55f);
+        SetObjectColor(fighterTransform.gameObject, new Color(0.25f, 0.25f, 0.3f));
+    }
+
+    void MarkDraw(Transform fighterTransform)
+    {
+        if (fighterTransform == null)
+        {
+            return;
+        }
+
+        fighterTransform.localPosition = new Vector3(fighterTransform.localPosition.x, 0.8f, fighterTransform.localPosition.z);
+        fighterTransform.localScale = new Vector3(0.82f, 1.35f, 0.82f);
+        SetObjectColor(fighterTransform.gameObject, new Color(1f, 0.85f, 0.2f));
     }
 
     void CreateMarker(string objectName, Vector3 position, Color color)

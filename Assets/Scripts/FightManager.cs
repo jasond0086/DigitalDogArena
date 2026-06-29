@@ -391,6 +391,16 @@ public class FightManager : MonoBehaviour
             ref runningFightLog
         );
 
+        if (fightPresentationManager != null)
+        {
+            fightPresentationManager.PresentFightResult(
+                activeFighter1,
+                activeFighter2,
+                currentFighter1Health,
+                currentFighter2Health
+            );
+        }
+
         fightInProgress = false;
         string finalStatus = GetFinalFightStatus();
 
