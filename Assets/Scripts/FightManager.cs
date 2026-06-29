@@ -183,7 +183,7 @@ public class FightManager : MonoBehaviour
 
         if (fightPresentationManager != null)
         {
-            fightPresentationManager.ShowPlaceholderArena(activeFighter1, activeFighter2);
+            fightPresentationManager.PlayScanIntroThenShowArena(activeFighter1, activeFighter2);
         }
 
         activeFightIsRival = isRivalFight;
