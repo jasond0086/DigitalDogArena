@@ -246,6 +246,17 @@ public class FightManager : MonoBehaviour
         currentFighter2Health = Mathf.Max(0, currentFighter2Health - dmg1);
         currentFighter1Health = Mathf.Max(0, currentFighter1Health - dmg2);
 
+        if (fightPresentationManager != null)
+        {
+            fightPresentationManager.PresentRound(
+                currentRound,
+                activeFighter1,
+                activeFighter2,
+                currentFighter1Health,
+                currentFighter2Health
+            );
+        }
+
         if (currentFighter1Health < currentFighter2Health)
         {
             fighter1WasBehind = true;
