@@ -11,6 +11,7 @@ public class FightManager : MonoBehaviour
     public StoryManager storyManager;
     public EconomyManager economyManager;
     public NarratorManager narratorManager;
+    public FightPresentationManager fightPresentationManager;
     public TextMeshProUGUI fightLog;
     public ScrollRect fightLogScrollRect;
 
@@ -79,6 +80,17 @@ public class FightManager : MonoBehaviour
         if (narratorManager == null)
         {
             narratorManager = FindFirstObjectByType<NarratorManager>();
+        }
+
+        if (fightPresentationManager == null)
+        {
+            fightPresentationManager = FindObjectOfType<FightPresentationManager>();
+        }
+
+        if (fightPresentationManager == null)
+        {
+            GameObject presentationManagerObject = new GameObject("FightPresentationManager");
+            fightPresentationManager = presentationManagerObject.AddComponent<FightPresentationManager>();
         }
     }
 
@@ -168,6 +180,12 @@ public class FightManager : MonoBehaviour
     {
         activeFighter1 = fighter1;
         activeFighter2 = fighter2;
+
+        if (fightPresentationManager != null)
+        {
+            fightPresentationManager.ShowPlaceholderArena(activeFighter1, activeFighter2);
+        }
+
         activeFightIsRival = isRivalFight;
         activeRival = rival;
         currentRound = 0;
