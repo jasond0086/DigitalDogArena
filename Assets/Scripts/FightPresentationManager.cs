@@ -5,15 +5,20 @@ public class FightPresentationManager : MonoBehaviour
 {
     private const string ArenaRootName = "ArenaRoot";
     private const string ScanChamberRootName = "ScanChamberRoot";
+    private const string MonitorTransitionRootName = "MonitorTransitionRoot";
     private const float ScanIntroDelaySeconds = 1.5f;
+    private const float MonitorTransitionDelaySeconds = 1f;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
+    private static GameObject sharedMonitorTransitionRoot;
 
     private GameObject arenaRoot;
     private GameObject scanChamberRoot;
+    private GameObject monitorTransitionRoot;
     private bool arenaObjectsCreated;
     private bool scanChamberObjectsCreated;
+    private bool monitorTransitionObjectsCreated;
     private Transform fighterATransform;
     private Transform fighterBTransform;
     private Transform scanDogATransform;
@@ -77,6 +82,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         HideExistingArenaRootForScan();
+        HideMonitorTransition();
         EnsureScanChamberRoot();
 
         if (scanChamberRoot == null)
@@ -100,6 +106,13 @@ public class FightPresentationManager : MonoBehaviour
         yield return new WaitForSeconds(ScanIntroDelaySeconds);
 
         HideScanChamber();
+
+        ShowMonitorTransition();
+        Debug.Log($"Digital imprints for {dogA.dogName} and {dogB.dogName} are entering the monitor grid.");
+
+        yield return new WaitForSeconds(MonitorTransitionDelaySeconds);
+
+        HideMonitorTransition();
         scanIntroCoroutine = null;
         ShowPlaceholderArena(dogA, dogB);
     }
@@ -272,6 +285,52 @@ public class FightPresentationManager : MonoBehaviour
         return null;
     }
 
+    void EnsureMonitorTransitionRoot()
+    {
+        if (monitorTransitionRoot != null)
+        {
+            return;
+        }
+
+        monitorTransitionRoot = FindExistingMonitorTransitionRoot();
+
+        if (monitorTransitionRoot == null)
+        {
+            monitorTransitionRoot = new GameObject(MonitorTransitionRootName);
+        }
+
+        monitorTransitionRoot.hideFlags = HideFlags.DontSave;
+        sharedMonitorTransitionRoot = monitorTransitionRoot;
+        monitorTransitionRoot.SetActive(false);
+    }
+
+    GameObject FindExistingMonitorTransitionRoot()
+    {
+        if (sharedMonitorTransitionRoot != null)
+        {
+            return sharedMonitorTransitionRoot;
+        }
+
+        GameObject activeMonitorRoot = GameObject.Find(MonitorTransitionRootName);
+
+        if (activeMonitorRoot != null)
+        {
+            return activeMonitorRoot;
+        }
+
+        GameObject[] allGameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+
+        foreach (GameObject candidate in allGameObjects)
+        {
+            if (candidate.name == MonitorTransitionRootName && candidate.scene.IsValid())
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
     void HideExistingArenaRootForScan()
     {
         GameObject existingArenaRoot = FindExistingArenaRoot();
@@ -292,6 +351,30 @@ public class FightPresentationManager : MonoBehaviour
         if (scanChamberRoot != null)
         {
             scanChamberRoot.SetActive(false);
+        }
+    }
+
+    void ShowMonitorTransition()
+    {
+        EnsureMonitorTransitionRoot();
+
+        if (monitorTransitionRoot == null)
+        {
+            Debug.LogWarning("FightPresentationManager could not create MonitorTransitionRoot.");
+            return;
+        }
+
+        CreateMonitorTransitionObjectsIfNeeded();
+        monitorTransitionRoot.SetActive(true);
+    }
+
+    void HideMonitorTransition()
+    {
+        EnsureMonitorTransitionRoot();
+
+        if (monitorTransitionRoot != null)
+        {
+            monitorTransitionRoot.SetActive(false);
         }
     }
 
@@ -340,6 +423,27 @@ public class FightPresentationManager : MonoBehaviour
         CreateCopyCore();
 
         scanChamberObjectsCreated = true;
+    }
+
+    void CreateMonitorTransitionObjectsIfNeeded()
+    {
+        if (monitorTransitionObjectsCreated)
+        {
+            return;
+        }
+
+        if (monitorTransitionRoot.transform.childCount > 0)
+        {
+            monitorTransitionObjectsCreated = true;
+            return;
+        }
+
+        CreateMonitorScreen();
+        CreateMonitorFrame();
+        CreateMonitorGridMarkers();
+        CreateImprintStream();
+
+        monitorTransitionObjectsCreated = true;
     }
 
     void AssignExistingScanTransforms()
@@ -392,6 +496,78 @@ public class FightPresentationManager : MonoBehaviour
         fighter.transform.localScale = new Vector3(0.7f, 1.2f, 0.7f);
         SetObjectColor(fighter, color);
         return fighter;
+    }
+
+    void CreateMonitorScreen()
+    {
+        GameObject screen = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        screen.name = "MonitorScreen";
+        screen.transform.SetParent(monitorTransitionRoot.transform);
+        screen.transform.localPosition = new Vector3(0f, 1.25f, 0f);
+        screen.transform.localScale = new Vector3(4.2f, 2.4f, 0.08f);
+        SetObjectColor(screen, new Color(0.02f, 0.12f, 0.18f));
+    }
+
+    void CreateMonitorFrame()
+    {
+        CreateMonitorPart("MonitorFrameTop", new Vector3(0f, 2.55f, 0f), new Vector3(4.8f, 0.18f, 0.18f), new Color(0.02f, 0.02f, 0.025f));
+        CreateMonitorPart("MonitorFrameBottom", new Vector3(0f, -0.05f, 0f), new Vector3(4.8f, 0.18f, 0.18f), new Color(0.02f, 0.02f, 0.025f));
+        CreateMonitorPart("MonitorFrameLeft", new Vector3(-2.35f, 1.25f, 0f), new Vector3(0.18f, 2.7f, 0.18f), new Color(0.02f, 0.02f, 0.025f));
+        CreateMonitorPart("MonitorFrameRight", new Vector3(2.35f, 1.25f, 0f), new Vector3(0.18f, 2.7f, 0.18f), new Color(0.02f, 0.02f, 0.025f));
+        CreateMonitorPart("MonitorStand", new Vector3(0f, -0.7f, 0f), new Vector3(0.28f, 1.2f, 0.18f), new Color(0.02f, 0.02f, 0.025f));
+        CreateMonitorPart("MonitorBase", new Vector3(0f, -1.35f, 0f), new Vector3(1.6f, 0.18f, 0.8f), new Color(0.02f, 0.02f, 0.025f));
+    }
+
+    void CreateMonitorGridMarkers()
+    {
+        for (int i = -2; i <= 2; i++)
+        {
+            CreateMonitorPart(
+                $"MonitorGridVertical_{i}",
+                new Vector3(i * 0.75f, 1.25f, -0.08f),
+                new Vector3(0.03f, 2.15f, 0.03f),
+                new Color(0f, 0.7f, 1f)
+            );
+        }
+
+        for (int i = -1; i <= 1; i++)
+        {
+            CreateMonitorPart(
+                $"MonitorGridHorizontal_{i}",
+                new Vector3(0f, 1.25f + (i * 0.65f), -0.09f),
+                new Vector3(3.8f, 0.03f, 0.03f),
+                new Color(0f, 0.7f, 1f)
+            );
+        }
+    }
+
+    void CreateImprintStream()
+    {
+        CreateImprintStreamNode("ImprintStreamA_Outer", new Vector3(-1.45f, -0.85f, -0.35f), Color.cyan, 0.2f);
+        CreateImprintStreamNode("ImprintStreamA_Inner", new Vector3(-0.65f, 0.15f, -0.25f), Color.cyan, 0.16f);
+        CreateImprintStreamNode("ImprintStreamB_Outer", new Vector3(1.45f, -0.85f, -0.35f), Color.magenta, 0.2f);
+        CreateImprintStreamNode("ImprintStreamB_Inner", new Vector3(0.65f, 0.15f, -0.25f), Color.magenta, 0.16f);
+        CreateImprintStreamNode("ImprintStreamCore", new Vector3(0f, 1.25f, -0.3f), new Color(0.45f, 1f, 0.75f), 0.28f);
+    }
+
+    void CreateMonitorPart(string objectName, Vector3 position, Vector3 scale, Color color)
+    {
+        GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        part.name = objectName;
+        part.transform.SetParent(monitorTransitionRoot.transform);
+        part.transform.localPosition = position;
+        part.transform.localScale = scale;
+        SetObjectColor(part, color);
+    }
+
+    void CreateImprintStreamNode(string objectName, Vector3 position, Color color, float size)
+    {
+        GameObject streamNode = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        streamNode.name = objectName;
+        streamNode.transform.SetParent(monitorTransitionRoot.transform);
+        streamNode.transform.localPosition = position;
+        streamNode.transform.localScale = new Vector3(size, size, size);
+        SetObjectColor(streamNode, color);
     }
 
     void CreateScanChamberBase()
