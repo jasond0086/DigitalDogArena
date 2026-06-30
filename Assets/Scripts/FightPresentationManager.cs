@@ -10,7 +10,7 @@ public class FightPresentationManager : MonoBehaviour
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
-    private const float RoundActionDurationSeconds = 0.4f;
+    private const float RoundActionDurationSeconds = 0.8f;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
@@ -25,10 +25,17 @@ public class FightPresentationManager : MonoBehaviour
     private bool arenaObjectsCreated;
     private bool scanChamberObjectsCreated;
     private bool monitorTransitionObjectsCreated;
+    private bool arenaImpactEffectsCreated;
     private Transform fighterATransform;
     private Transform fighterBTransform;
     private Transform scanDogATransform;
     private Transform scanDogBTransform;
+    private GameObject impactSparkA;
+    private GameObject impactSparkB;
+    private GameObject corruptionNodeA;
+    private GameObject corruptionNodeB;
+    private GameObject impactRingA;
+    private GameObject impactRingB;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
@@ -60,6 +67,8 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateArenaObjectsIfNeeded();
+        CreateArenaImpactEffectsIfNeeded();
+        HideImpactEffects();
         UpdateArenaLabels(dogA, dogB);
         arenaRoot.SetActive(true);
         FrameArena();
@@ -149,6 +158,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateArenaObjectsIfNeeded();
+        CreateArenaImpactEffectsIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
 
@@ -214,6 +224,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateArenaObjectsIfNeeded();
+        CreateArenaImpactEffectsIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
         StopRoundAnimationIfRunning();
@@ -978,6 +989,135 @@ public class FightPresentationManager : MonoBehaviour
         SetObjectColor(copyCore, new Color(0.45f, 1f, 0.75f));
     }
 
+    void CreateArenaImpactEffectsIfNeeded()
+    {
+        if (arenaImpactEffectsCreated)
+        {
+            return;
+        }
+
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        impactSparkA = CreateArenaImpactEffectObject("ImpactSparkA", PrimitiveType.Sphere, new Vector3(0.55f, 0.55f, 0.55f), Color.red);
+        impactSparkB = CreateArenaImpactEffectObject("ImpactSparkB", PrimitiveType.Sphere, new Vector3(0.55f, 0.55f, 0.55f), Color.red);
+        corruptionNodeA = CreateArenaImpactEffectObject("CorruptionNodeA", PrimitiveType.Cube, new Vector3(0.4f, 0.4f, 0.4f), new Color(0.75f, 0.1f, 1f));
+        corruptionNodeB = CreateArenaImpactEffectObject("CorruptionNodeB", PrimitiveType.Cube, new Vector3(0.4f, 0.4f, 0.4f), new Color(0.75f, 0.1f, 1f));
+        impactRingA = CreateArenaImpactEffectObject("ImpactRingA", PrimitiveType.Cylinder, new Vector3(0.9f, 0.03f, 0.9f), new Color(1f, 0.45f, 0.05f));
+        impactRingB = CreateArenaImpactEffectObject("ImpactRingB", PrimitiveType.Cylinder, new Vector3(0.9f, 0.03f, 0.9f), new Color(1f, 0.45f, 0.05f));
+
+        arenaImpactEffectsCreated = true;
+        HideImpactEffects();
+    }
+
+    GameObject CreateArenaImpactEffectObject(string objectName, PrimitiveType primitiveType, Vector3 baseScale, Color color)
+    {
+        Transform existingEffect = arenaRoot.transform.Find(objectName);
+        GameObject effectObject;
+
+        if (existingEffect != null)
+        {
+            effectObject = existingEffect.gameObject;
+        }
+        else
+        {
+            effectObject = GameObject.CreatePrimitive(primitiveType);
+            effectObject.name = objectName;
+            effectObject.transform.SetParent(arenaRoot.transform);
+        }
+
+        effectObject.hideFlags = HideFlags.DontSave;
+        effectObject.transform.localPosition = Vector3.zero;
+        effectObject.transform.localRotation = Quaternion.identity;
+        effectObject.transform.localScale = baseScale;
+        SetObjectColor(effectObject, color);
+        effectObject.SetActive(false);
+
+        return effectObject;
+    }
+
+    void ShowImpactEffect(Transform target, int impact, string effectName)
+    {
+        if (target == null || impact <= 0)
+        {
+            return;
+        }
+
+        CreateArenaImpactEffectsIfNeeded();
+
+        GameObject spark = effectName == "A" ? impactSparkA : impactSparkB;
+        GameObject corruptionNode = effectName == "A" ? corruptionNodeA : corruptionNodeB;
+        GameObject impactRing = effectName == "A" ? impactRingA : impactRingB;
+
+        SetImpactEffectScale(spark, impact, new Vector3(0.55f, 0.55f, 0.55f));
+        SetImpactEffectScale(corruptionNode, impact, new Vector3(0.4f, 0.4f, 0.4f));
+        SetImpactEffectScale(impactRing, impact, new Vector3(0.9f, 0.03f, 0.9f));
+
+        SetObjectColor(spark, GetImpactEffectColor(impact, new Color(1f, 0.35f, 0.05f), new Color(1f, 0.05f, 0.02f)));
+        SetObjectColor(corruptionNode, GetImpactEffectColor(impact, new Color(0.65f, 0.1f, 1f), new Color(1f, 0.1f, 1f)));
+        SetObjectColor(impactRing, GetImpactEffectColor(impact, new Color(0f, 0.75f, 1f), new Color(1f, 0.45f, 0.05f)));
+
+        PositionImpactEffectNearTarget(spark, target, impact, new Vector3(0f, 0.45f, -0.1f));
+        PositionImpactEffectNearTarget(corruptionNode, target, impact, new Vector3(0f, 0.75f, 0.08f));
+        PositionImpactEffectNearTarget(impactRing, target, impact, new Vector3(0f, -0.48f, 0f));
+
+        SetImpactEffectActive(spark, true);
+        SetImpactEffectActive(corruptionNode, true);
+        SetImpactEffectActive(impactRing, true);
+    }
+
+    void HideImpactEffects()
+    {
+        SetImpactEffectActive(impactSparkA, false);
+        SetImpactEffectActive(impactSparkB, false);
+        SetImpactEffectActive(corruptionNodeA, false);
+        SetImpactEffectActive(corruptionNodeB, false);
+        SetImpactEffectActive(impactRingA, false);
+        SetImpactEffectActive(impactRingB, false);
+    }
+
+    void SetImpactEffectScale(GameObject effectObject, int impact, Vector3 baseScale)
+    {
+        if (effectObject == null)
+        {
+            return;
+        }
+
+        float intensity = Mathf.InverseLerp(1f, 55f, impact);
+        float scaleMultiplier = Mathf.Lerp(0.9f, 1.85f, intensity);
+        effectObject.transform.localScale = baseScale * scaleMultiplier;
+    }
+
+    Color GetImpactEffectColor(int impact, Color lowImpactColor, Color highImpactColor)
+    {
+        float intensity = Mathf.InverseLerp(1f, 55f, impact);
+        return Color.Lerp(lowImpactColor, highImpactColor, intensity);
+    }
+
+    void PositionImpactEffectNearTarget(GameObject effectObject, Transform target, int impact, Vector3 localOffset)
+    {
+        if (effectObject == null || target == null)
+        {
+            return;
+        }
+
+        float intensity = Mathf.InverseLerp(1f, 55f, impact);
+        float sideDistance = Mathf.Lerp(0.55f, 0.25f, intensity);
+        float sideDirection = target == fighterATransform ? 1f : -1f;
+
+        effectObject.transform.localPosition = target.localPosition + localOffset + new Vector3(sideDirection * sideDistance, 0f, 0f);
+    }
+
+    void SetImpactEffectActive(GameObject effectObject, bool isActive)
+    {
+        if (effectObject != null)
+        {
+            effectObject.SetActive(isActive);
+        }
+    }
+
     IEnumerator AnimateRoundExchange(Dog dogA, Dog dogB, int dogAImpact, int dogBImpact)
     {
         if (fighterATransform == null || fighterBTransform == null)
@@ -1000,11 +1140,25 @@ public class FightPresentationManager : MonoBehaviour
         fighterAImpactPosition.x = Mathf.Clamp(fighterAImpactPosition.x, -2.7f, -0.45f);
         fighterBImpactPosition.x = Mathf.Clamp(fighterBImpactPosition.x, 0.45f, 2.7f);
 
+        CreateArenaImpactEffectsIfNeeded();
+        HideImpactEffects();
+
+        if (dogAImpact > 0)
+        {
+            ShowImpactEffect(fighterBTransform, dogAImpact, "B");
+        }
+
+        if (dogBImpact > 0)
+        {
+            ShowImpactEffect(fighterATransform, dogBImpact, "A");
+        }
+
         float halfDuration = RoundActionDurationSeconds * 0.5f;
 
         yield return AnimateFightersToPositions(dogA, dogB, fighterAHome, fighterBHome, fighterAImpactPosition, fighterBImpactPosition, halfDuration);
         yield return AnimateFightersToPositions(dogA, dogB, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, halfDuration);
 
+        HideImpactEffects();
         roundAnimationCoroutine = null;
         ResetFighterArenaPositions();
         UpdateArenaLabels(dogA, dogB);
@@ -1047,11 +1201,13 @@ public class FightPresentationManager : MonoBehaviour
     {
         if (roundAnimationCoroutine == null)
         {
+            HideImpactEffects();
             return;
         }
 
         StopCoroutine(roundAnimationCoroutine);
         roundAnimationCoroutine = null;
+        HideImpactEffects();
     }
 
     void ResetFighterArenaPositions()
@@ -1174,6 +1330,11 @@ public class FightPresentationManager : MonoBehaviour
 
     void SetObjectColor(GameObject targetObject, Color color)
     {
+        if (targetObject == null)
+        {
+            return;
+        }
+
         Renderer objectRenderer = targetObject.GetComponent<Renderer>();
 
         if (objectRenderer == null)
