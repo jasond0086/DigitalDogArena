@@ -9,6 +9,7 @@ public class FightPresentationManager : MonoBehaviour
     private const string PresentationCameraName = "PresentationCamera";
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
+    private const float CameraMoveDurationSeconds = 0.75f;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
@@ -28,6 +29,7 @@ public class FightPresentationManager : MonoBehaviour
     private Transform scanDogATransform;
     private Transform scanDogBTransform;
     private Coroutine scanIntroCoroutine;
+    private Coroutine cameraMoveCoroutine;
 
     void Awake()
     {
@@ -470,20 +472,20 @@ public class FightPresentationManager : MonoBehaviour
 
     void FrameScanChamber()
     {
-        FramePresentationCamera(new Vector3(0f, 3.5f, -7f), new Vector3(0f, 1.2f, 0f));
+        SetPresentationCameraInstant(new Vector3(0f, 3.5f, -7f), new Vector3(0f, 1.2f, 0f));
     }
 
     void FrameMonitorTransition()
     {
-        FramePresentationCamera(new Vector3(0f, 3f, -6f), new Vector3(0f, 1.2f, 0f));
+        MovePresentationCameraTo(new Vector3(0f, 3f, -6f), new Vector3(0f, 1.2f, 0f), CameraMoveDurationSeconds);
     }
 
     void FrameArena()
     {
-        FramePresentationCamera(new Vector3(0f, 5f, -8f), new Vector3(0f, 0.8f, 0f));
+        MovePresentationCameraTo(new Vector3(0f, 5f, -8f), new Vector3(0f, 0.8f, 0f), CameraMoveDurationSeconds);
     }
 
-    void FramePresentationCamera(Vector3 cameraPosition, Vector3 lookAtPosition)
+    void MovePresentationCameraTo(Vector3 targetPosition, Vector3 lookAtPosition, float duration)
     {
         EnsurePresentationCamera();
 
@@ -492,6 +494,59 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        if (duration <= 0f || Vector3.Distance(presentationCameraObject.transform.position, targetPosition) < 0.01f)
+        {
+            SetPresentationCameraInstant(targetPosition, lookAtPosition);
+            return;
+        }
+
+        StopCameraMoveIfRunning();
+        presentationCamera.enabled = true;
+        cameraMoveCoroutine = StartCoroutine(MovePresentationCameraRoutine(targetPosition, lookAtPosition, duration));
+    }
+
+    IEnumerator MovePresentationCameraRoutine(Vector3 targetPosition, Vector3 lookAtPosition, float duration)
+    {
+        Vector3 startPosition = presentationCameraObject.transform.position;
+        float elapsedTime = 0f;
+
+        // SmoothStep gives the move a tiny ease-in/ease-out without needing an animation controller.
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsedTime / duration);
+            float smoothProgress = progress * progress * (3f - (2f * progress));
+
+            presentationCameraObject.transform.position = Vector3.Lerp(startPosition, targetPosition, smoothProgress);
+            presentationCameraObject.transform.LookAt(lookAtPosition);
+            yield return null;
+        }
+
+        cameraMoveCoroutine = null;
+        SetPresentationCameraInstant(targetPosition, lookAtPosition);
+    }
+
+    void StopCameraMoveIfRunning()
+    {
+        if (cameraMoveCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(cameraMoveCoroutine);
+        cameraMoveCoroutine = null;
+    }
+
+    void SetPresentationCameraInstant(Vector3 cameraPosition, Vector3 lookAtPosition)
+    {
+        EnsurePresentationCamera();
+
+        if (presentationCamera == null)
+        {
+            return;
+        }
+
+        StopCameraMoveIfRunning();
         presentationCameraObject.transform.position = cameraPosition;
         presentationCameraObject.transform.LookAt(lookAtPosition);
         presentationCamera.enabled = true;
@@ -502,6 +557,11 @@ public class FightPresentationManager : MonoBehaviour
         if (presentationCamera == null && !isEnabled)
         {
             return;
+        }
+
+        if (!isEnabled)
+        {
+            StopCameraMoveIfRunning();
         }
 
         EnsurePresentationCamera();
