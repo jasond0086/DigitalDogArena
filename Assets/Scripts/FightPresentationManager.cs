@@ -27,6 +27,7 @@ public class FightPresentationManager : MonoBehaviour
     private bool monitorTransitionObjectsCreated;
     private bool arenaImpactEffectsCreated;
     private bool imprintCorruptionNodesCreated;
+    private bool healthBarsCreated;
     private int visualMaxHealthA;
     private int visualMaxHealthB;
     private Transform fighterATransform;
@@ -41,6 +42,10 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject impactRingB;
     private GameObject[] imprintCorruptionNodesA;
     private GameObject[] imprintCorruptionNodesB;
+    private GameObject healthBarBackgroundA;
+    private GameObject healthBarFillA;
+    private GameObject healthBarBackgroundB;
+    private GameObject healthBarFillB;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
@@ -75,6 +80,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
+        CreateHealthBarsIfNeeded();
         HideImpactEffects();
         UpdateImprintCorruptionVisuals(0, 0);
         UpdateArenaLabels(dogA, dogB);
@@ -169,6 +175,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
+        CreateHealthBarsIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
 
@@ -238,6 +245,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
+        CreateHealthBarsIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
         StopRoundAnimationIfRunning();
@@ -890,6 +898,7 @@ public class FightPresentationManager : MonoBehaviour
 
         ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, Color.cyan);
         ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, Color.magenta);
+        UpdateHealthBars(dogAHealth, dogBHealth);
     }
 
     void ApplyImprintCorruption(Transform fighterTransform, int currentHealth, int maxLikelyHealth, GameObject[] corruptionNodes, Color cleanColor)
@@ -1018,6 +1027,136 @@ public class FightPresentationManager : MonoBehaviour
         float depthScale = Mathf.Lerp(0.7f, 0.55f, corruptionStrength);
 
         return new Vector3(horizontalScale, verticalScale, depthScale);
+    }
+
+    void CreateHealthBarsIfNeeded()
+    {
+        if (healthBarsCreated)
+        {
+            return;
+        }
+
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        healthBarBackgroundA = CreateHealthBarPart("HealthBarBackgroundA", new Color(0.08f, 0.08f, 0.08f));
+        healthBarFillA = CreateHealthBarPart("HealthBarFillA", Color.cyan);
+        healthBarBackgroundB = CreateHealthBarPart("HealthBarBackgroundB", new Color(0.08f, 0.08f, 0.08f));
+        healthBarFillB = CreateHealthBarPart("HealthBarFillB", Color.magenta);
+
+        healthBarsCreated = true;
+        SetHealthBarActive(healthBarBackgroundA, false);
+        SetHealthBarActive(healthBarFillA, false);
+        SetHealthBarActive(healthBarBackgroundB, false);
+        SetHealthBarActive(healthBarFillB, false);
+    }
+
+    GameObject CreateHealthBarPart(string objectName, Color color)
+    {
+        Transform existingPart = arenaRoot.transform.Find(objectName);
+        GameObject barPart;
+
+        if (existingPart != null)
+        {
+            barPart = existingPart.gameObject;
+        }
+        else
+        {
+            barPart = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            barPart.name = objectName;
+            barPart.transform.SetParent(arenaRoot.transform);
+        }
+
+        barPart.hideFlags = HideFlags.DontSave;
+        barPart.transform.localPosition = Vector3.zero;
+        barPart.transform.localRotation = Quaternion.identity;
+        barPart.transform.localScale = new Vector3(1.2f, 0.08f, 0.08f);
+        SetObjectColor(barPart, color);
+
+        return barPart;
+    }
+
+    void UpdateHealthBars(int dogAHealth, int dogBHealth)
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateHealthBarsIfNeeded();
+        UpdateSingleHealthBar(healthBarBackgroundA, healthBarFillA, fighterATransform, dogAHealth, visualMaxHealthA, -1);
+        UpdateSingleHealthBar(healthBarBackgroundB, healthBarFillB, fighterBTransform, dogBHealth, visualMaxHealthB, 1);
+    }
+
+    void UpdateSingleHealthBar(GameObject backgroundBar, GameObject fillBar, Transform fighterTransform, int currentHealth, int maxLikelyHealth, int fillDirection)
+    {
+        if (backgroundBar == null || fillBar == null || fighterTransform == null)
+        {
+            SetHealthBarActive(backgroundBar, false);
+            SetHealthBarActive(fillBar, false);
+            return;
+        }
+
+        float healthPercent = GetHealthPercent(currentHealth, maxLikelyHealth);
+        Vector3 basePosition = PositionHealthBarAboveFighter(fighterTransform);
+        float fullWidth = 1.25f;
+        float fillWidth = Mathf.Max(0.05f, fullWidth * healthPercent);
+
+        SetHealthBarActive(backgroundBar, true);
+        SetHealthBarActive(fillBar, true);
+
+        backgroundBar.transform.localPosition = basePosition;
+        backgroundBar.transform.localRotation = Quaternion.identity;
+        backgroundBar.transform.localScale = new Vector3(fullWidth, 0.08f, 0.08f);
+
+        float fillOffset = ((fullWidth - fillWidth) * 0.5f) * fillDirection;
+        fillBar.transform.localPosition = basePosition + new Vector3(fillOffset, 0.02f, -0.02f);
+        fillBar.transform.localRotation = Quaternion.identity;
+        fillBar.transform.localScale = new Vector3(fillWidth, 0.1f, 0.1f);
+
+        SetObjectColor(backgroundBar, new Color(0.08f, 0.08f, 0.08f));
+        SetObjectColor(fillBar, GetHealthBarColor(healthPercent));
+    }
+
+    float GetHealthPercent(int currentHealth, int maxLikelyHealth)
+    {
+        int safeMaxHealth = Mathf.Max(1, maxLikelyHealth);
+        return Mathf.Clamp01((float)Mathf.Max(0, currentHealth) / safeMaxHealth);
+    }
+
+    Color GetHealthBarColor(float healthPercent)
+    {
+        if (healthPercent > 0.6f)
+        {
+            return Color.Lerp(new Color(0.1f, 1f, 0.35f), Color.cyan, Mathf.InverseLerp(0.6f, 1f, healthPercent));
+        }
+
+        if (healthPercent > 0.3f)
+        {
+            return Color.Lerp(new Color(1f, 0.45f, 0.05f), new Color(1f, 0.9f, 0.1f), Mathf.InverseLerp(0.3f, 0.6f, healthPercent));
+        }
+
+        return Color.Lerp(new Color(0.45f, 0.05f, 0.75f), new Color(1f, 0.05f, 0.02f), Mathf.InverseLerp(0f, 0.3f, healthPercent));
+    }
+
+    Vector3 PositionHealthBarAboveFighter(Transform fighterTransform)
+    {
+        if (fighterTransform == null)
+        {
+            return Vector3.zero;
+        }
+
+        return fighterTransform.localPosition + new Vector3(0f, 1.65f, 0f);
+    }
+
+    void SetHealthBarActive(GameObject barPart, bool isActive)
+    {
+        if (barPart != null)
+        {
+            barPart.SetActive(isActive);
+        }
     }
 
     void CreatePlatform()
