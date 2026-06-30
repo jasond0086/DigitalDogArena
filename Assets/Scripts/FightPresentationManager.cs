@@ -46,6 +46,11 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject healthBarFillA;
     private GameObject healthBarBackgroundB;
     private GameObject healthBarFillB;
+    private GameObject roundStatusBannerObject;
+    private int lastRoundStatusNumber;
+    private int lastRoundDogAImpact;
+    private int lastRoundDogBImpact;
+    private bool hasLastRoundImpact;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
@@ -81,7 +86,9 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
+        CreateRoundStatusBannerIfNeeded();
         HideImpactEffects();
+        HideRoundStatusBanner();
         UpdateImprintCorruptionVisuals(0, 0);
         UpdateArenaLabels(dogA, dogB);
         arenaRoot.SetActive(true);
@@ -94,6 +101,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         EnsureArenaRoot();
         StopRoundAnimationIfRunning();
+        HideRoundStatusBanner();
 
         if (arenaRoot != null)
         {
@@ -176,6 +184,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
+        CreateRoundStatusBannerIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
 
@@ -196,6 +205,7 @@ public class FightPresentationManager : MonoBehaviour
 
         UpdateArenaLabels(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+        UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, 0, 0, false);
 
         Debug.Log($"Digital arena round {roundNumber}: {dogA.dogName} HP {dogAHealth} vs {dogB.dogName} HP {dogBHealth}.");
     }
@@ -221,9 +231,10 @@ public class FightPresentationManager : MonoBehaviour
         ResetFighterArenaPositions();
         UpdateArenaLabels(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+        UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false);
         FrameArena();
 
-        roundAnimationCoroutine = StartCoroutine(AnimateRoundExchange(dogA, dogB, dogAHealth, dogBHealth, dogAImpact, dogBImpact));
+        roundAnimationCoroutine = StartCoroutine(AnimateRoundExchange(roundNumber, dogA, dogB, dogAHealth, dogBHealth, dogAImpact, dogBImpact));
     }
 
     public void PresentFightResult(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
@@ -246,6 +257,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
+        CreateRoundStatusBannerIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
         StopRoundAnimationIfRunning();
@@ -255,6 +267,7 @@ public class FightPresentationManager : MonoBehaviour
             MarkWinner(fighterATransform);
             MarkLoser(fighterBTransform);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+            UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "CORRUPTED / DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.6f, 0.6f, 0.65f));
             Debug.Log($"Digital arena result: {dogA.dogName} imprint wins. {dogB.dogName} imprint falls back.");
             return;
@@ -265,6 +278,7 @@ public class FightPresentationManager : MonoBehaviour
             MarkWinner(fighterBTransform);
             MarkLoser(fighterATransform);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+            UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             UpdateArenaResultLabels(dogA, dogB, "CORRUPTED / DEFEATED", "WINNER", new Color(0.6f, 0.6f, 0.65f), new Color(0.1f, 1f, 0.35f));
             Debug.Log($"Digital arena result: {dogB.dogName} imprint wins. {dogA.dogName} imprint falls back.");
             return;
@@ -273,6 +287,7 @@ public class FightPresentationManager : MonoBehaviour
         MarkDraw(fighterATransform);
         MarkDraw(fighterBTransform);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+        UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
         Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
     }
@@ -800,6 +815,173 @@ public class FightPresentationManager : MonoBehaviour
         CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")} IMPRINT\n{dogBStatus}", GetLabelPosition(fighterBTransform, new Vector3(2f, 1.85f, 0f)), dogBColor, 0.14f);
     }
 
+    void CreateRoundStatusBannerIfNeeded()
+    {
+        if (roundStatusBannerObject != null)
+        {
+            return;
+        }
+
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        TextMesh banner = CreateOrUpdateLabel(arenaRoot, "RoundStatusBanner", "", new Vector3(0f, 2.55f, 1.85f), Color.white, 0.16f);
+
+        if (banner == null)
+        {
+            return;
+        }
+
+        roundStatusBannerObject = banner.gameObject;
+        roundStatusBannerObject.SetActive(false);
+    }
+
+    void UpdateRoundStatusBanner(int roundNumber, int dogAHealth, int dogBHealth, int dogAImpact, int dogBImpact, bool isResult)
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateRoundStatusBannerIfNeeded();
+
+        if (roundStatusBannerObject == null)
+        {
+            return;
+        }
+
+        string message = GetRoundStatusMessage(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, isResult);
+
+        if (!isResult && (dogAImpact > 0 || dogBImpact > 0))
+        {
+            lastRoundStatusNumber = roundNumber;
+            lastRoundDogAImpact = dogAImpact;
+            lastRoundDogBImpact = dogBImpact;
+            hasLastRoundImpact = true;
+            message += $"\nA IMPACT {dogAImpact} - B IMPACT {dogBImpact}";
+        }
+        else if (isResult && hasLastRoundImpact)
+        {
+            message += $"\nROUND {lastRoundStatusNumber} IMPACT A {lastRoundDogAImpact} - B {lastRoundDogBImpact}";
+        }
+
+        TextMesh banner = roundStatusBannerObject.GetComponent<TextMesh>();
+
+        if (banner == null)
+        {
+            banner = roundStatusBannerObject.AddComponent<TextMesh>();
+        }
+
+        SetLabelText(banner, message);
+        banner.color = GetRoundStatusColor(message);
+        banner.fontSize = 90;
+        banner.characterSize = 0.16f;
+        banner.alignment = TextAlignment.Center;
+        banner.anchor = TextAnchor.MiddleCenter;
+
+        roundStatusBannerObject.transform.localPosition = new Vector3(0f, 2.55f, 1.85f);
+        roundStatusBannerObject.transform.localRotation = Quaternion.identity;
+        roundStatusBannerObject.transform.localScale = Vector3.one;
+        roundStatusBannerObject.SetActive(true);
+    }
+
+    string GetRoundStatusMessage(int roundNumber, int dogAHealth, int dogBHealth, int dogAImpact, int dogBImpact, bool isResult)
+    {
+        if (isResult)
+        {
+            return "FINAL RESULT";
+        }
+
+        float dogAHealthPercent = GetHealthPercent(dogAHealth, visualMaxHealthA);
+        float dogBHealthPercent = GetHealthPercent(dogBHealth, visualMaxHealthB);
+        bool anyImprintCritical = dogAHealthPercent <= 0.2f || dogBHealthPercent <= 0.2f;
+        bool anyImprintDamaged = dogAHealthPercent <= 0.45f || dogBHealthPercent <= 0.45f;
+        int highestImpact = Mathf.Max(dogAImpact, dogBImpact);
+        int impactDifference = Mathf.Abs(dogAImpact - dogBImpact);
+        bool hasImpact = dogAImpact > 0 || dogBImpact > 0;
+        const int evenExchangeDifference = 3;
+        const int heavyImpactValue = 15;
+        const int heavyImpactDifference = 8;
+        const int corruptionSpikeImpactValue = 18;
+
+        if (anyImprintCritical)
+        {
+            return "IMPRINT CRITICAL";
+        }
+
+        if (!hasImpact)
+        {
+            if (roundNumber <= 1)
+            {
+                return "ROUND 1 - SCAN LOCKED";
+            }
+
+            return $"ROUND {roundNumber} - DIGITAL EXCHANGE";
+        }
+
+        if (highestImpact >= corruptionSpikeImpactValue && anyImprintDamaged)
+        {
+            return "CORRUPTION SPIKE";
+        }
+
+        if (impactDifference <= evenExchangeDifference)
+        {
+            return "EVEN EXCHANGE";
+        }
+
+        if (highestImpact >= heavyImpactValue || impactDifference >= heavyImpactDifference)
+        {
+            return "HEAVY HIT DETECTED";
+        }
+
+        return $"ROUND {roundNumber} - DIGITAL EXCHANGE";
+    }
+
+    Color GetRoundStatusColor(string message)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return new Color(0.65f, 0.9f, 1f);
+        }
+
+        if (message.StartsWith("FINAL RESULT"))
+        {
+            return Color.white;
+        }
+
+        if (message.StartsWith("IMPRINT CRITICAL"))
+        {
+            return new Color(1f, 0.05f, 0.1f);
+        }
+
+        if (message.StartsWith("CORRUPTION SPIKE"))
+        {
+            return new Color(0.9f, 0.1f, 1f);
+        }
+
+        if (message.StartsWith("HEAVY HIT DETECTED"))
+        {
+            return new Color(1f, 0.45f, 0.05f);
+        }
+
+        if (message.StartsWith("EVEN EXCHANGE"))
+        {
+            return new Color(0.45f, 1f, 0.75f);
+        }
+
+        return new Color(0.65f, 0.9f, 1f);
+    }
+
+    void HideRoundStatusBanner()
+    {
+        if (roundStatusBannerObject != null)
+        {
+            roundStatusBannerObject.SetActive(false);
+        }
+    }
+
     TextMesh CreateOrUpdateLabel(GameObject rootObject, string objectName, string text, Vector3 localPosition, Color color, float characterSize)
     {
         if (rootObject == null)
@@ -883,6 +1065,10 @@ public class FightPresentationManager : MonoBehaviour
     {
         visualMaxHealthA = 0;
         visualMaxHealthB = 0;
+        lastRoundStatusNumber = 0;
+        lastRoundDogAImpact = 0;
+        lastRoundDogBImpact = 0;
+        hasLastRoundImpact = false;
     }
 
     void UpdateImprintCorruptionVisuals(int dogAHealth, int dogBHealth)
@@ -1422,7 +1608,7 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
-    IEnumerator AnimateRoundExchange(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth, int dogAImpact, int dogBImpact)
+    IEnumerator AnimateRoundExchange(int roundNumber, Dog dogA, Dog dogB, int dogAHealth, int dogBHealth, int dogAImpact, int dogBImpact)
     {
         if (fighterATransform == null || fighterBTransform == null)
         {
@@ -1467,6 +1653,7 @@ public class FightPresentationManager : MonoBehaviour
         ResetFighterArenaPositions();
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateArenaLabels(dogA, dogB);
+        UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false);
     }
 
     IEnumerator AnimateFightersToPositions(
