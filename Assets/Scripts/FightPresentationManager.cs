@@ -26,6 +26,9 @@ public class FightPresentationManager : MonoBehaviour
     private bool scanChamberObjectsCreated;
     private bool monitorTransitionObjectsCreated;
     private bool arenaImpactEffectsCreated;
+    private bool imprintCorruptionNodesCreated;
+    private int visualMaxHealthA;
+    private int visualMaxHealthB;
     private Transform fighterATransform;
     private Transform fighterBTransform;
     private Transform scanDogATransform;
@@ -36,6 +39,8 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject corruptionNodeB;
     private GameObject impactRingA;
     private GameObject impactRingB;
+    private GameObject[] imprintCorruptionNodesA;
+    private GameObject[] imprintCorruptionNodesB;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
@@ -66,9 +71,12 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        ResetVisualHealthTracking();
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
+        CreateCorruptionNodesIfNeeded();
         HideImpactEffects();
+        UpdateImprintCorruptionVisuals(0, 0);
         UpdateArenaLabels(dogA, dogB);
         arenaRoot.SetActive(true);
         FrameArena();
@@ -105,6 +113,7 @@ public class FightPresentationManager : MonoBehaviour
 
         HideExistingArenaRootForScan();
         HideMonitorTransition();
+        ResetVisualHealthTracking();
         EnsureScanChamberRoot();
 
         if (scanChamberRoot == null)
@@ -159,6 +168,7 @@ public class FightPresentationManager : MonoBehaviour
 
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
+        CreateCorruptionNodesIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
 
@@ -178,6 +188,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         UpdateArenaLabels(dogA, dogB);
+        UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
 
         Debug.Log($"Digital arena round {roundNumber}: {dogA.dogName} HP {dogAHealth} vs {dogB.dogName} HP {dogBHealth}.");
     }
@@ -202,9 +213,10 @@ public class FightPresentationManager : MonoBehaviour
         StopRoundAnimationIfRunning();
         ResetFighterArenaPositions();
         UpdateArenaLabels(dogA, dogB);
+        UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         FrameArena();
 
-        roundAnimationCoroutine = StartCoroutine(AnimateRoundExchange(dogA, dogB, dogAImpact, dogBImpact));
+        roundAnimationCoroutine = StartCoroutine(AnimateRoundExchange(dogA, dogB, dogAHealth, dogBHealth, dogAImpact, dogBImpact));
     }
 
     public void PresentFightResult(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
@@ -225,6 +237,7 @@ public class FightPresentationManager : MonoBehaviour
 
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
+        CreateCorruptionNodesIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
         StopRoundAnimationIfRunning();
@@ -233,6 +246,7 @@ public class FightPresentationManager : MonoBehaviour
         {
             MarkWinner(fighterATransform);
             MarkLoser(fighterBTransform);
+            UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "CORRUPTED / DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.6f, 0.6f, 0.65f));
             Debug.Log($"Digital arena result: {dogA.dogName} imprint wins. {dogB.dogName} imprint falls back.");
             return;
@@ -242,6 +256,7 @@ public class FightPresentationManager : MonoBehaviour
         {
             MarkWinner(fighterBTransform);
             MarkLoser(fighterATransform);
+            UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateArenaResultLabels(dogA, dogB, "CORRUPTED / DEFEATED", "WINNER", new Color(0.6f, 0.6f, 0.65f), new Color(0.1f, 1f, 0.35f));
             Debug.Log($"Digital arena result: {dogB.dogName} imprint wins. {dogA.dogName} imprint falls back.");
             return;
@@ -249,6 +264,7 @@ public class FightPresentationManager : MonoBehaviour
 
         MarkDraw(fighterATransform);
         MarkDraw(fighterBTransform);
+        UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
         Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
     }
@@ -855,6 +871,155 @@ public class FightPresentationManager : MonoBehaviour
         return dog.dogName;
     }
 
+    void ResetVisualHealthTracking()
+    {
+        visualMaxHealthA = 0;
+        visualMaxHealthB = 0;
+    }
+
+    void UpdateImprintCorruptionVisuals(int dogAHealth, int dogBHealth)
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateCorruptionNodesIfNeeded();
+        visualMaxHealthA = Mathf.Max(visualMaxHealthA, Mathf.Max(1, dogAHealth));
+        visualMaxHealthB = Mathf.Max(visualMaxHealthB, Mathf.Max(1, dogBHealth));
+
+        ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, Color.cyan);
+        ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, Color.magenta);
+    }
+
+    void ApplyImprintCorruption(Transform fighterTransform, int currentHealth, int maxLikelyHealth, GameObject[] corruptionNodes, Color cleanColor)
+    {
+        if (fighterTransform == null)
+        {
+            UpdateCorruptionNodes(corruptionNodes, null, 0f);
+            return;
+        }
+
+        int safeMaxHealth = Mathf.Max(1, maxLikelyHealth);
+        float healthPercent = Mathf.Clamp01((float)Mathf.Max(0, currentHealth) / safeMaxHealth);
+        float corruptionStrength = 1f - healthPercent;
+
+        SetObjectColor(fighterTransform.gameObject, GetCorruptionColor(cleanColor, corruptionStrength));
+        fighterTransform.localScale = GetCorruptionScale(corruptionStrength);
+        UpdateCorruptionNodes(corruptionNodes, fighterTransform, corruptionStrength);
+    }
+
+    void CreateCorruptionNodesIfNeeded()
+    {
+        if (imprintCorruptionNodesCreated)
+        {
+            return;
+        }
+
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        imprintCorruptionNodesA = new GameObject[]
+        {
+            CreateImprintCorruptionNode("ImprintCorruptionA_1", PrimitiveType.Cube),
+            CreateImprintCorruptionNode("ImprintCorruptionA_2", PrimitiveType.Sphere),
+            CreateImprintCorruptionNode("ImprintCorruptionA_3", PrimitiveType.Cube)
+        };
+
+        imprintCorruptionNodesB = new GameObject[]
+        {
+            CreateImprintCorruptionNode("ImprintCorruptionB_1", PrimitiveType.Cube),
+            CreateImprintCorruptionNode("ImprintCorruptionB_2", PrimitiveType.Sphere),
+            CreateImprintCorruptionNode("ImprintCorruptionB_3", PrimitiveType.Cube)
+        };
+
+        imprintCorruptionNodesCreated = true;
+        UpdateCorruptionNodes(imprintCorruptionNodesA, null, 0f);
+        UpdateCorruptionNodes(imprintCorruptionNodesB, null, 0f);
+    }
+
+    GameObject CreateImprintCorruptionNode(string objectName, PrimitiveType primitiveType)
+    {
+        Transform existingNode = arenaRoot.transform.Find(objectName);
+        GameObject nodeObject;
+
+        if (existingNode != null)
+        {
+            nodeObject = existingNode.gameObject;
+        }
+        else
+        {
+            nodeObject = GameObject.CreatePrimitive(primitiveType);
+            nodeObject.name = objectName;
+            nodeObject.transform.SetParent(arenaRoot.transform);
+        }
+
+        nodeObject.hideFlags = HideFlags.DontSave;
+        nodeObject.transform.localPosition = Vector3.zero;
+        nodeObject.transform.localRotation = Quaternion.identity;
+        nodeObject.transform.localScale = Vector3.zero;
+        SetObjectColor(nodeObject, new Color(0.8f, 0.1f, 1f));
+        nodeObject.SetActive(false);
+
+        return nodeObject;
+    }
+
+    void UpdateCorruptionNodes(GameObject[] corruptionNodes, Transform fighterTransform, float corruptionStrength)
+    {
+        if (corruptionNodes == null)
+        {
+            return;
+        }
+
+        bool shouldShowNodes = fighterTransform != null && corruptionStrength > 0.15f;
+        Vector3[] offsets = new Vector3[]
+        {
+            new Vector3(-0.42f, 0.75f, 0.05f),
+            new Vector3(0.32f, 1.05f, -0.08f),
+            new Vector3(0.2f, 0.42f, 0.12f)
+        };
+
+        for (int i = 0; i < corruptionNodes.Length; i++)
+        {
+            GameObject node = corruptionNodes[i];
+
+            if (node == null)
+            {
+                continue;
+            }
+
+            node.SetActive(shouldShowNodes);
+
+            if (!shouldShowNodes)
+            {
+                continue;
+            }
+
+            float scale = Mathf.Lerp(0.08f, 0.38f, corruptionStrength);
+            node.transform.localPosition = fighterTransform.localPosition + offsets[i % offsets.Length] * Mathf.Lerp(0.8f, 1.35f, corruptionStrength);
+            node.transform.localRotation = Quaternion.Euler(0f, 45f + (corruptionStrength * 90f), 0f);
+            node.transform.localScale = new Vector3(scale, scale, scale);
+            SetObjectColor(node, GetCorruptionColor(new Color(0.75f, 0.1f, 1f), corruptionStrength));
+        }
+    }
+
+    Color GetCorruptionColor(Color cleanColor, float corruptionStrength)
+    {
+        Color damagedColor = Color.Lerp(new Color(0.75f, 0.1f, 1f), new Color(0.18f, 0.03f, 0.28f), corruptionStrength);
+        return Color.Lerp(cleanColor, damagedColor, Mathf.Clamp01(corruptionStrength));
+    }
+
+    Vector3 GetCorruptionScale(float corruptionStrength)
+    {
+        float horizontalScale = Mathf.Lerp(0.7f, 0.82f, corruptionStrength);
+        float verticalScale = Mathf.Lerp(1.2f, 1.05f, corruptionStrength);
+        float depthScale = Mathf.Lerp(0.7f, 0.55f, corruptionStrength);
+
+        return new Vector3(horizontalScale, verticalScale, depthScale);
+    }
+
     void CreatePlatform()
     {
         GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -1118,7 +1283,7 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
-    IEnumerator AnimateRoundExchange(Dog dogA, Dog dogB, int dogAImpact, int dogBImpact)
+    IEnumerator AnimateRoundExchange(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth, int dogAImpact, int dogBImpact)
     {
         if (fighterATransform == null || fighterBTransform == null)
         {
@@ -1155,18 +1320,21 @@ public class FightPresentationManager : MonoBehaviour
 
         float halfDuration = RoundActionDurationSeconds * 0.5f;
 
-        yield return AnimateFightersToPositions(dogA, dogB, fighterAHome, fighterBHome, fighterAImpactPosition, fighterBImpactPosition, halfDuration);
-        yield return AnimateFightersToPositions(dogA, dogB, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, halfDuration);
+        yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAHome, fighterBHome, fighterAImpactPosition, fighterBImpactPosition, halfDuration);
+        yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, halfDuration);
 
         HideImpactEffects();
         roundAnimationCoroutine = null;
         ResetFighterArenaPositions();
+        UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateArenaLabels(dogA, dogB);
     }
 
     IEnumerator AnimateFightersToPositions(
         Dog dogA,
         Dog dogB,
+        int dogAHealth,
+        int dogBHealth,
         Vector3 fighterAStart,
         Vector3 fighterBStart,
         Vector3 fighterATarget,
@@ -1193,6 +1361,7 @@ public class FightPresentationManager : MonoBehaviour
             }
 
             UpdateArenaLabels(dogA, dogB);
+            UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             yield return null;
         }
     }
