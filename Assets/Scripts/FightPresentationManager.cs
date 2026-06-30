@@ -52,6 +52,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateArenaObjectsIfNeeded();
+        UpdateArenaLabels(dogA, dogB);
         arenaRoot.SetActive(true);
 
         Debug.Log($"Digital arena ready: {dogA.dogName} imprint vs {dogB.dogName} imprint.");
@@ -93,6 +94,7 @@ public class FightPresentationManager : MonoBehaviour
 
         CreateScanChamberObjectsIfNeeded();
         PositionScanSubjects();
+        UpdateScanChamberLabels(dogA, dogB);
         scanChamberRoot.SetActive(true);
 
         Debug.Log($"DNA scan started for {dogA.dogName} and {dogB.dogName}. Real dogs remain safe. Digital imprints are being copied.");
@@ -151,6 +153,8 @@ public class FightPresentationManager : MonoBehaviour
             fighterBTransform.localScale = new Vector3(0.7f * pulse, 1.2f * pulse, 0.7f * pulse);
         }
 
+        UpdateArenaLabels(dogA, dogB);
+
         Debug.Log($"Digital arena round {roundNumber}: {dogA.dogName} HP {dogAHealth} vs {dogB.dogName} HP {dogBHealth}.");
     }
 
@@ -177,6 +181,7 @@ public class FightPresentationManager : MonoBehaviour
         {
             MarkWinner(fighterATransform);
             MarkLoser(fighterBTransform);
+            UpdateArenaResultLabels(dogA, dogB, "WINNER", "CORRUPTED / DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.6f, 0.6f, 0.65f));
             Debug.Log($"Digital arena result: {dogA.dogName} imprint wins. {dogB.dogName} imprint falls back.");
             return;
         }
@@ -185,12 +190,14 @@ public class FightPresentationManager : MonoBehaviour
         {
             MarkWinner(fighterBTransform);
             MarkLoser(fighterATransform);
+            UpdateArenaResultLabels(dogA, dogB, "CORRUPTED / DEFEATED", "WINNER", new Color(0.6f, 0.6f, 0.65f), new Color(0.1f, 1f, 0.35f));
             Debug.Log($"Digital arena result: {dogB.dogName} imprint wins. {dogA.dogName} imprint falls back.");
             return;
         }
 
         MarkDraw(fighterATransform);
         MarkDraw(fighterBTransform);
+        UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
         Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
     }
 
@@ -365,6 +372,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateMonitorTransitionObjectsIfNeeded();
+        UpdateMonitorTransitionLabels();
         monitorTransitionRoot.SetActive(true);
     }
 
@@ -387,6 +395,7 @@ public class FightPresentationManager : MonoBehaviour
 
         if (arenaRoot.transform.childCount > 0)
         {
+            AssignExistingArenaTransforms();
             arenaObjectsCreated = true;
             return;
         }
@@ -446,6 +455,22 @@ public class FightPresentationManager : MonoBehaviour
         monitorTransitionObjectsCreated = true;
     }
 
+    void AssignExistingArenaTransforms()
+    {
+        Transform fighterA = arenaRoot.transform.Find("FighterA_Imprint");
+        Transform fighterB = arenaRoot.transform.Find("FighterB_Imprint");
+
+        if (fighterA != null)
+        {
+            fighterATransform = fighterA;
+        }
+
+        if (fighterB != null)
+        {
+            fighterBTransform = fighterB;
+        }
+    }
+
     void AssignExistingScanTransforms()
     {
         Transform dogA = scanChamberRoot.transform.Find("SafeChamberDogA");
@@ -475,6 +500,133 @@ public class FightPresentationManager : MonoBehaviour
             scanDogBTransform.localPosition = new Vector3(1.5f, 0.6f, 0f);
             scanDogBTransform.localScale = new Vector3(0.65f, 1.05f, 0.65f);
         }
+    }
+
+    void UpdateScanChamberLabels(Dog dogA, Dog dogB)
+    {
+        if (scanChamberRoot == null)
+        {
+            return;
+        }
+
+        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberTitleLabel", "SEALED DNA SCAN CHAMBER", new Vector3(0f, 3f, 0f), Color.white, 0.18f);
+        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberSafetyLabel", "REAL DOGS SAFE - COPYING DIGITAL IMPRINTS", new Vector3(0f, 2.65f, 0f), new Color(0.45f, 1f, 0.75f), 0.12f);
+        CreateOrUpdateLabel(scanChamberRoot, "SafeDogALabel", GetDogDisplayName(dogA, "DOG A"), GetLabelPosition(scanDogATransform, new Vector3(-1.5f, 1.8f, 0f)), Color.cyan, 0.14f);
+        CreateOrUpdateLabel(scanChamberRoot, "SafeDogBLabel", GetDogDisplayName(dogB, "DOG B"), GetLabelPosition(scanDogBTransform, new Vector3(1.5f, 1.8f, 0f)), Color.magenta, 0.14f);
+    }
+
+    void UpdateMonitorTransitionLabels()
+    {
+        if (monitorTransitionRoot == null)
+        {
+            return;
+        }
+
+        CreateOrUpdateLabel(monitorTransitionRoot, "MonitorTransitionTitleLabel", "DIGITAL IMPRINT TRANSFER", new Vector3(0f, 3.15f, 0f), Color.white, 0.18f);
+        CreateOrUpdateLabel(monitorTransitionRoot, "MonitorTransitionStatusLabel", "IMPRINTS ENTERING MONITOR GRID", new Vector3(0f, 2.8f, 0f), new Color(0.45f, 1f, 0.75f), 0.13f);
+    }
+
+    void UpdateArenaLabels(Dog dogA, Dog dogB)
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3f, 0f), Color.white, 0.2f);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")} IMPRINT", GetLabelPosition(fighterATransform, new Vector3(-2f, 1.85f, 0f)), Color.cyan, 0.14f);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")} IMPRINT", GetLabelPosition(fighterBTransform, new Vector3(2f, 1.85f, 0f)), Color.magenta, 0.14f);
+    }
+
+    void UpdateArenaResultLabels(Dog dogA, Dog dogB, string dogAStatus, string dogBStatus, Color dogAColor, Color dogBColor)
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3f, 0f), Color.white, 0.2f);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")} IMPRINT\n{dogAStatus}", GetLabelPosition(fighterATransform, new Vector3(-2f, 1.85f, 0f)), dogAColor, 0.14f);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")} IMPRINT\n{dogBStatus}", GetLabelPosition(fighterBTransform, new Vector3(2f, 1.85f, 0f)), dogBColor, 0.14f);
+    }
+
+    TextMesh CreateOrUpdateLabel(GameObject rootObject, string objectName, string text, Vector3 localPosition, Color color, float characterSize)
+    {
+        if (rootObject == null)
+        {
+            return null;
+        }
+
+        Transform labelTransform = rootObject.transform.Find(objectName);
+        GameObject labelObject;
+
+        if (labelTransform == null)
+        {
+            labelObject = new GameObject(objectName);
+            labelObject.transform.SetParent(rootObject.transform);
+        }
+        else
+        {
+            labelObject = labelTransform.gameObject;
+        }
+
+        labelObject.hideFlags = HideFlags.DontSave;
+        labelObject.transform.localPosition = localPosition;
+        labelObject.transform.localRotation = Quaternion.identity;
+        labelObject.transform.localScale = Vector3.one;
+
+        TextMesh label = labelObject.GetComponent<TextMesh>();
+
+        if (label == null)
+        {
+            label = labelObject.AddComponent<TextMesh>();
+        }
+
+        SetLabelText(label, text);
+        label.color = color;
+        label.fontSize = 80;
+        label.characterSize = characterSize;
+        label.alignment = TextAlignment.Center;
+        label.anchor = TextAnchor.MiddleCenter;
+
+        MeshRenderer labelRenderer = labelObject.GetComponent<MeshRenderer>();
+
+        if (labelRenderer != null)
+        {
+            labelRenderer.sortingOrder = 10;
+        }
+
+        return label;
+    }
+
+    void SetLabelText(TextMesh label, string text)
+    {
+        if (label == null)
+        {
+            return;
+        }
+
+        label.text = text;
+    }
+
+    Vector3 GetLabelPosition(Transform targetTransform, Vector3 fallbackPosition)
+    {
+        if (targetTransform == null)
+        {
+            return fallbackPosition;
+        }
+
+        return targetTransform.localPosition + new Vector3(0f, 1.2f, 0f);
+    }
+
+    string GetDogDisplayName(Dog dog, string fallbackName)
+    {
+        if (dog == null || string.IsNullOrEmpty(dog.dogName))
+        {
+            return fallbackName;
+        }
+
+        return dog.dogName;
     }
 
     void CreatePlatform()
