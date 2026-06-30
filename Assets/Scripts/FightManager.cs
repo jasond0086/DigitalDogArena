@@ -248,12 +248,14 @@ public class FightManager : MonoBehaviour
 
         if (fightPresentationManager != null)
         {
-            fightPresentationManager.PresentRound(
+            fightPresentationManager.PresentRoundAction(
                 currentRound,
                 activeFighter1,
                 activeFighter2,
                 currentFighter1Health,
-                currentFighter2Health
+                currentFighter2Health,
+                dmg1,
+                dmg2
             );
         }
 

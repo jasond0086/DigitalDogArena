@@ -10,6 +10,7 @@ public class FightPresentationManager : MonoBehaviour
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
+    private const float RoundActionDurationSeconds = 0.4f;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
@@ -30,6 +31,7 @@ public class FightPresentationManager : MonoBehaviour
     private Transform scanDogBTransform;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
+    private Coroutine roundAnimationCoroutine;
 
     void Awake()
     {
@@ -68,6 +70,7 @@ public class FightPresentationManager : MonoBehaviour
     public void HideArena()
     {
         EnsureArenaRoot();
+        StopRoundAnimationIfRunning();
 
         if (arenaRoot != null)
         {
@@ -169,6 +172,31 @@ public class FightPresentationManager : MonoBehaviour
         Debug.Log($"Digital arena round {roundNumber}: {dogA.dogName} HP {dogAHealth} vs {dogB.dogName} HP {dogBHealth}.");
     }
 
+    public void PresentRoundAction(
+        int roundNumber,
+        Dog dogA,
+        Dog dogB,
+        int dogAHealth,
+        int dogBHealth,
+        int dogAImpact,
+        int dogBImpact
+    )
+    {
+        if (dogA == null || dogB == null)
+        {
+            Debug.LogWarning("FightPresentationManager could not present round action because one or both dogs were missing.");
+            return;
+        }
+
+        PresentRound(roundNumber, dogA, dogB, dogAHealth, dogBHealth);
+        StopRoundAnimationIfRunning();
+        ResetFighterArenaPositions();
+        UpdateArenaLabels(dogA, dogB);
+        FrameArena();
+
+        roundAnimationCoroutine = StartCoroutine(AnimateRoundExchange(dogA, dogB, dogAImpact, dogBImpact));
+    }
+
     public void PresentFightResult(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
     {
         if (dogA == null || dogB == null)
@@ -188,6 +216,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaObjectsIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
+        StopRoundAnimationIfRunning();
 
         if (dogAHealth > dogBHealth)
         {
@@ -947,6 +976,121 @@ public class FightPresentationManager : MonoBehaviour
         copyCore.transform.localPosition = new Vector3(0f, 1.25f, 0f);
         copyCore.transform.localScale = new Vector3(0.65f, 0.65f, 0.65f);
         SetObjectColor(copyCore, new Color(0.45f, 1f, 0.75f));
+    }
+
+    IEnumerator AnimateRoundExchange(Dog dogA, Dog dogB, int dogAImpact, int dogBImpact)
+    {
+        if (fighterATransform == null || fighterBTransform == null)
+        {
+            roundAnimationCoroutine = null;
+            yield break;
+        }
+
+        Vector3 fighterAHome = new Vector3(-2f, 0.6f, 0f);
+        Vector3 fighterBHome = new Vector3(2f, 0.6f, 0f);
+
+        float dogALunge = GetImpactLungeDistance(dogAImpact);
+        float dogBLunge = GetImpactLungeDistance(dogBImpact);
+        float dogARecoil = GetImpactRecoilDistance(dogBImpact, dogAImpact);
+        float dogBRecoil = GetImpactRecoilDistance(dogAImpact, dogBImpact);
+
+        Vector3 fighterAImpactPosition = fighterAHome + new Vector3(dogALunge - dogARecoil, 0f, 0f);
+        Vector3 fighterBImpactPosition = fighterBHome + new Vector3(-dogBLunge + dogBRecoil, 0f, 0f);
+
+        fighterAImpactPosition.x = Mathf.Clamp(fighterAImpactPosition.x, -2.7f, -0.45f);
+        fighterBImpactPosition.x = Mathf.Clamp(fighterBImpactPosition.x, 0.45f, 2.7f);
+
+        float halfDuration = RoundActionDurationSeconds * 0.5f;
+
+        yield return AnimateFightersToPositions(dogA, dogB, fighterAHome, fighterBHome, fighterAImpactPosition, fighterBImpactPosition, halfDuration);
+        yield return AnimateFightersToPositions(dogA, dogB, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, halfDuration);
+
+        roundAnimationCoroutine = null;
+        ResetFighterArenaPositions();
+        UpdateArenaLabels(dogA, dogB);
+    }
+
+    IEnumerator AnimateFightersToPositions(
+        Dog dogA,
+        Dog dogB,
+        Vector3 fighterAStart,
+        Vector3 fighterBStart,
+        Vector3 fighterATarget,
+        Vector3 fighterBTarget,
+        float duration
+    )
+    {
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsedTime / duration);
+            float smoothProgress = progress * progress * (3f - (2f * progress));
+
+            if (fighterATransform != null)
+            {
+                fighterATransform.localPosition = Vector3.Lerp(fighterAStart, fighterATarget, smoothProgress);
+            }
+
+            if (fighterBTransform != null)
+            {
+                fighterBTransform.localPosition = Vector3.Lerp(fighterBStart, fighterBTarget, smoothProgress);
+            }
+
+            UpdateArenaLabels(dogA, dogB);
+            yield return null;
+        }
+    }
+
+    void StopRoundAnimationIfRunning()
+    {
+        if (roundAnimationCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(roundAnimationCoroutine);
+        roundAnimationCoroutine = null;
+    }
+
+    void ResetFighterArenaPositions()
+    {
+        if (fighterATransform != null)
+        {
+            fighterATransform.localPosition = new Vector3(-2f, 0.6f, 0f);
+            fighterATransform.localScale = new Vector3(0.7f, 1.2f, 0.7f);
+            SetObjectColor(fighterATransform.gameObject, Color.cyan);
+        }
+
+        if (fighterBTransform != null)
+        {
+            fighterBTransform.localPosition = new Vector3(2f, 0.6f, 0f);
+            fighterBTransform.localScale = new Vector3(0.7f, 1.2f, 0.7f);
+            SetObjectColor(fighterBTransform.gameObject, Color.magenta);
+        }
+    }
+
+    float GetImpactLungeDistance(int impact)
+    {
+        if (impact <= 0)
+        {
+            return 0f;
+        }
+
+        return Mathf.Clamp(0.25f + (impact * 0.015f), 0.25f, 0.7f);
+    }
+
+    float GetImpactRecoilDistance(int incomingImpact, int ownImpact)
+    {
+        int impactGap = incomingImpact - ownImpact;
+
+        if (impactGap <= 4)
+        {
+            return 0f;
+        }
+
+        return Mathf.Clamp(impactGap * 0.025f, 0.12f, 0.6f);
     }
 
     void MarkWinner(Transform fighterTransform)
