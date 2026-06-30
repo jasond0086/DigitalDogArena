@@ -6,16 +6,20 @@ public class FightPresentationManager : MonoBehaviour
     private const string ArenaRootName = "ArenaRoot";
     private const string ScanChamberRootName = "ScanChamberRoot";
     private const string MonitorTransitionRootName = "MonitorTransitionRoot";
+    private const string PresentationCameraName = "PresentationCamera";
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
     private static GameObject sharedMonitorTransitionRoot;
+    private static GameObject sharedPresentationCameraObject;
 
     private GameObject arenaRoot;
     private GameObject scanChamberRoot;
     private GameObject monitorTransitionRoot;
+    private GameObject presentationCameraObject;
+    private Camera presentationCamera;
     private bool arenaObjectsCreated;
     private bool scanChamberObjectsCreated;
     private bool monitorTransitionObjectsCreated;
@@ -54,6 +58,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateArenaObjectsIfNeeded();
         UpdateArenaLabels(dogA, dogB);
         arenaRoot.SetActive(true);
+        FrameArena();
 
         Debug.Log($"Digital arena ready: {dogA.dogName} imprint vs {dogB.dogName} imprint.");
     }
@@ -66,6 +71,8 @@ public class FightPresentationManager : MonoBehaviour
         {
             arenaRoot.SetActive(false);
         }
+
+        SetPresentationCameraEnabled(false);
     }
 
     public void PlayScanIntroThenShowArena(Dog dogA, Dog dogB)
@@ -96,6 +103,7 @@ public class FightPresentationManager : MonoBehaviour
         PositionScanSubjects();
         UpdateScanChamberLabels(dogA, dogB);
         scanChamberRoot.SetActive(true);
+        FrameScanChamber();
 
         Debug.Log($"DNA scan started for {dogA.dogName} and {dogB.dogName}. Real dogs remain safe. Digital imprints are being copied.");
 
@@ -137,6 +145,7 @@ public class FightPresentationManager : MonoBehaviour
 
         CreateArenaObjectsIfNeeded();
         arenaRoot.SetActive(true);
+        FrameArena();
 
         float roundStep = Mathf.Clamp(roundNumber, 1, 6) * 0.08f;
         float pulse = roundNumber % 2 == 0 ? 1.12f : 0.95f;
@@ -176,6 +185,7 @@ public class FightPresentationManager : MonoBehaviour
 
         CreateArenaObjectsIfNeeded();
         arenaRoot.SetActive(true);
+        FrameArena();
 
         if (dogAHealth > dogBHealth)
         {
@@ -374,6 +384,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateMonitorTransitionObjectsIfNeeded();
         UpdateMonitorTransitionLabels();
         monitorTransitionRoot.SetActive(true);
+        FrameMonitorTransition();
     }
 
     void HideMonitorTransition()
@@ -383,6 +394,121 @@ public class FightPresentationManager : MonoBehaviour
         if (monitorTransitionRoot != null)
         {
             monitorTransitionRoot.SetActive(false);
+        }
+    }
+
+    void EnsurePresentationCamera()
+    {
+        if (presentationCameraObject == null)
+        {
+            presentationCameraObject = FindExistingPresentationCameraObject();
+
+            if (presentationCameraObject == null)
+            {
+                presentationCameraObject = new GameObject(PresentationCameraName);
+            }
+        }
+
+        presentationCameraObject.hideFlags = HideFlags.DontSave;
+        sharedPresentationCameraObject = presentationCameraObject;
+
+        if (presentationCamera == null)
+        {
+            presentationCamera = presentationCameraObject.GetComponent<Camera>();
+
+            if (presentationCamera == null)
+            {
+                presentationCamera = presentationCameraObject.AddComponent<Camera>();
+            }
+        }
+
+        ConfigurePresentationCamera();
+        presentationCamera.enabled = false;
+    }
+
+    GameObject FindExistingPresentationCameraObject()
+    {
+        if (sharedPresentationCameraObject != null)
+        {
+            return sharedPresentationCameraObject;
+        }
+
+        GameObject activeCameraObject = GameObject.Find(PresentationCameraName);
+
+        if (activeCameraObject != null)
+        {
+            return activeCameraObject;
+        }
+
+        GameObject[] allGameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+
+        foreach (GameObject candidate in allGameObjects)
+        {
+            if (candidate.name == PresentationCameraName && candidate.scene.IsValid())
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    void ConfigurePresentationCamera()
+    {
+        if (presentationCamera == null)
+        {
+            return;
+        }
+
+        presentationCamera.clearFlags = CameraClearFlags.SolidColor;
+        presentationCamera.backgroundColor = new Color(0.01f, 0.015f, 0.025f);
+        presentationCamera.fieldOfView = 50f;
+        presentationCamera.nearClipPlane = 0.1f;
+        presentationCamera.farClipPlane = 100f;
+        presentationCamera.depth = 5f;
+    }
+
+    void FrameScanChamber()
+    {
+        FramePresentationCamera(new Vector3(0f, 3.5f, -7f), new Vector3(0f, 1.2f, 0f));
+    }
+
+    void FrameMonitorTransition()
+    {
+        FramePresentationCamera(new Vector3(0f, 3f, -6f), new Vector3(0f, 1.2f, 0f));
+    }
+
+    void FrameArena()
+    {
+        FramePresentationCamera(new Vector3(0f, 5f, -8f), new Vector3(0f, 0.8f, 0f));
+    }
+
+    void FramePresentationCamera(Vector3 cameraPosition, Vector3 lookAtPosition)
+    {
+        EnsurePresentationCamera();
+
+        if (presentationCamera == null)
+        {
+            return;
+        }
+
+        presentationCameraObject.transform.position = cameraPosition;
+        presentationCameraObject.transform.LookAt(lookAtPosition);
+        presentationCamera.enabled = true;
+    }
+
+    void SetPresentationCameraEnabled(bool isEnabled)
+    {
+        if (presentationCamera == null && !isEnabled)
+        {
+            return;
+        }
+
+        EnsurePresentationCamera();
+
+        if (presentationCamera != null)
+        {
+            presentationCamera.enabled = isEnabled;
         }
     }
 
