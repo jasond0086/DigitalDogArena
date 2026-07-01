@@ -257,7 +257,9 @@ public class FightManager : MonoBehaviour
                 dmg1,
                 dmg2,
                 strategy1,
-                strategy2
+                strategy2,
+                activeFighter1.fightStyle,
+                activeFighter2.fightStyle
             );
         }
 

@@ -51,6 +51,8 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject strategyEffectB;
     private GameObject defensiveShellA;
     private GameObject defensiveShellB;
+    private GameObject styleEffectA;
+    private GameObject styleEffectB;
     private GameObject[] imprintCorruptionNodesA;
     private GameObject[] imprintCorruptionNodesB;
     private GameObject healthBarBackgroundA;
@@ -259,7 +261,9 @@ public class FightPresentationManager : MonoBehaviour
             dogAImpact,
             dogBImpact,
             FightStrategy.Balanced,
-            FightStrategy.Balanced
+            FightStrategy.Balanced,
+            dogA != null ? dogA.fightStyle : FightStyle.Balanced,
+            dogB != null ? dogB.fightStyle : FightStyle.Balanced
         );
     }
 
@@ -275,6 +279,35 @@ public class FightPresentationManager : MonoBehaviour
         FightStrategy dogBStrategy
     )
     {
+        PresentRoundAction(
+            roundNumber,
+            dogA,
+            dogB,
+            dogAHealth,
+            dogBHealth,
+            dogAImpact,
+            dogBImpact,
+            dogAStrategy,
+            dogBStrategy,
+            dogA != null ? dogA.fightStyle : FightStyle.Balanced,
+            dogB != null ? dogB.fightStyle : FightStyle.Balanced
+        );
+    }
+
+    public void PresentRoundAction(
+        int roundNumber,
+        Dog dogA,
+        Dog dogB,
+        int dogAHealth,
+        int dogBHealth,
+        int dogAImpact,
+        int dogBImpact,
+        FightStrategy dogAStrategy,
+        FightStrategy dogBStrategy,
+        FightStyle dogAStyle,
+        FightStyle dogBStyle
+    )
+    {
         if (dogA == null || dogB == null)
         {
             Debug.LogWarning("FightPresentationManager could not present round action because one or both dogs were missing.");
@@ -288,7 +321,7 @@ public class FightPresentationManager : MonoBehaviour
         UpdateDogPortraitBillboards(dogA, dogB);
         UpdateArenaLabels(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
-        UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false, dogAStrategy, dogBStrategy);
+        UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false, dogAStrategy, dogBStrategy, dogAStyle, dogBStyle);
         FrameArena();
 
         roundAnimationCoroutine = StartCoroutine(AnimateRoundExchange(
@@ -300,7 +333,9 @@ public class FightPresentationManager : MonoBehaviour
             dogAImpact,
             dogBImpact,
             dogAStrategy,
-            dogBStrategy
+            dogBStrategy,
+            dogAStyle,
+            dogBStyle
         ));
     }
 
@@ -1678,7 +1713,9 @@ public class FightPresentationManager : MonoBehaviour
         int dogBImpact,
         bool isResult,
         FightStrategy dogAStrategy = FightStrategy.Balanced,
-        FightStrategy dogBStrategy = FightStrategy.Balanced
+        FightStrategy dogBStrategy = FightStrategy.Balanced,
+        FightStyle dogAStyle = FightStyle.Balanced,
+        FightStyle dogBStyle = FightStyle.Balanced
     )
     {
         if (arenaRoot == null)
@@ -1701,7 +1738,9 @@ public class FightPresentationManager : MonoBehaviour
             dogBImpact,
             isResult,
             dogAStrategy,
-            dogBStrategy
+            dogBStrategy,
+            dogAStyle,
+            dogBStyle
         );
 
         TextMesh banner = roundStatusBannerObject.GetComponent<TextMesh>();
@@ -1732,7 +1771,9 @@ public class FightPresentationManager : MonoBehaviour
         int dogBImpact,
         bool isResult,
         FightStrategy dogAStrategy,
-        FightStrategy dogBStrategy
+        FightStrategy dogBStrategy,
+        FightStyle dogAStyle,
+        FightStyle dogBStyle
     )
     {
         if (isResult)
@@ -1757,7 +1798,10 @@ public class FightPresentationManager : MonoBehaviour
             return "CRITICAL";
         }
 
-        string strategyStatus = GetStrategyStatusText(dogAStrategy, dogBStrategy, dogAImpact, dogBImpact, roundNumber);
+        string styleStatus = GetStyleStatusText(dogAStyle, dogBStyle, dogAImpact, dogBImpact);
+        string strategyStatus = string.IsNullOrEmpty(styleStatus)
+            ? GetStrategyStatusText(dogAStrategy, dogBStrategy, dogAImpact, dogBImpact, roundNumber)
+            : styleStatus;
 
         if (!hasImpact)
         {
@@ -1852,6 +1896,41 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
+    string GetStyleStatusText(FightStyle dogAStyle, FightStyle dogBStyle, int dogAImpact, int dogBImpact)
+    {
+        if (dogAStyle == FightStyle.Wildcard || dogBStyle == FightStyle.Wildcard)
+        {
+            return "GLITCH";
+        }
+
+        if (dogAStyle == FightStyle.Tank || dogBStyle == FightStyle.Tank)
+        {
+            return "TANK";
+        }
+
+        if (dogAStyle == FightStyle.Counter && dogAImpact >= dogBImpact + 3)
+        {
+            return "COUNTER";
+        }
+
+        if (dogBStyle == FightStyle.Counter && dogBImpact >= dogAImpact + 3)
+        {
+            return "COUNTER";
+        }
+
+        if (dogAStyle == FightStyle.Rushdown && dogAImpact >= dogBImpact)
+        {
+            return "RUSH";
+        }
+
+        if (dogBStyle == FightStyle.Rushdown && dogBImpact >= dogAImpact)
+        {
+            return "RUSH";
+        }
+
+        return string.Empty;
+    }
+
     Color GetRoundStatusColor(string message)
     {
         if (string.IsNullOrEmpty(message))
@@ -1907,6 +1986,11 @@ public class FightPresentationManager : MonoBehaviour
         if (message.StartsWith("ALL IN"))
         {
             return new Color(1f, 0.08f, 0.08f);
+        }
+
+        if (message.StartsWith("TANK"))
+        {
+            return new Color(0.35f, 1f, 0.85f);
         }
 
         if (message.StartsWith("EXCHANGE"))
@@ -2606,6 +2690,16 @@ public class FightPresentationManager : MonoBehaviour
         {
             defensiveShellB = CreateArenaImpactEffectObject("DefensiveShellB", PrimitiveType.Cylinder, new Vector3(1.1f, 0.08f, 1.1f), new Color(1f, 0.2f, 1f));
         }
+
+        if (styleEffectA == null)
+        {
+            styleEffectA = CreateArenaImpactEffectObject("StyleEffectA", PrimitiveType.Cube, new Vector3(0.32f, 0.32f, 0.32f), Color.cyan);
+        }
+
+        if (styleEffectB == null)
+        {
+            styleEffectB = CreateArenaImpactEffectObject("StyleEffectB", PrimitiveType.Cube, new Vector3(0.32f, 0.32f, 0.32f), Color.magenta);
+        }
     }
 
     void ShowStrategyEffect(Transform fighterTransform, FightStrategy strategy, string effectName, int roundNumber)
@@ -2665,6 +2759,8 @@ public class FightPresentationManager : MonoBehaviour
         SetImpactEffectActive(strategyEffectB, false);
         SetImpactEffectActive(defensiveShellA, false);
         SetImpactEffectActive(defensiveShellB, false);
+        SetImpactEffectActive(styleEffectA, false);
+        SetImpactEffectActive(styleEffectB, false);
     }
 
     void UpdateStrategyEffectPositions()
@@ -2673,6 +2769,8 @@ public class FightPresentationManager : MonoBehaviour
         UpdateSingleStrategyEffectPosition(strategyEffectB, fighterBTransform, new Vector3(0f, 1f, -0.08f));
         UpdateSingleStrategyEffectPosition(defensiveShellA, fighterATransform, new Vector3(0f, 0.48f, 0f));
         UpdateSingleStrategyEffectPosition(defensiveShellB, fighterBTransform, new Vector3(0f, 0.48f, 0f));
+        UpdateSingleStrategyEffectPosition(styleEffectA, fighterATransform, new Vector3(0f, 1.18f, -0.14f));
+        UpdateSingleStrategyEffectPosition(styleEffectB, fighterBTransform, new Vector3(0f, 1.18f, -0.14f));
     }
 
     void UpdateSingleStrategyEffectPosition(GameObject effectObject, Transform fighterTransform, Vector3 offset)
@@ -2683,6 +2781,26 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         effectObject.transform.localPosition = fighterTransform.localPosition + offset;
+    }
+
+    void UpdateStyleEffectVisuals(FightStyle dogAStyle, FightStyle dogBStyle, int roundNumber, float elapsedTime)
+    {
+        UpdateSingleStyleEffectVisual(styleEffectA, dogAStyle, roundNumber, elapsedTime, 1f);
+        UpdateSingleStyleEffectVisual(styleEffectB, dogBStyle, roundNumber, elapsedTime, -1f);
+    }
+
+    void UpdateSingleStyleEffectVisual(GameObject effectObject, FightStyle style, int roundNumber, float elapsedTime, float sideDirection)
+    {
+        if (effectObject == null || !effectObject.activeSelf || style != FightStyle.Wildcard)
+        {
+            return;
+        }
+
+        float flicker = Mathf.Abs(Mathf.Sin((elapsedTime * 24f) + (roundNumber * 1.7f) + sideDirection));
+        float jitter = Mathf.Sin((elapsedTime * 18f) + sideDirection) * 0.08f;
+        effectObject.transform.localPosition += new Vector3(jitter, 0f, -jitter * 0.5f);
+        effectObject.transform.localScale = Vector3.Lerp(new Vector3(0.36f, 0.36f, 0.36f), new Vector3(0.7f, 0.7f, 0.7f), flicker);
+        SetObjectUnlitColor(effectObject, Color.Lerp(new Color(0.1f, 0.95f, 1f), new Color(0.95f, 0.08f, 1f), flicker));
     }
 
     Color GetStrategyEffectColor(FightStrategy strategy)
@@ -2762,6 +2880,236 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
+    float GetStyleSpeedMultiplier(FightStyle style)
+    {
+        switch (style)
+        {
+            case FightStyle.Rushdown:
+                return 1.25f;
+
+            case FightStyle.Counter:
+                return 1.15f;
+
+            case FightStyle.Tank:
+                return 0.8f;
+
+            case FightStyle.Wildcard:
+                return 1.1f;
+
+            case FightStyle.Balanced:
+            default:
+                return 1f;
+        }
+    }
+
+    float GetStyleLungeMultiplier(FightStyle style)
+    {
+        switch (style)
+        {
+            case FightStyle.Rushdown:
+                return 1.22f;
+
+            case FightStyle.Counter:
+                return 1.05f;
+
+            case FightStyle.Tank:
+                return 0.78f;
+
+            case FightStyle.Wildcard:
+                return 1.12f;
+
+            case FightStyle.Balanced:
+            default:
+                return 1f;
+        }
+    }
+
+    float GetStyleRecoilMultiplier(FightStyle style)
+    {
+        switch (style)
+        {
+            case FightStyle.Tank:
+                return 0.45f;
+
+            case FightStyle.Counter:
+                return 0.72f;
+
+            case FightStyle.Rushdown:
+                return 1.08f;
+
+            case FightStyle.Wildcard:
+                return 1.2f;
+
+            case FightStyle.Balanced:
+            default:
+                return 1f;
+        }
+    }
+
+    float GetStyleSideOffset(FightStyle style, int roundNumber, float sideDirection)
+    {
+        switch (style)
+        {
+            case FightStyle.Rushdown:
+                return -0.08f;
+
+            case FightStyle.Counter:
+                return 0.12f * sideDirection;
+
+            case FightStyle.Wildcard:
+                return Mathf.Sin((roundNumber * 2.17f) + sideDirection) * 0.28f;
+
+            case FightStyle.Tank:
+            case FightStyle.Balanced:
+            default:
+                return 0f;
+        }
+    }
+
+    Vector3 GetStyleWindupOffset(FightStyle style, float forwardDirection)
+    {
+        switch (style)
+        {
+            case FightStyle.Counter:
+                return new Vector3(-forwardDirection * 0.28f, 0f, 0.1f * forwardDirection);
+
+            case FightStyle.Tank:
+                return new Vector3(-forwardDirection * 0.08f, 0f, 0f);
+
+            case FightStyle.Wildcard:
+                return new Vector3(-forwardDirection * 0.14f, 0f, 0.24f * forwardDirection);
+
+            case FightStyle.Rushdown:
+            case FightStyle.Balanced:
+            default:
+                return Vector3.zero;
+        }
+    }
+
+    int GetStyleImpactVisualIntensity(FightStyle style, int impact, int roundNumber)
+    {
+        if (impact <= 0)
+        {
+            return 0;
+        }
+
+        switch (style)
+        {
+            case FightStyle.Rushdown:
+                return Mathf.RoundToInt((impact * 1.2f) + 3f);
+
+            case FightStyle.Counter:
+                return impact + 4;
+
+            case FightStyle.Tank:
+                return Mathf.RoundToInt(impact * 0.85f);
+
+            case FightStyle.Wildcard:
+                return Mathf.RoundToInt((impact * 1.15f) + (roundNumber % 2 == 0 ? 8f : 2f));
+
+            case FightStyle.Balanced:
+            default:
+                return impact;
+        }
+    }
+
+    void ApplyStyleVisualModifier(Transform fighterTransform, FightStyle style, string effectName, int roundNumber, int impact)
+    {
+        if (fighterTransform == null || style == FightStyle.Balanced)
+        {
+            return;
+        }
+
+        switch (style)
+        {
+            case FightStyle.Rushdown:
+                ShowRushdownStyleEffect(fighterTransform, effectName, impact);
+                break;
+
+            case FightStyle.Counter:
+                ShowCounterDodgeEffect(fighterTransform, effectName, roundNumber);
+                break;
+
+            case FightStyle.Tank:
+                ShowTankAbsorbEffect(fighterTransform, effectName);
+                break;
+
+            case FightStyle.Wildcard:
+                ShowWildcardGlitchEffect(fighterTransform, effectName, roundNumber);
+                break;
+        }
+    }
+
+    void ShowRushdownStyleEffect(Transform fighterTransform, string effectName, int impact)
+    {
+        GameObject styleEffect = effectName == "A" ? styleEffectA : styleEffectB;
+
+        if (styleEffect == null)
+        {
+            return;
+        }
+
+        float intensity = Mathf.InverseLerp(1f, 35f, Mathf.Max(1, impact));
+        styleEffect.SetActive(true);
+        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 1.18f, -0.14f);
+        styleEffect.transform.localRotation = Quaternion.Euler(0f, 45f, -18f);
+        styleEffect.transform.localScale = Vector3.Lerp(new Vector3(0.34f, 0.34f, 0.34f), new Vector3(0.72f, 0.72f, 0.72f), intensity);
+        SetObjectUnlitColor(styleEffect, new Color(1f, 0.35f, 0.05f));
+    }
+
+    void ShowCounterDodgeEffect(Transform fighterTransform, string effectName, int roundNumber)
+    {
+        GameObject styleEffect = effectName == "A" ? styleEffectA : styleEffectB;
+
+        if (styleEffect == null)
+        {
+            return;
+        }
+
+        float side = effectName == "A" ? 1f : -1f;
+        styleEffect.SetActive(true);
+        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0.18f * side, 1.16f, -0.16f);
+        styleEffect.transform.localRotation = Quaternion.Euler(0f, 60f + (roundNumber * 12f), 0f);
+        styleEffect.transform.localScale = new Vector3(0.42f, 0.18f, 0.42f);
+        SetObjectUnlitColor(styleEffect, new Color(0.2f, 0.75f, 1f));
+    }
+
+    void ShowTankAbsorbEffect(Transform fighterTransform, string effectName)
+    {
+        ShowDefensiveShellEffect(fighterTransform, effectName);
+
+        GameObject styleEffect = effectName == "A" ? styleEffectA : styleEffectB;
+
+        if (styleEffect == null)
+        {
+            return;
+        }
+
+        styleEffect.SetActive(true);
+        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 0.85f, -0.05f);
+        styleEffect.transform.localRotation = Quaternion.identity;
+        styleEffect.transform.localScale = new Vector3(0.85f, 0.2f, 0.85f);
+        SetObjectUnlitColor(styleEffect, new Color(0.35f, 1f, 0.85f));
+    }
+
+    void ShowWildcardGlitchEffect(Transform fighterTransform, string effectName, int roundNumber)
+    {
+        GameObject styleEffect = effectName == "A" ? styleEffectA : styleEffectB;
+
+        if (styleEffect == null)
+        {
+            return;
+        }
+
+        float side = effectName == "A" ? 1f : -1f;
+        float jitter = Mathf.Sin((roundNumber * 3.1f) + side) * 0.18f;
+        styleEffect.SetActive(true);
+        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(jitter, 1.18f, -0.18f);
+        styleEffect.transform.localRotation = Quaternion.Euler(0f, 35f + (roundNumber * 37f), 22f * side);
+        styleEffect.transform.localScale = new Vector3(0.48f + Mathf.Abs(jitter), 0.48f, 0.48f + Mathf.Abs(jitter));
+        SetObjectUnlitColor(styleEffect, roundNumber % 2 == 0 ? new Color(0.95f, 0.08f, 1f) : new Color(0.1f, 0.95f, 1f));
+    }
+
     IEnumerator AnimateRoundExchange(
         int roundNumber,
         Dog dogA,
@@ -2771,7 +3119,9 @@ public class FightPresentationManager : MonoBehaviour
         int dogAImpact,
         int dogBImpact,
         FightStrategy dogAStrategy,
-        FightStrategy dogBStrategy
+        FightStrategy dogBStrategy,
+        FightStyle dogAStyle,
+        FightStyle dogBStyle
     )
     {
         if (fighterATransform == null || fighterBTransform == null)
@@ -2783,15 +3133,17 @@ public class FightPresentationManager : MonoBehaviour
         Vector3 fighterAHome = new Vector3(-1.75f, 0.6f, 0f);
         Vector3 fighterBHome = new Vector3(1.75f, 0.6f, 0f);
 
-        float dogALunge = GetStrategyLungeDistance(dogAStrategy, dogAImpact, roundNumber);
-        float dogBLunge = GetStrategyLungeDistance(dogBStrategy, dogBImpact, roundNumber);
-        float dogARecoil = GetStrategyRecoilDistance(dogAStrategy, dogBImpact, dogAImpact, roundNumber);
-        float dogBRecoil = GetStrategyRecoilDistance(dogBStrategy, dogAImpact, dogBImpact, roundNumber);
+        float dogALunge = GetStrategyLungeDistance(dogAStrategy, dogAImpact, roundNumber) * GetStyleLungeMultiplier(dogAStyle);
+        float dogBLunge = GetStrategyLungeDistance(dogBStrategy, dogBImpact, roundNumber) * GetStyleLungeMultiplier(dogBStyle);
+        float dogARecoil = GetStrategyRecoilDistance(dogAStrategy, dogBImpact, dogAImpact, roundNumber) * GetStyleRecoilMultiplier(dogAStyle);
+        float dogBRecoil = GetStrategyRecoilDistance(dogBStrategy, dogAImpact, dogBImpact, roundNumber) * GetStyleRecoilMultiplier(dogBStyle);
+        float dogASideOffset = GetStyleSideOffset(dogAStyle, roundNumber, 1f);
+        float dogBSideOffset = GetStyleSideOffset(dogBStyle, roundNumber, -1f);
 
-        Vector3 fighterAImpactPosition = fighterAHome + new Vector3(dogALunge - dogARecoil, 0f, 0f);
-        Vector3 fighterBImpactPosition = fighterBHome + new Vector3(-dogBLunge + dogBRecoil, 0f, 0f);
-        Vector3 fighterAWindupPosition = GetStrategyWindupPosition(fighterAHome, dogAStrategy, 1f);
-        Vector3 fighterBWindupPosition = GetStrategyWindupPosition(fighterBHome, dogBStrategy, -1f);
+        Vector3 fighterAImpactPosition = fighterAHome + new Vector3(dogALunge - dogARecoil, 0f, dogASideOffset);
+        Vector3 fighterBImpactPosition = fighterBHome + new Vector3(-dogBLunge + dogBRecoil, 0f, dogBSideOffset);
+        Vector3 fighterAWindupPosition = GetStrategyWindupPosition(fighterAHome, dogAStrategy, 1f) + GetStyleWindupOffset(dogAStyle, 1f);
+        Vector3 fighterBWindupPosition = GetStrategyWindupPosition(fighterBHome, dogBStrategy, -1f) + GetStyleWindupOffset(dogBStyle, -1f);
 
         fighterAImpactPosition.x = Mathf.Clamp(fighterAImpactPosition.x, -2.4f, -0.35f);
         fighterBImpactPosition.x = Mathf.Clamp(fighterBImpactPosition.x, 0.35f, 2.4f);
@@ -2802,30 +3154,34 @@ public class FightPresentationManager : MonoBehaviour
         HideStrategyEffects();
         ShowStrategyEffect(fighterATransform, dogAStrategy, "A", roundNumber);
         ShowStrategyEffect(fighterBTransform, dogBStrategy, "B", roundNumber);
+        ApplyStyleVisualModifier(fighterATransform, dogAStyle, "A", roundNumber, dogAImpact);
+        ApplyStyleVisualModifier(fighterBTransform, dogBStyle, "B", roundNumber, dogBImpact);
 
         if (dogAImpact > 0)
         {
-            ShowImpactEffect(fighterBTransform, GetStrategyImpactVisualIntensity(dogAStrategy, dogAImpact, roundNumber), "B");
+            ShowImpactEffect(fighterBTransform, GetStyleImpactVisualIntensity(dogAStyle, GetStrategyImpactVisualIntensity(dogAStrategy, dogAImpact, roundNumber), roundNumber), "B");
         }
 
         if (dogBImpact > 0)
         {
-            ShowImpactEffect(fighterATransform, GetStrategyImpactVisualIntensity(dogBStrategy, dogBImpact, roundNumber), "A");
+            ShowImpactEffect(fighterATransform, GetStyleImpactVisualIntensity(dogBStyle, GetStrategyImpactVisualIntensity(dogBStrategy, dogBImpact, roundNumber), roundNumber), "A");
         }
 
         bool hasWindup = Vector3.Distance(fighterAHome, fighterAWindupPosition) > 0.01f ||
                          Vector3.Distance(fighterBHome, fighterBWindupPosition) > 0.01f;
-        float windupDuration = hasWindup ? RoundActionDurationSeconds * 0.24f : 0f;
-        float strikeDuration = RoundActionDurationSeconds * (hasWindup ? 0.46f : 0.52f);
-        float resetDuration = RoundActionDurationSeconds - windupDuration - strikeDuration;
+        float styleSpeedMultiplier = Mathf.Max(GetStyleSpeedMultiplier(dogAStyle), GetStyleSpeedMultiplier(dogBStyle));
+        float adjustedRoundDuration = RoundActionDurationSeconds / Mathf.Max(0.5f, styleSpeedMultiplier);
+        float windupDuration = hasWindup ? adjustedRoundDuration * 0.24f : 0f;
+        float strikeDuration = adjustedRoundDuration * (hasWindup ? 0.46f : 0.52f);
+        float resetDuration = adjustedRoundDuration - windupDuration - strikeDuration;
 
         if (hasWindup)
         {
-            yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAHome, fighterBHome, fighterAWindupPosition, fighterBWindupPosition, windupDuration);
+            yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAHome, fighterBHome, fighterAWindupPosition, fighterBWindupPosition, windupDuration, dogAStyle, dogBStyle, roundNumber);
         }
 
-        yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAWindupPosition, fighterBWindupPosition, fighterAImpactPosition, fighterBImpactPosition, strikeDuration);
-        yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, Mathf.Max(0.05f, resetDuration));
+        yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAWindupPosition, fighterBWindupPosition, fighterAImpactPosition, fighterBImpactPosition, strikeDuration, dogAStyle, dogBStyle, roundNumber);
+        yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, Mathf.Max(0.05f, resetDuration), dogAStyle, dogBStyle, roundNumber);
 
         HideImpactEffects();
         HideStrategyEffects();
@@ -2834,7 +3190,7 @@ public class FightPresentationManager : MonoBehaviour
         UpdateDogPortraitBillboards(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateArenaLabels(dogA, dogB);
-        UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false, dogAStrategy, dogBStrategy);
+        UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false, dogAStrategy, dogBStrategy, dogAStyle, dogBStyle);
     }
 
     IEnumerator AnimateFightersToPositions(
@@ -2846,7 +3202,10 @@ public class FightPresentationManager : MonoBehaviour
         Vector3 fighterBStart,
         Vector3 fighterATarget,
         Vector3 fighterBTarget,
-        float duration
+        float duration,
+        FightStyle dogAStyle,
+        FightStyle dogBStyle,
+        int roundNumber
     )
     {
         float elapsedTime = 0f;
@@ -2871,6 +3230,7 @@ public class FightPresentationManager : MonoBehaviour
             UpdateDogPortraitBillboards(dogA, dogB);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateStrategyEffectPositions();
+            UpdateStyleEffectVisuals(dogAStyle, dogBStyle, roundNumber, elapsedTime);
             yield return null;
         }
     }
