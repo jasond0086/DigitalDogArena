@@ -1350,9 +1350,9 @@ public class FightPresentationManager : MonoBehaviour
         GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
         platform.name = "DigitalArenaPlatform";
         platform.transform.SetParent(arenaRoot.transform);
-        platform.transform.localPosition = Vector3.zero;
-        platform.transform.localScale = new Vector3(6f, 0.1f, 4f);
-        SetObjectColor(platform, new Color(0.04f, 0.08f, 0.1f));
+        platform.transform.localPosition = new Vector3(0f, -0.03f, 0f);
+        platform.transform.localScale = new Vector3(6.4f, 0.08f, 4.4f);
+        SetObjectColor(platform, new Color(0.015f, 0.02f, 0.03f));
     }
 
     GameObject CreateFighterPlaceholder(string objectName, Vector3 position, Color color)
@@ -1790,7 +1790,7 @@ public class FightPresentationManager : MonoBehaviour
         SetObjectColor(marker, color);
     }
 
-    void CreateWall(string objectName, Vector3 position, Vector3 scale, Color color)
+    GameObject CreateWall(string objectName, Vector3 position, Vector3 scale, Color color)
     {
         GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
         wall.name = objectName;
@@ -1798,29 +1798,45 @@ public class FightPresentationManager : MonoBehaviour
         wall.transform.localPosition = position;
         wall.transform.localScale = scale;
         SetObjectColor(wall, color);
+        return wall;
     }
 
     void CreateGridLines()
     {
+        Color gridColor = new Color(0f, 1f, 1f);
+        float gridHeight = 0.22f;
+        float gridThickness = 0.16f;
+
         for (int i = -3; i <= 3; i++)
         {
-            CreateWall(
+            CreateBrightWall(
                 $"GridLine_X_{i}",
-                new Vector3(i, 0.08f, 0f),
-                new Vector3(0.03f, 0.03f, 4f),
-                new Color(0f, 0.75f, 1f, 0.8f)
+                new Vector3(i, gridHeight, 0f),
+                new Vector3(gridThickness, 0.12f, 4.35f),
+                gridColor
             );
         }
 
         for (int i = -2; i <= 2; i++)
         {
-            CreateWall(
+            CreateBrightWall(
                 $"GridLine_Z_{i}",
-                new Vector3(0f, 0.09f, i),
-                new Vector3(6f, 0.03f, 0.03f),
-                new Color(0f, 0.75f, 1f, 0.8f)
+                new Vector3(0f, gridHeight, i),
+                new Vector3(6.35f, 0.12f, gridThickness),
+                gridColor
             );
         }
+
+        CreateBrightWall("ArenaBorder_North", new Vector3(0f, gridHeight + 0.04f, 2.2f), new Vector3(6.5f, 0.16f, 0.18f), gridColor);
+        CreateBrightWall("ArenaBorder_South", new Vector3(0f, gridHeight + 0.04f, -2.2f), new Vector3(6.5f, 0.16f, 0.18f), gridColor);
+        CreateBrightWall("ArenaBorder_East", new Vector3(3.2f, gridHeight + 0.04f, 0f), new Vector3(0.18f, 0.16f, 4.45f), gridColor);
+        CreateBrightWall("ArenaBorder_West", new Vector3(-3.2f, gridHeight + 0.04f, 0f), new Vector3(0.18f, 0.16f, 4.45f), gridColor);
+    }
+
+    void CreateBrightWall(string objectName, Vector3 position, Vector3 scale, Color color)
+    {
+        GameObject wall = CreateWall(objectName, position, scale, color);
+        SetObjectUnlitColor(wall, color);
     }
 
     void SetObjectColor(GameObject targetObject, Color color)
@@ -1839,6 +1855,46 @@ public class FightPresentationManager : MonoBehaviour
 
         Material runtimeMaterial = new Material(objectRenderer.sharedMaterial);
         runtimeMaterial.color = color;
+        objectRenderer.material = runtimeMaterial;
+    }
+
+    void SetObjectUnlitColor(GameObject targetObject, Color color)
+    {
+        if (targetObject == null)
+        {
+            return;
+        }
+
+        Renderer objectRenderer = targetObject.GetComponent<Renderer>();
+
+        if (objectRenderer == null)
+        {
+            return;
+        }
+
+        Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+
+        if (unlitShader == null)
+        {
+            unlitShader = Shader.Find("Unlit/Color");
+        }
+
+        Material runtimeMaterial = unlitShader != null
+            ? new Material(unlitShader)
+            : new Material(objectRenderer.sharedMaterial);
+
+        runtimeMaterial.color = color;
+
+        if (runtimeMaterial.HasProperty("_BaseColor"))
+        {
+            runtimeMaterial.SetColor("_BaseColor", color);
+        }
+
+        if (runtimeMaterial.HasProperty("_Color"))
+        {
+            runtimeMaterial.SetColor("_Color", color);
+        }
+
         objectRenderer.material = runtimeMaterial;
     }
 }
