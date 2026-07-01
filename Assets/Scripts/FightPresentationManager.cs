@@ -56,6 +56,8 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject roundStatusBannerObject;
     private GameObject fighterAPortraitBillboard;
     private GameObject fighterBPortraitBillboard;
+    private GameObject fighterAPortraitFrame;
+    private GameObject fighterBPortraitFrame;
     private bool warnedMissingDogSpriteA;
     private bool warnedMissingDogSpriteB;
     private Dog[] cachedDogPortraitResourceDogs;
@@ -215,13 +217,13 @@ public class FightPresentationManager : MonoBehaviour
         if (fighterATransform != null)
         {
             fighterATransform.localPosition = new Vector3(-1.75f + roundStep, 0.6f, 0f);
-            fighterATransform.localScale = new Vector3(0.62f * pulse, 1.12f * pulse, 0.62f * pulse);
+            fighterATransform.localScale = new Vector3(0.46f * pulse, 0.84f * pulse, 0.46f * pulse);
         }
 
         if (fighterBTransform != null)
         {
             fighterBTransform.localPosition = new Vector3(1.75f - roundStep, 0.6f, 0f);
-            fighterBTransform.localScale = new Vector3(0.62f * pulse, 1.12f * pulse, 0.62f * pulse);
+            fighterBTransform.localScale = new Vector3(0.46f * pulse, 0.84f * pulse, 0.46f * pulse);
         }
 
         UpdateDogPortraitBillboards(dogA, dogB);
@@ -293,6 +295,8 @@ public class FightPresentationManager : MonoBehaviour
             MarkLoser(fighterBTransform);
             UpdateDogPortraitBillboards(dogA, dogB);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+            ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, true, false, Color.cyan);
+            ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.65f, 0.25f, 0.8f));
             Debug.Log($"Digital arena result: {dogA.dogName} imprint wins. {dogB.dogName} imprint falls back.");
@@ -305,6 +309,8 @@ public class FightPresentationManager : MonoBehaviour
             MarkLoser(fighterATransform);
             UpdateDogPortraitBillboards(dogA, dogB);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+            ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, false, false, Color.cyan);
+            ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, true, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             UpdateArenaResultLabels(dogA, dogB, "DEFEATED", "WINNER", new Color(0.65f, 0.25f, 0.8f), new Color(0.1f, 1f, 0.35f));
             Debug.Log($"Digital arena result: {dogB.dogName} imprint wins. {dogA.dogName} imprint falls back.");
@@ -315,6 +321,8 @@ public class FightPresentationManager : MonoBehaviour
         MarkDraw(fighterBTransform);
         UpdateDogPortraitBillboards(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+        ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, false, true, Color.cyan);
+        ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, true, Color.magenta);
         UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
         Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
@@ -922,12 +930,12 @@ public class FightPresentationManager : MonoBehaviour
 
         if (fighterATransform == null)
         {
-            fighterATransform = CreateFighterPlaceholder("FighterA_Imprint", new Vector3(-1.75f, 0.6f, 0f), Color.cyan).transform;
+            fighterATransform = CreateFighterPlaceholder("FighterA_Imprint", new Vector3(-1.75f, 0.6f, 0f), new Color(0f, 0.58f, 0.78f)).transform;
         }
 
         if (fighterBTransform == null)
         {
-            fighterBTransform = CreateFighterPlaceholder("FighterB_Imprint", new Vector3(1.75f, 0.6f, 0f), Color.magenta).transform;
+            fighterBTransform = CreateFighterPlaceholder("FighterB_Imprint", new Vector3(1.75f, 0.6f, 0f), new Color(0.78f, 0.1f, 0.68f)).transform;
         }
 
         CreateMarker("CenterMarker", new Vector3(0f, 0.08f, 0f), new Color(0.75f, 1f, 1f));
@@ -1059,8 +1067,8 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.12f, 0.2f), Color.white, 0.145f);
-        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\nIMPRINT", GetLabelPosition(fighterATransform, new Vector3(-1.75f, 2.25f, 0f)), Color.cyan, 0.09f);
-        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\nIMPRINT", GetLabelPosition(fighterBTransform, new Vector3(1.75f, 2.25f, 0f)), Color.magenta, 0.09f);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\nIMPRINT", GetArenaFighterLabelPosition(fighterATransform, new Vector3(-1.75f, 2.55f, 0f)), Color.cyan, 0.085f);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\nIMPRINT", GetArenaFighterLabelPosition(fighterBTransform, new Vector3(1.75f, 2.55f, 0f)), Color.magenta, 0.085f);
     }
 
     void UpdateArenaResultLabels(Dog dogA, Dog dogB, string dogAStatus, string dogBStatus, Color dogAColor, Color dogBColor)
@@ -1071,8 +1079,8 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.12f, 0.2f), Color.white, 0.145f);
-        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\n{dogAStatus}", GetLabelPosition(fighterATransform, new Vector3(-1.75f, 2.25f, 0f)), dogAColor, 0.095f);
-        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\n{dogBStatus}", GetLabelPosition(fighterBTransform, new Vector3(1.75f, 2.25f, 0f)), dogBColor, 0.095f);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\n{dogAStatus}", GetArenaFighterLabelPosition(fighterATransform, new Vector3(-1.75f, 2.55f, 0f)), dogAColor, 0.09f);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\n{dogBStatus}", GetArenaFighterLabelPosition(fighterBTransform, new Vector3(1.75f, 2.55f, 0f)), dogBColor, 0.09f);
     }
 
     void CreateDogPortraitBillboardsIfNeeded()
@@ -1084,16 +1092,19 @@ public class FightPresentationManager : MonoBehaviour
 
         if (fighterAPortraitBillboard == null)
         {
-            fighterAPortraitBillboard = CreateDogPortraitBillboard("FighterA_PortraitBillboard", Color.cyan);
+            fighterAPortraitBillboard = CreateDogPortraitBillboard("FighterA_PortraitBillboard", "FighterA_PortraitFrame", Color.cyan);
         }
 
         if (fighterBPortraitBillboard == null)
         {
-            fighterBPortraitBillboard = CreateDogPortraitBillboard("FighterB_PortraitBillboard", Color.magenta);
+            fighterBPortraitBillboard = CreateDogPortraitBillboard("FighterB_PortraitBillboard", "FighterB_PortraitFrame", Color.magenta);
         }
+
+        fighterAPortraitFrame = GetPortraitFrameObject(fighterAPortraitBillboard, "FighterA_PortraitFrame");
+        fighterBPortraitFrame = GetPortraitFrameObject(fighterBPortraitBillboard, "FighterB_PortraitFrame");
     }
 
-    GameObject CreateDogPortraitBillboard(string objectName, Color accentColor)
+    GameObject CreateDogPortraitBillboard(string objectName, string frameName, Color accentColor)
     {
         Transform existingBillboard = arenaRoot.transform.Find(objectName);
         GameObject billboardObject;
@@ -1119,7 +1130,7 @@ public class FightPresentationManager : MonoBehaviour
             oldRootRenderer.enabled = false;
         }
 
-        CreatePortraitCardFrameIfNeeded(billboardObject.transform, accentColor);
+        CreatePortraitFramesIfNeeded(billboardObject.transform, frameName, accentColor);
         ConfigurePortraitSpriteRenderer(GetPortraitSpriteRenderer(billboardObject));
 
         billboardObject.SetActive(false);
@@ -1134,12 +1145,13 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateDogPortraitBillboardsIfNeeded();
-        ConfigurePortraitBillboard(fighterAPortraitBillboard, dogA, fighterATransform, new Vector3(-0.62f, 1.05f, -0.55f), ref warnedMissingDogSpriteA);
-        ConfigurePortraitBillboard(fighterBPortraitBillboard, dogB, fighterBTransform, new Vector3(0.62f, 1.05f, -0.55f), ref warnedMissingDogSpriteB);
+        ConfigurePortraitBillboard(fighterAPortraitBillboard, dogA, fighterATransform, ref warnedMissingDogSpriteA);
+        ConfigurePortraitBillboard(fighterBPortraitBillboard, dogB, fighterBTransform, ref warnedMissingDogSpriteB);
+        UpdatePortraitBillboardPositions();
         FacePortraitsTowardPresentationCamera();
     }
 
-    void ConfigurePortraitBillboard(GameObject billboardObject, Dog dog, Transform fighterTransform, Vector3 localOffset, ref bool warnedMissingSprite)
+    void ConfigurePortraitBillboard(GameObject billboardObject, Dog dog, Transform fighterTransform, ref bool warnedMissingSprite)
     {
         if (billboardObject == null || dog == null || fighterTransform == null)
         {
@@ -1177,24 +1189,50 @@ public class FightPresentationManager : MonoBehaviour
         spriteRenderer.sortingOrder = 500;
         ConfigurePortraitSpriteRenderer(spriteRenderer);
 
-        billboardObject.transform.localPosition = fighterTransform.localPosition + localOffset;
-        billboardObject.transform.localScale = Vector3.one;
+        UpdateSinglePortraitBillboardPosition(billboardObject, fighterTransform);
+        billboardObject.transform.localScale = GetPortraitBillboardBaseScale();
         spriteRenderer.transform.localScale = GetPortraitSpriteScale(portraitSprite);
         SetPortraitBillboardActive(billboardObject, true);
     }
 
-    void CreatePortraitCardFrameIfNeeded(Transform billboardTransform, Color accentColor)
+    void UpdatePortraitBillboardPositions()
+    {
+        UpdateSinglePortraitBillboardPosition(fighterAPortraitBillboard, fighterATransform);
+        UpdateSinglePortraitBillboardPosition(fighterBPortraitBillboard, fighterBTransform);
+    }
+
+    void UpdateSinglePortraitBillboardPosition(GameObject billboardObject, Transform fighterTransform)
+    {
+        if (billboardObject == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        billboardObject.transform.localPosition = fighterTransform.localPosition + GetPortraitBillboardOffset();
+    }
+
+    Vector3 GetPortraitBillboardOffset()
+    {
+        return new Vector3(0f, 1.08f, -0.72f);
+    }
+
+    Vector3 GetPortraitBillboardBaseScale()
+    {
+        return new Vector3(1.08f, 1.08f, 1.08f);
+    }
+
+    void CreatePortraitFramesIfNeeded(Transform billboardTransform, string frameName, Color accentColor)
     {
         if (billboardTransform == null)
         {
             return;
         }
 
-        CreatePortraitCardPart(billboardTransform, "PortraitCardBack", new Vector3(0f, 0f, 0.045f), new Vector3(1.35f, 1.05f, 0.035f), new Color(0.015f, 0.02f, 0.03f));
-        CreatePortraitCardPart(billboardTransform, "PortraitCardTop", new Vector3(0f, 0.55f, -0.015f), new Vector3(1.42f, 0.055f, 0.045f), accentColor);
-        CreatePortraitCardPart(billboardTransform, "PortraitCardBottom", new Vector3(0f, -0.55f, -0.015f), new Vector3(1.42f, 0.055f, 0.045f), accentColor);
-        CreatePortraitCardPart(billboardTransform, "PortraitCardLeft", new Vector3(-0.71f, 0f, -0.015f), new Vector3(0.055f, 1.08f, 0.045f), accentColor);
-        CreatePortraitCardPart(billboardTransform, "PortraitCardRight", new Vector3(0.71f, 0f, -0.015f), new Vector3(0.055f, 1.08f, 0.045f), accentColor);
+        CreatePortraitCardPart(billboardTransform, frameName, new Vector3(0f, 0f, 0.055f), new Vector3(1.48f, 1.18f, 0.04f), new Color(0.012f, 0.018f, 0.03f));
+        CreatePortraitCardPart(billboardTransform, $"{frameName}_Top", new Vector3(0f, 0.63f, -0.015f), new Vector3(1.56f, 0.07f, 0.055f), accentColor);
+        CreatePortraitCardPart(billboardTransform, $"{frameName}_Bottom", new Vector3(0f, -0.63f, -0.015f), new Vector3(1.56f, 0.07f, 0.055f), accentColor);
+        CreatePortraitCardPart(billboardTransform, $"{frameName}_Left", new Vector3(-0.78f, 0f, -0.015f), new Vector3(0.07f, 1.24f, 0.055f), accentColor);
+        CreatePortraitCardPart(billboardTransform, $"{frameName}_Right", new Vector3(0.78f, 0f, -0.015f), new Vector3(0.07f, 1.24f, 0.055f), accentColor);
     }
 
     void CreatePortraitCardPart(Transform parentTransform, string objectName, Vector3 localPosition, Vector3 localScale, Color color)
@@ -1218,6 +1256,130 @@ public class FightPresentationManager : MonoBehaviour
         partObject.transform.localRotation = Quaternion.identity;
         partObject.transform.localScale = localScale;
         SetObjectUnlitColor(partObject, color);
+    }
+
+    GameObject GetPortraitFrameObject(GameObject billboardObject, string frameName)
+    {
+        if (billboardObject == null)
+        {
+            return null;
+        }
+
+        Transform frameTransform = billboardObject.transform.Find(frameName);
+        return frameTransform != null ? frameTransform.gameObject : null;
+    }
+
+    void UpdatePortraitFrameVisuals(int dogAHealth, int dogBHealth)
+    {
+        UpdateSinglePortraitFrameVisual(
+            fighterAPortraitBillboard,
+            fighterAPortraitFrame,
+            dogAHealth,
+            visualMaxHealthA,
+            Color.cyan
+        );
+        UpdateSinglePortraitFrameVisual(
+            fighterBPortraitBillboard,
+            fighterBPortraitFrame,
+            dogBHealth,
+            visualMaxHealthB,
+            Color.magenta
+        );
+    }
+
+    void UpdateSinglePortraitFrameVisual(GameObject billboardObject, GameObject frameObject, int currentHealth, int maxLikelyHealth, Color cleanAccentColor)
+    {
+        if (billboardObject == null || frameObject == null || !billboardObject.activeSelf)
+        {
+            return;
+        }
+
+        float healthPercent = GetPortraitHealthPercent(currentHealth, maxLikelyHealth);
+        float corruptionStrength = 1f - healthPercent;
+        Color corruptedAccent = Color.Lerp(new Color(0.55f, 0.05f, 0.85f), new Color(1f, 0.05f, 0.02f), corruptionStrength);
+        Color frameAccent = Color.Lerp(corruptedAccent, cleanAccentColor, healthPercent);
+        Color frameBack = Color.Lerp(new Color(0.08f, 0.01f, 0.12f), new Color(0.012f, 0.018f, 0.03f), healthPercent);
+
+        TintPortraitFrame(billboardObject, frameObject.name, frameBack, frameAccent);
+
+        SpriteRenderer spriteRenderer = GetPortraitSpriteRenderer(billboardObject);
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = Color.Lerp(new Color(0.62f, 0.35f, 0.85f), Color.white, Mathf.Max(0.35f, healthPercent));
+        }
+    }
+
+    float GetPortraitHealthPercent(int currentHealth, int maxLikelyHealth)
+    {
+        if (maxLikelyHealth <= 1 && currentHealth <= 0)
+        {
+            return 1f;
+        }
+
+        return GetHealthPercent(currentHealth, maxLikelyHealth);
+    }
+
+    void TintPortraitFrame(GameObject billboardObject, string frameName, Color backColor, Color accentColor)
+    {
+        if (billboardObject == null || string.IsNullOrEmpty(frameName))
+        {
+            return;
+        }
+
+        SetObjectUnlitColor(GetPortraitFrameObject(billboardObject, frameName), backColor);
+        SetObjectUnlitColor(GetPortraitFrameObject(billboardObject, $"{frameName}_Top"), accentColor);
+        SetObjectUnlitColor(GetPortraitFrameObject(billboardObject, $"{frameName}_Bottom"), accentColor);
+        SetObjectUnlitColor(GetPortraitFrameObject(billboardObject, $"{frameName}_Left"), accentColor);
+        SetObjectUnlitColor(GetPortraitFrameObject(billboardObject, $"{frameName}_Right"), accentColor);
+    }
+
+    void ApplyPortraitResultVisual(GameObject billboardObject, GameObject frameObject, bool isWinner, bool isDraw, Color accentColor)
+    {
+        if (billboardObject == null || frameObject == null || !billboardObject.activeSelf)
+        {
+            return;
+        }
+
+        SpriteRenderer spriteRenderer = GetPortraitSpriteRenderer(billboardObject);
+        string frameName = frameObject.name;
+
+        if (isWinner)
+        {
+            billboardObject.transform.localPosition += new Vector3(0f, 0.25f, -0.05f);
+            billboardObject.transform.localScale = GetPortraitBillboardBaseScale() * 1.15f;
+            TintPortraitFrame(billboardObject, frameName, new Color(0.02f, 0.07f, 0.04f), new Color(0.1f, 1f, 0.35f));
+
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.color = Color.white;
+            }
+
+            return;
+        }
+
+        if (isDraw)
+        {
+            billboardObject.transform.localPosition += new Vector3(0f, 0.1f, 0f);
+            billboardObject.transform.localScale = GetPortraitBillboardBaseScale() * 1.05f;
+            TintPortraitFrame(billboardObject, frameName, new Color(0.07f, 0.06f, 0.025f), new Color(1f, 0.85f, 0.2f));
+
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.color = Color.white;
+            }
+
+            return;
+        }
+
+        billboardObject.transform.localPosition += new Vector3(0f, -0.28f, 0.08f);
+        billboardObject.transform.localScale = GetPortraitBillboardBaseScale() * 0.82f;
+        TintPortraitFrame(billboardObject, frameName, new Color(0.035f, 0.02f, 0.045f), new Color(0.55f, 0.1f, 0.75f));
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = new Color(0.48f, 0.42f, 0.55f, 0.9f);
+        }
     }
 
     SpriteRenderer GetPortraitSpriteRenderer(GameObject billboardObject)
@@ -1416,7 +1578,17 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        billboardObject.transform.rotation = presentationCamera.transform.rotation;
+        Vector3 cameraToBillboard = billboardObject.transform.position - presentationCamera.transform.position;
+
+        if (cameraToBillboard.sqrMagnitude < 0.0001f)
+        {
+            billboardObject.transform.rotation = presentationCamera.transform.rotation;
+            return;
+        }
+
+        // The sprite child sits on local -Z, so local +Z points away from the camera.
+        // That keeps the portrait readable without flipping it backwards.
+        billboardObject.transform.rotation = Quaternion.LookRotation(cameraToBillboard.normalized, Vector3.up);
     }
 
     void HideDogPortraitBillboards()
@@ -1656,6 +1828,16 @@ public class FightPresentationManager : MonoBehaviour
         return targetTransform.localPosition + new Vector3(0f, 1.45f, 0f);
     }
 
+    Vector3 GetArenaFighterLabelPosition(Transform targetTransform, Vector3 fallbackPosition)
+    {
+        if (targetTransform == null)
+        {
+            return fallbackPosition;
+        }
+
+        return targetTransform.localPosition + new Vector3(0f, 1.95f, 0.02f);
+    }
+
     string GetDogDisplayName(Dog dog, string fallbackName)
     {
         if (dog == null || string.IsNullOrEmpty(dog.dogName))
@@ -1683,9 +1865,10 @@ public class FightPresentationManager : MonoBehaviour
         visualMaxHealthA = Mathf.Max(visualMaxHealthA, Mathf.Max(1, dogAHealth));
         visualMaxHealthB = Mathf.Max(visualMaxHealthB, Mathf.Max(1, dogBHealth));
 
-        ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, Color.cyan);
-        ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, Color.magenta);
+        ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, new Color(0f, 0.58f, 0.78f));
+        ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, new Color(0.78f, 0.1f, 0.68f));
         UpdateHealthBars(dogAHealth, dogBHealth);
+        UpdatePortraitFrameVisuals(dogAHealth, dogBHealth);
     }
 
     void ApplyImprintCorruption(Transform fighterTransform, int currentHealth, int maxLikelyHealth, GameObject[] corruptionNodes, Color cleanColor)
@@ -1815,9 +1998,9 @@ public class FightPresentationManager : MonoBehaviour
 
     Vector3 GetCorruptionScale(float corruptionStrength)
     {
-        float horizontalScale = Mathf.Lerp(0.62f, 0.86f, corruptionStrength);
-        float verticalScale = Mathf.Lerp(1.12f, 0.9f, corruptionStrength);
-        float depthScale = Mathf.Lerp(0.62f, 0.5f, corruptionStrength);
+        float horizontalScale = Mathf.Lerp(0.46f, 0.64f, corruptionStrength);
+        float verticalScale = Mathf.Lerp(0.84f, 0.68f, corruptionStrength);
+        float depthScale = Mathf.Lerp(0.46f, 0.36f, corruptionStrength);
 
         return new Vector3(horizontalScale, verticalScale, depthScale);
     }
@@ -1941,7 +2124,7 @@ public class FightPresentationManager : MonoBehaviour
             return Vector3.zero;
         }
 
-        return fighterTransform.localPosition + new Vector3(0f, 1.65f, 0f);
+        return fighterTransform.localPosition + new Vector3(0f, 1.82f, 0f);
     }
 
     void SetHealthBarActive(GameObject barPart, bool isActive)
@@ -1984,7 +2167,7 @@ public class FightPresentationManager : MonoBehaviour
         fighter.name = objectName;
         fighter.transform.SetParent(arenaRoot.transform);
         fighter.transform.localPosition = position;
-        fighter.transform.localScale = new Vector3(0.62f, 1.12f, 0.62f);
+        fighter.transform.localScale = new Vector3(0.46f, 0.84f, 0.46f);
         SetObjectUnlitColor(fighter, color);
         return fighter;
     }
@@ -2311,8 +2494,8 @@ public class FightPresentationManager : MonoBehaviour
             }
 
             UpdateArenaLabels(dogA, dogB);
-            UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateDogPortraitBillboards(dogA, dogB);
+            UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             yield return null;
         }
     }
@@ -2335,15 +2518,15 @@ public class FightPresentationManager : MonoBehaviour
         if (fighterATransform != null)
         {
             fighterATransform.localPosition = new Vector3(-1.75f, 0.6f, 0f);
-            fighterATransform.localScale = new Vector3(0.62f, 1.12f, 0.62f);
-            SetObjectUnlitColor(fighterATransform.gameObject, Color.cyan);
+            fighterATransform.localScale = new Vector3(0.46f, 0.84f, 0.46f);
+            SetObjectUnlitColor(fighterATransform.gameObject, new Color(0f, 0.58f, 0.78f));
         }
 
         if (fighterBTransform != null)
         {
             fighterBTransform.localPosition = new Vector3(1.75f, 0.6f, 0f);
-            fighterBTransform.localScale = new Vector3(0.62f, 1.12f, 0.62f);
-            SetObjectUnlitColor(fighterBTransform.gameObject, Color.magenta);
+            fighterBTransform.localScale = new Vector3(0.46f, 0.84f, 0.46f);
+            SetObjectUnlitColor(fighterBTransform.gameObject, new Color(0.78f, 0.1f, 0.68f));
         }
     }
 
@@ -2377,7 +2560,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         fighterTransform.localPosition = new Vector3(fighterTransform.localPosition.x, 0.9f, fighterTransform.localPosition.z);
-        fighterTransform.localScale = new Vector3(0.95f, 1.55f, 0.95f);
+        fighterTransform.localScale = new Vector3(0.65f, 1f, 0.65f);
         SetObjectUnlitColor(fighterTransform.gameObject, new Color(0.1f, 1f, 0.35f));
     }
 
@@ -2389,7 +2572,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         fighterTransform.localPosition = new Vector3(fighterTransform.localPosition.x, 0.35f, fighterTransform.localPosition.z);
-        fighterTransform.localScale = new Vector3(0.55f, 0.75f, 0.55f);
+        fighterTransform.localScale = new Vector3(0.34f, 0.5f, 0.34f);
         SetObjectUnlitColor(fighterTransform.gameObject, new Color(0.25f, 0.25f, 0.3f));
     }
 
@@ -2401,7 +2584,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         fighterTransform.localPosition = new Vector3(fighterTransform.localPosition.x, 0.8f, fighterTransform.localPosition.z);
-        fighterTransform.localScale = new Vector3(0.82f, 1.35f, 0.82f);
+        fighterTransform.localScale = new Vector3(0.55f, 0.9f, 0.55f);
         SetObjectUnlitColor(fighterTransform.gameObject, new Color(1f, 0.85f, 0.2f));
     }
 
