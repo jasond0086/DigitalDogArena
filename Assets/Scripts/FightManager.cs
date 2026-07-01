@@ -255,7 +255,9 @@ public class FightManager : MonoBehaviour
                 currentFighter1Health,
                 currentFighter2Health,
                 dmg1,
-                dmg2
+                dmg2,
+                strategy1,
+                strategy2
             );
         }
 
