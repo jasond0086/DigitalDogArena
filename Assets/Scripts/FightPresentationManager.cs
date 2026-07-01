@@ -1883,6 +1883,8 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        PrepareRuntimePrimitive(targetObject);
+
         Renderer objectRenderer = targetObject.GetComponent<Renderer>();
 
         if (objectRenderer == null)
@@ -1919,6 +1921,8 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        PrepareRuntimePrimitive(targetObject);
+
         Renderer objectRenderer = targetObject.GetComponent<Renderer>();
 
         if (objectRenderer == null)
@@ -1950,5 +1954,33 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         objectRenderer.material = runtimeMaterial;
+    }
+
+    void PrepareRuntimePrimitive(GameObject targetObject)
+    {
+        if (targetObject == null)
+        {
+            return;
+        }
+
+        targetObject.hideFlags = HideFlags.DontSave;
+
+        Collider objectCollider = targetObject.GetComponent<Collider>();
+
+        if (objectCollider == null)
+        {
+            return;
+        }
+
+        // These presentation primitives are visual only. Removing their colliders also keeps
+        // Game view Gizmos from drawing a noisy collider-wireframe over the arena.
+        if (Application.isPlaying)
+        {
+            Destroy(objectCollider);
+        }
+        else
+        {
+            DestroyImmediate(objectCollider);
+        }
     }
 }
