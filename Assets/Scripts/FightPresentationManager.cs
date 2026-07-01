@@ -54,10 +54,6 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject healthBarBackgroundB;
     private GameObject healthBarFillB;
     private GameObject roundStatusBannerObject;
-    private int lastRoundStatusNumber;
-    private int lastRoundDogAImpact;
-    private int lastRoundDogBImpact;
-    private bool hasLastRoundImpact;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
@@ -282,7 +278,7 @@ public class FightPresentationManager : MonoBehaviour
             MarkLoser(fighterBTransform);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
-            UpdateArenaResultLabels(dogA, dogB, "WINNER", "CORRUPTED / DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.6f, 0.6f, 0.65f));
+            UpdateArenaResultLabels(dogA, dogB, "WINNER", "DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.65f, 0.25f, 0.8f));
             Debug.Log($"Digital arena result: {dogA.dogName} imprint wins. {dogB.dogName} imprint falls back.");
             return;
         }
@@ -293,7 +289,7 @@ public class FightPresentationManager : MonoBehaviour
             MarkLoser(fighterATransform);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
-            UpdateArenaResultLabels(dogA, dogB, "CORRUPTED / DEFEATED", "WINNER", new Color(0.6f, 0.6f, 0.65f), new Color(0.1f, 1f, 0.35f));
+            UpdateArenaResultLabels(dogA, dogB, "DEFEATED", "WINNER", new Color(0.65f, 0.25f, 0.8f), new Color(0.1f, 1f, 0.35f));
             Debug.Log($"Digital arena result: {dogB.dogName} imprint wins. {dogA.dogName} imprint falls back.");
             return;
         }
@@ -999,10 +995,10 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberTitleLabel", "SEALED DNA SCAN CHAMBER", new Vector3(0f, 3f, 0f), Color.white, 0.18f);
-        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberSafetyLabel", "REAL DOGS SAFE - COPYING DIGITAL IMPRINTS", new Vector3(0f, 2.65f, 0f), new Color(0.45f, 1f, 0.75f), 0.12f);
-        CreateOrUpdateLabel(scanChamberRoot, "SafeDogALabel", GetDogDisplayName(dogA, "DOG A"), GetLabelPosition(scanDogATransform, new Vector3(-1.5f, 1.8f, 0f)), Color.cyan, 0.14f);
-        CreateOrUpdateLabel(scanChamberRoot, "SafeDogBLabel", GetDogDisplayName(dogB, "DOG B"), GetLabelPosition(scanDogBTransform, new Vector3(1.5f, 1.8f, 0f)), Color.magenta, 0.14f);
+        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberTitleLabel", "DNA SCAN", new Vector3(0f, 3f, 0f), Color.white, 0.17f);
+        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberSafetyLabel", "REAL DOGS SAFE\nCOPYING IMPRINTS", new Vector3(0f, 2.62f, 0f), new Color(0.45f, 1f, 0.75f), 0.095f);
+        CreateOrUpdateLabel(scanChamberRoot, "SafeDogALabel", GetDogDisplayName(dogA, "DOG A"), GetLabelPosition(scanDogATransform, new Vector3(-1.5f, 1.95f, 0f)), Color.cyan, 0.115f);
+        CreateOrUpdateLabel(scanChamberRoot, "SafeDogBLabel", GetDogDisplayName(dogB, "DOG B"), GetLabelPosition(scanDogBTransform, new Vector3(1.5f, 1.95f, 0f)), Color.magenta, 0.115f);
     }
 
     void UpdateMonitorTransitionLabels()
@@ -1012,8 +1008,8 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        CreateOrUpdateLabel(monitorTransitionRoot, "MonitorTransitionTitleLabel", "DIGITAL IMPRINT TRANSFER", new Vector3(0f, 3.15f, 0f), Color.white, 0.18f);
-        CreateOrUpdateLabel(monitorTransitionRoot, "MonitorTransitionStatusLabel", "IMPRINTS ENTERING MONITOR GRID", new Vector3(0f, 2.8f, 0f), new Color(0.45f, 1f, 0.75f), 0.13f);
+        CreateOrUpdateLabel(monitorTransitionRoot, "MonitorTransitionTitleLabel", "IMPRINT TRANSFER", new Vector3(0f, 3.1f, 0f), Color.white, 0.16f);
+        CreateOrUpdateLabel(monitorTransitionRoot, "MonitorTransitionStatusLabel", "ENTERING GRID", new Vector3(0f, 2.78f, 0f), new Color(0.45f, 1f, 0.75f), 0.105f);
     }
 
     void UpdateArenaLabels(Dog dogA, Dog dogB)
@@ -1023,9 +1019,9 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.05f, 0.2f), Color.white, 0.16f);
-        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")} IMPRINT", GetLabelPosition(fighterATransform, new Vector3(-1.75f, 2.15f, 0f)), Color.cyan, 0.105f);
-        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")} IMPRINT", GetLabelPosition(fighterBTransform, new Vector3(1.75f, 2.15f, 0f)), Color.magenta, 0.105f);
+        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.12f, 0.2f), Color.white, 0.145f);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\nIMPRINT", GetLabelPosition(fighterATransform, new Vector3(-1.75f, 2.25f, 0f)), Color.cyan, 0.09f);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\nIMPRINT", GetLabelPosition(fighterBTransform, new Vector3(1.75f, 2.25f, 0f)), Color.magenta, 0.09f);
     }
 
     void UpdateArenaResultLabels(Dog dogA, Dog dogB, string dogAStatus, string dogBStatus, Color dogAColor, Color dogBColor)
@@ -1035,9 +1031,9 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.05f, 0.2f), Color.white, 0.16f);
-        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")} IMPRINT\n{dogAStatus}", GetLabelPosition(fighterATransform, new Vector3(-1.75f, 2.15f, 0f)), dogAColor, 0.105f);
-        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")} IMPRINT\n{dogBStatus}", GetLabelPosition(fighterBTransform, new Vector3(1.75f, 2.15f, 0f)), dogBColor, 0.105f);
+        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.12f, 0.2f), Color.white, 0.145f);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\n{dogAStatus}", GetLabelPosition(fighterATransform, new Vector3(-1.75f, 2.25f, 0f)), dogAColor, 0.095f);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\n{dogBStatus}", GetLabelPosition(fighterBTransform, new Vector3(1.75f, 2.25f, 0f)), dogBColor, 0.095f);
     }
 
     void CreateRoundStatusBannerIfNeeded()
@@ -1052,7 +1048,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        TextMesh banner = CreateOrUpdateLabel(arenaRoot, "RoundStatusBanner", "", new Vector3(0f, 2.45f, 1.6f), Color.white, 0.115f);
+        TextMesh banner = CreateOrUpdateLabel(arenaRoot, "RoundStatusBanner", "", new Vector3(0f, 2.28f, 1.55f), Color.white, 0.1f);
 
         if (banner == null)
         {
@@ -1079,19 +1075,6 @@ public class FightPresentationManager : MonoBehaviour
 
         string message = GetRoundStatusMessage(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, isResult);
 
-        if (!isResult && (dogAImpact > 0 || dogBImpact > 0))
-        {
-            lastRoundStatusNumber = roundNumber;
-            lastRoundDogAImpact = dogAImpact;
-            lastRoundDogBImpact = dogBImpact;
-            hasLastRoundImpact = true;
-            message += $"\nA IMPACT {dogAImpact} - B IMPACT {dogBImpact}";
-        }
-        else if (isResult && hasLastRoundImpact)
-        {
-            message += $"\nROUND {lastRoundStatusNumber} IMPACT A {lastRoundDogAImpact} - B {lastRoundDogBImpact}";
-        }
-
         TextMesh banner = roundStatusBannerObject.GetComponent<TextMesh>();
 
         if (banner == null)
@@ -1101,12 +1084,12 @@ public class FightPresentationManager : MonoBehaviour
 
         SetLabelText(banner, message);
         banner.color = GetRoundStatusColor(message);
-        banner.fontSize = 80;
-        banner.characterSize = 0.115f;
+        banner.fontSize = 72;
+        banner.characterSize = 0.1f;
         banner.alignment = TextAlignment.Center;
         banner.anchor = TextAnchor.MiddleCenter;
 
-        roundStatusBannerObject.transform.localPosition = new Vector3(0f, 2.45f, 1.6f);
+        roundStatusBannerObject.transform.localPosition = new Vector3(0f, 2.28f, 1.55f);
         roundStatusBannerObject.transform.localRotation = Quaternion.identity;
         roundStatusBannerObject.transform.localScale = Vector3.one;
         roundStatusBannerObject.SetActive(true);
@@ -1116,7 +1099,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         if (isResult)
         {
-            return "FINAL RESULT";
+            return "FINAL";
         }
 
         float dogAHealthPercent = GetHealthPercent(dogAHealth, visualMaxHealthA);
@@ -1133,35 +1116,35 @@ public class FightPresentationManager : MonoBehaviour
 
         if (anyImprintCritical)
         {
-            return "IMPRINT CRITICAL";
+            return "CRITICAL";
         }
 
         if (!hasImpact)
         {
             if (roundNumber <= 1)
             {
-                return "ROUND 1 - SCAN LOCKED";
+                return "ROUND 1";
             }
 
-            return $"ROUND {roundNumber} - DIGITAL EXCHANGE";
+            return $"ROUND {roundNumber}";
         }
 
         if (highestImpact >= corruptionSpikeImpactValue && anyImprintDamaged)
         {
-            return "CORRUPTION SPIKE";
+            return "GLITCH";
         }
 
         if (impactDifference <= evenExchangeDifference)
         {
-            return "EVEN EXCHANGE";
+            return "EVEN TRADE";
         }
 
         if (highestImpact >= heavyImpactValue || impactDifference >= heavyImpactDifference)
         {
-            return "HEAVY HIT DETECTED";
+            return "HEAVY HIT";
         }
 
-        return $"ROUND {roundNumber} - DIGITAL EXCHANGE";
+        return $"ROUND {roundNumber}";
     }
 
     Color GetRoundStatusColor(string message)
@@ -1171,27 +1154,27 @@ public class FightPresentationManager : MonoBehaviour
             return new Color(0.65f, 0.9f, 1f);
         }
 
-        if (message.StartsWith("FINAL RESULT"))
+        if (message.StartsWith("FINAL"))
         {
             return Color.white;
         }
 
-        if (message.StartsWith("IMPRINT CRITICAL"))
+        if (message.StartsWith("CRITICAL"))
         {
             return new Color(1f, 0.05f, 0.1f);
         }
 
-        if (message.StartsWith("CORRUPTION SPIKE"))
+        if (message.StartsWith("GLITCH"))
         {
             return new Color(0.9f, 0.1f, 1f);
         }
 
-        if (message.StartsWith("HEAVY HIT DETECTED"))
+        if (message.StartsWith("HEAVY HIT"))
         {
             return new Color(1f, 0.45f, 0.05f);
         }
 
-        if (message.StartsWith("EVEN EXCHANGE"))
+        if (message.StartsWith("EVEN TRADE"))
         {
             return new Color(0.45f, 1f, 0.75f);
         }
@@ -1290,10 +1273,6 @@ public class FightPresentationManager : MonoBehaviour
     {
         visualMaxHealthA = 0;
         visualMaxHealthB = 0;
-        lastRoundStatusNumber = 0;
-        lastRoundDogAImpact = 0;
-        lastRoundDogBImpact = 0;
-        hasLastRoundImpact = false;
     }
 
     void UpdateImprintCorruptionVisuals(int dogAHealth, int dogBHealth)
