@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class FightPresentationManager : MonoBehaviour
 {
@@ -7,10 +8,13 @@ public class FightPresentationManager : MonoBehaviour
     private const string ScanChamberRootName = "ScanChamberRoot";
     private const string MonitorTransitionRootName = "MonitorTransitionRoot";
     private const string PresentationCameraName = "PresentationCamera";
+    private const string FightPresentationViewportName = "FightPresentationViewport";
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
     private const float RoundActionDurationSeconds = 0.8f;
+    private const int PresentationRenderTextureWidth = 1280;
+    private const int PresentationRenderTextureHeight = 720;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
@@ -21,7 +25,10 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject scanChamberRoot;
     private GameObject monitorTransitionRoot;
     private GameObject presentationCameraObject;
+    private GameObject fightPresentationViewportObject;
     private Camera presentationCamera;
+    private RawImage fightPresentationViewportImage;
+    private RenderTexture presentationRenderTexture;
     private bool arenaObjectsCreated;
     private bool scanChamberObjectsCreated;
     private bool monitorTransitionObjectsCreated;
@@ -63,6 +70,11 @@ public class FightPresentationManager : MonoBehaviour
         {
             arenaRoot.SetActive(false);
         }
+    }
+
+    void OnDestroy()
+    {
+        ReleasePresentationRenderTexture();
     }
 
     public void ShowPlaceholderArena(Dog dogA, Dog dogB)
@@ -109,6 +121,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         SetPresentationCameraEnabled(false);
+        SetFightPresentationViewportVisible(false);
     }
 
     public void PlayScanIntroThenShowArena(Dog dogA, Dog dogB)
@@ -140,6 +153,7 @@ public class FightPresentationManager : MonoBehaviour
         PositionScanSubjects();
         UpdateScanChamberLabels(dogA, dogB);
         scanChamberRoot.SetActive(true);
+        SetFightPresentationViewportVisible(true);
         FrameScanChamber();
 
         Debug.Log($"DNA scan started for {dogA.dogName} and {dogB.dogName}. Real dogs remain safe. Digital imprints are being copied.");
@@ -465,6 +479,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateMonitorTransitionObjectsIfNeeded();
         UpdateMonitorTransitionLabels();
         monitorTransitionRoot.SetActive(true);
+        SetFightPresentationViewportVisible(true);
         FrameMonitorTransition();
     }
 
@@ -534,6 +549,209 @@ public class FightPresentationManager : MonoBehaviour
         return null;
     }
 
+    void EnsureFightPresentationViewport()
+    {
+        Transform viewportParent = FindViewportParent();
+
+        if (viewportParent == null)
+        {
+            return;
+        }
+
+        if (fightPresentationViewportObject == null)
+        {
+            fightPresentationViewportObject = FindExistingViewportObject();
+        }
+
+        if (fightPresentationViewportObject == null)
+        {
+            fightPresentationViewportObject = new GameObject(
+                FightPresentationViewportName,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(RawImage)
+            );
+        }
+
+        fightPresentationViewportObject.hideFlags = HideFlags.DontSave;
+        fightPresentationViewportObject.transform.SetParent(viewportParent, false);
+
+        fightPresentationViewportImage = fightPresentationViewportObject.GetComponent<RawImage>();
+
+        if (fightPresentationViewportImage == null)
+        {
+            fightPresentationViewportImage = fightPresentationViewportObject.AddComponent<RawImage>();
+        }
+
+        ConfigureFightPresentationViewport();
+        EnsurePresentationRenderTexture();
+
+        fightPresentationViewportImage.texture = presentationRenderTexture;
+        fightPresentationViewportImage.color = Color.white;
+        fightPresentationViewportImage.raycastTarget = false;
+
+        if (presentationCamera != null)
+        {
+            presentationCamera.targetTexture = presentationRenderTexture;
+        }
+    }
+
+    GameObject FindExistingViewportObject()
+    {
+        GameObject activeViewport = GameObject.Find(FightPresentationViewportName);
+
+        if (activeViewport != null)
+        {
+            return activeViewport;
+        }
+
+        GameObject[] allGameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+
+        foreach (GameObject candidate in allGameObjects)
+        {
+            if (candidate.name == FightPresentationViewportName && candidate.scene.IsValid())
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    Transform FindViewportParent()
+    {
+        GameObject fightPage = GameObject.Find("FightPage");
+
+        if (fightPage != null)
+        {
+            return fightPage.transform;
+        }
+
+        GameObject mainCanvas = GameObject.Find("MainCanvas");
+
+        if (mainCanvas != null)
+        {
+            return mainCanvas.transform;
+        }
+
+        Canvas firstCanvas = FindFirstObjectByType<Canvas>();
+
+        if (firstCanvas != null)
+        {
+            return firstCanvas.transform;
+        }
+
+        return null;
+    }
+
+    void ConfigureFightPresentationViewport()
+    {
+        if (fightPresentationViewportObject == null)
+        {
+            return;
+        }
+
+        RectTransform viewportRect = fightPresentationViewportObject.GetComponent<RectTransform>();
+
+        if (viewportRect == null)
+        {
+            viewportRect = fightPresentationViewportObject.AddComponent<RectTransform>();
+        }
+
+        viewportRect.anchorMin = new Vector2(0.29f, 0.43f);
+        viewportRect.anchorMax = new Vector2(0.71f, 0.78f);
+        viewportRect.offsetMin = Vector2.zero;
+        viewportRect.offsetMax = Vector2.zero;
+        viewportRect.localScale = Vector3.one;
+        viewportRect.localRotation = Quaternion.identity;
+
+        if (fightPresentationViewportObject.transform.parent != null &&
+            fightPresentationViewportObject.transform.parent.name == "FightPage")
+        {
+            fightPresentationViewportObject.transform.SetAsFirstSibling();
+            return;
+        }
+
+        fightPresentationViewportObject.transform.SetAsLastSibling();
+    }
+
+    void EnsurePresentationRenderTexture()
+    {
+        if (presentationRenderTexture != null &&
+            presentationRenderTexture.width == PresentationRenderTextureWidth &&
+            presentationRenderTexture.height == PresentationRenderTextureHeight)
+        {
+            return;
+        }
+
+        ReleasePresentationRenderTexture();
+
+        presentationRenderTexture = new RenderTexture(
+            PresentationRenderTextureWidth,
+            PresentationRenderTextureHeight,
+            24,
+            RenderTextureFormat.ARGB32
+        );
+        presentationRenderTexture.name = "FightPresentationRenderTexture";
+        presentationRenderTexture.antiAliasing = 2;
+        presentationRenderTexture.filterMode = FilterMode.Bilinear;
+        presentationRenderTexture.Create();
+
+        if (presentationCamera != null)
+        {
+            presentationCamera.targetTexture = presentationRenderTexture;
+        }
+
+        if (fightPresentationViewportImage != null)
+        {
+            fightPresentationViewportImage.texture = presentationRenderTexture;
+        }
+    }
+
+    void SetFightPresentationViewportVisible(bool isVisible)
+    {
+        if (isVisible)
+        {
+            EnsureFightPresentationViewport();
+        }
+
+        if (fightPresentationViewportObject != null)
+        {
+            fightPresentationViewportObject.SetActive(isVisible);
+        }
+    }
+
+    void ReleasePresentationRenderTexture()
+    {
+        if (presentationCamera != null && presentationCamera.targetTexture == presentationRenderTexture)
+        {
+            presentationCamera.targetTexture = null;
+        }
+
+        if (fightPresentationViewportImage != null && fightPresentationViewportImage.texture == presentationRenderTexture)
+        {
+            fightPresentationViewportImage.texture = null;
+        }
+
+        if (presentationRenderTexture == null)
+        {
+            return;
+        }
+
+        presentationRenderTexture.Release();
+
+        if (Application.isPlaying)
+        {
+            Destroy(presentationRenderTexture);
+        }
+        else
+        {
+            DestroyImmediate(presentationRenderTexture);
+        }
+
+        presentationRenderTexture = null;
+    }
+
     void ConfigurePresentationCamera()
     {
         if (presentationCamera == null)
@@ -547,21 +765,26 @@ public class FightPresentationManager : MonoBehaviour
         presentationCamera.nearClipPlane = 0.1f;
         presentationCamera.farClipPlane = 100f;
         presentationCamera.depth = 5f;
-        presentationCamera.rect = new Rect(0.12f, 0.24f, 0.76f, 0.58f);
+        presentationCamera.rect = new Rect(0f, 0f, 1f, 1f);
+        EnsurePresentationRenderTexture();
+        presentationCamera.targetTexture = presentationRenderTexture;
     }
 
     void FrameScanChamber()
     {
+        SetFightPresentationViewportVisible(true);
         SetPresentationCameraInstant(new Vector3(0f, 3.5f, -7f), new Vector3(0f, 1.2f, 0f));
     }
 
     void FrameMonitorTransition()
     {
+        SetFightPresentationViewportVisible(true);
         MovePresentationCameraTo(new Vector3(0f, 3f, -6f), new Vector3(0f, 1.2f, 0f), CameraMoveDurationSeconds);
     }
 
     void FrameArena()
     {
+        SetFightPresentationViewportVisible(true);
         MovePresentationCameraTo(new Vector3(0f, 4.2f, -7.2f), new Vector3(0f, 0.75f, 0.25f), CameraMoveDurationSeconds);
     }
 
