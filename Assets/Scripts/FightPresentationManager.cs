@@ -54,6 +54,12 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject healthBarBackgroundB;
     private GameObject healthBarFillB;
     private GameObject roundStatusBannerObject;
+    private GameObject fighterAPortraitBillboard;
+    private GameObject fighterBPortraitBillboard;
+    private bool warnedMissingDogSpriteA;
+    private bool warnedMissingDogSpriteB;
+    private Dog[] cachedDogPortraitResourceDogs;
+    private Material portraitSpriteMaterial;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
@@ -71,6 +77,7 @@ public class FightPresentationManager : MonoBehaviour
     void OnDestroy()
     {
         ReleasePresentationRenderTexture();
+        ReleasePortraitSpriteMaterial();
     }
 
     public void ShowPlaceholderArena(Dog dogA, Dog dogB)
@@ -95,9 +102,11 @@ public class FightPresentationManager : MonoBehaviour
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
         CreateRoundStatusBannerIfNeeded();
+        CreateDogPortraitBillboardsIfNeeded();
         HideImpactEffects();
         HideRoundStatusBanner();
         UpdateImprintCorruptionVisuals(0, 0);
+        UpdateDogPortraitBillboards(dogA, dogB);
         UpdateArenaLabels(dogA, dogB);
         arenaRoot.SetActive(true);
         FrameArena();
@@ -110,6 +119,7 @@ public class FightPresentationManager : MonoBehaviour
         EnsureArenaRoot();
         StopRoundAnimationIfRunning();
         HideRoundStatusBanner();
+        HideDogPortraitBillboards();
 
         if (arenaRoot != null)
         {
@@ -195,6 +205,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
         CreateRoundStatusBannerIfNeeded();
+        CreateDogPortraitBillboardsIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
 
@@ -213,6 +224,7 @@ public class FightPresentationManager : MonoBehaviour
             fighterBTransform.localScale = new Vector3(0.62f * pulse, 1.12f * pulse, 0.62f * pulse);
         }
 
+        UpdateDogPortraitBillboards(dogA, dogB);
         UpdateArenaLabels(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, 0, 0, false);
@@ -239,6 +251,7 @@ public class FightPresentationManager : MonoBehaviour
         PresentRound(roundNumber, dogA, dogB, dogAHealth, dogBHealth);
         StopRoundAnimationIfRunning();
         ResetFighterArenaPositions();
+        UpdateDogPortraitBillboards(dogA, dogB);
         UpdateArenaLabels(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false);
@@ -268,14 +281,17 @@ public class FightPresentationManager : MonoBehaviour
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
         CreateRoundStatusBannerIfNeeded();
+        CreateDogPortraitBillboardsIfNeeded();
         arenaRoot.SetActive(true);
         FrameArena();
         StopRoundAnimationIfRunning();
+        UpdateDogPortraitBillboards(dogA, dogB);
 
         if (dogAHealth > dogBHealth)
         {
             MarkWinner(fighterATransform);
             MarkLoser(fighterBTransform);
+            UpdateDogPortraitBillboards(dogA, dogB);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.65f, 0.25f, 0.8f));
@@ -287,6 +303,7 @@ public class FightPresentationManager : MonoBehaviour
         {
             MarkWinner(fighterBTransform);
             MarkLoser(fighterATransform);
+            UpdateDogPortraitBillboards(dogA, dogB);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             UpdateArenaResultLabels(dogA, dogB, "DEFEATED", "WINNER", new Color(0.65f, 0.25f, 0.8f), new Color(0.1f, 1f, 0.35f));
@@ -296,6 +313,7 @@ public class FightPresentationManager : MonoBehaviour
 
         MarkDraw(fighterATransform);
         MarkDraw(fighterBTransform);
+        UpdateDogPortraitBillboards(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
@@ -748,6 +766,25 @@ public class FightPresentationManager : MonoBehaviour
         presentationRenderTexture = null;
     }
 
+    void ReleasePortraitSpriteMaterial()
+    {
+        if (portraitSpriteMaterial == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            Destroy(portraitSpriteMaterial);
+        }
+        else
+        {
+            DestroyImmediate(portraitSpriteMaterial);
+        }
+
+        portraitSpriteMaterial = null;
+    }
+
     void ConfigurePresentationCamera()
     {
         if (presentationCamera == null)
@@ -818,6 +855,7 @@ public class FightPresentationManager : MonoBehaviour
 
             presentationCameraObject.transform.position = Vector3.Lerp(startPosition, targetPosition, smoothProgress);
             presentationCameraObject.transform.LookAt(lookAtPosition);
+            FacePortraitsTowardPresentationCamera();
             yield return null;
         }
 
@@ -849,6 +887,7 @@ public class FightPresentationManager : MonoBehaviour
         presentationCameraObject.transform.position = cameraPosition;
         presentationCameraObject.transform.LookAt(lookAtPosition);
         presentationCamera.enabled = true;
+        FacePortraitsTowardPresentationCamera();
     }
 
     void SetPresentationCameraEnabled(bool isEnabled)
@@ -1034,6 +1073,364 @@ public class FightPresentationManager : MonoBehaviour
         CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.12f, 0.2f), Color.white, 0.145f);
         CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\n{dogAStatus}", GetLabelPosition(fighterATransform, new Vector3(-1.75f, 2.25f, 0f)), dogAColor, 0.095f);
         CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\n{dogBStatus}", GetLabelPosition(fighterBTransform, new Vector3(1.75f, 2.25f, 0f)), dogBColor, 0.095f);
+    }
+
+    void CreateDogPortraitBillboardsIfNeeded()
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        if (fighterAPortraitBillboard == null)
+        {
+            fighterAPortraitBillboard = CreateDogPortraitBillboard("FighterA_PortraitBillboard", Color.cyan);
+        }
+
+        if (fighterBPortraitBillboard == null)
+        {
+            fighterBPortraitBillboard = CreateDogPortraitBillboard("FighterB_PortraitBillboard", Color.magenta);
+        }
+    }
+
+    GameObject CreateDogPortraitBillboard(string objectName, Color accentColor)
+    {
+        Transform existingBillboard = arenaRoot.transform.Find(objectName);
+        GameObject billboardObject;
+
+        if (existingBillboard != null)
+        {
+            billboardObject = existingBillboard.gameObject;
+        }
+        else
+        {
+            billboardObject = new GameObject(objectName);
+            billboardObject.transform.SetParent(arenaRoot.transform);
+        }
+
+        billboardObject.hideFlags = HideFlags.DontSave;
+        billboardObject.transform.localRotation = Quaternion.identity;
+        billboardObject.transform.localScale = Vector3.one;
+
+        SpriteRenderer oldRootRenderer = billboardObject.GetComponent<SpriteRenderer>();
+
+        if (oldRootRenderer != null)
+        {
+            oldRootRenderer.enabled = false;
+        }
+
+        CreatePortraitCardFrameIfNeeded(billboardObject.transform, accentColor);
+        ConfigurePortraitSpriteRenderer(GetPortraitSpriteRenderer(billboardObject));
+
+        billboardObject.SetActive(false);
+        return billboardObject;
+    }
+
+    void UpdateDogPortraitBillboards(Dog dogA, Dog dogB)
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateDogPortraitBillboardsIfNeeded();
+        ConfigurePortraitBillboard(fighterAPortraitBillboard, dogA, fighterATransform, new Vector3(-0.62f, 1.05f, -0.55f), ref warnedMissingDogSpriteA);
+        ConfigurePortraitBillboard(fighterBPortraitBillboard, dogB, fighterBTransform, new Vector3(0.62f, 1.05f, -0.55f), ref warnedMissingDogSpriteB);
+        FacePortraitsTowardPresentationCamera();
+    }
+
+    void ConfigurePortraitBillboard(GameObject billboardObject, Dog dog, Transform fighterTransform, Vector3 localOffset, ref bool warnedMissingSprite)
+    {
+        if (billboardObject == null || dog == null || fighterTransform == null)
+        {
+            SetPortraitBillboardActive(billboardObject, false);
+            return;
+        }
+
+        SpriteRenderer spriteRenderer = GetPortraitSpriteRenderer(billboardObject);
+
+        if (spriteRenderer == null)
+        {
+            SetPortraitBillboardActive(billboardObject, false);
+            return;
+        }
+
+        Sprite portraitSprite = ResolveDogPortraitSprite(dog);
+
+        if (portraitSprite == null)
+        {
+            spriteRenderer.sprite = null;
+            SetPortraitBillboardActive(billboardObject, false);
+
+            if (!warnedMissingSprite)
+            {
+                Debug.Log($"FightPresentationManager found no dogSprite for {GetDogDisplayName(dog, "dog")}; hiding portrait billboard.");
+                warnedMissingSprite = true;
+            }
+
+            return;
+        }
+
+        warnedMissingSprite = false;
+        spriteRenderer.sprite = portraitSprite;
+        spriteRenderer.color = Color.white;
+        spriteRenderer.sortingOrder = 500;
+        ConfigurePortraitSpriteRenderer(spriteRenderer);
+
+        billboardObject.transform.localPosition = fighterTransform.localPosition + localOffset;
+        billboardObject.transform.localScale = Vector3.one;
+        spriteRenderer.transform.localScale = GetPortraitSpriteScale(portraitSprite);
+        SetPortraitBillboardActive(billboardObject, true);
+    }
+
+    void CreatePortraitCardFrameIfNeeded(Transform billboardTransform, Color accentColor)
+    {
+        if (billboardTransform == null)
+        {
+            return;
+        }
+
+        CreatePortraitCardPart(billboardTransform, "PortraitCardBack", new Vector3(0f, 0f, 0.045f), new Vector3(1.35f, 1.05f, 0.035f), new Color(0.015f, 0.02f, 0.03f));
+        CreatePortraitCardPart(billboardTransform, "PortraitCardTop", new Vector3(0f, 0.55f, -0.015f), new Vector3(1.42f, 0.055f, 0.045f), accentColor);
+        CreatePortraitCardPart(billboardTransform, "PortraitCardBottom", new Vector3(0f, -0.55f, -0.015f), new Vector3(1.42f, 0.055f, 0.045f), accentColor);
+        CreatePortraitCardPart(billboardTransform, "PortraitCardLeft", new Vector3(-0.71f, 0f, -0.015f), new Vector3(0.055f, 1.08f, 0.045f), accentColor);
+        CreatePortraitCardPart(billboardTransform, "PortraitCardRight", new Vector3(0.71f, 0f, -0.015f), new Vector3(0.055f, 1.08f, 0.045f), accentColor);
+    }
+
+    void CreatePortraitCardPart(Transform parentTransform, string objectName, Vector3 localPosition, Vector3 localScale, Color color)
+    {
+        Transform existingPart = parentTransform.Find(objectName);
+        GameObject partObject;
+
+        if (existingPart != null)
+        {
+            partObject = existingPart.gameObject;
+        }
+        else
+        {
+            partObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            partObject.name = objectName;
+            partObject.transform.SetParent(parentTransform);
+        }
+
+        partObject.hideFlags = HideFlags.DontSave;
+        partObject.transform.localPosition = localPosition;
+        partObject.transform.localRotation = Quaternion.identity;
+        partObject.transform.localScale = localScale;
+        SetObjectUnlitColor(partObject, color);
+    }
+
+    SpriteRenderer GetPortraitSpriteRenderer(GameObject billboardObject)
+    {
+        if (billboardObject == null)
+        {
+            return null;
+        }
+
+        Transform existingSpriteTransform = billboardObject.transform.Find("PortraitSprite");
+        GameObject spriteObject;
+
+        if (existingSpriteTransform != null)
+        {
+            spriteObject = existingSpriteTransform.gameObject;
+        }
+        else
+        {
+            spriteObject = new GameObject("PortraitSprite");
+            spriteObject.transform.SetParent(billboardObject.transform);
+        }
+
+        spriteObject.hideFlags = HideFlags.DontSave;
+        spriteObject.transform.localPosition = new Vector3(0f, 0f, -0.08f);
+        spriteObject.transform.localRotation = Quaternion.identity;
+
+        SpriteRenderer spriteRenderer = spriteObject.GetComponent<SpriteRenderer>();
+
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = spriteObject.AddComponent<SpriteRenderer>();
+        }
+
+        return spriteRenderer;
+    }
+
+    void ConfigurePortraitSpriteRenderer(SpriteRenderer spriteRenderer)
+    {
+        if (spriteRenderer == null)
+        {
+            return;
+        }
+
+        spriteRenderer.enabled = true;
+        spriteRenderer.color = Color.white;
+        spriteRenderer.sortingOrder = 500;
+        spriteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        spriteRenderer.receiveShadows = false;
+
+        Material runtimeMaterial = GetPortraitSpriteMaterial();
+
+        if (runtimeMaterial != null)
+        {
+            spriteRenderer.material = runtimeMaterial;
+        }
+    }
+
+    Material GetPortraitSpriteMaterial()
+    {
+        if (portraitSpriteMaterial != null)
+        {
+            return portraitSpriteMaterial;
+        }
+
+        Shader spriteShader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
+
+        if (spriteShader == null)
+        {
+            spriteShader = Shader.Find("Sprites/Default");
+        }
+
+        if (spriteShader == null)
+        {
+            spriteShader = Shader.Find("Unlit/Transparent");
+        }
+
+        if (spriteShader == null)
+        {
+            return null;
+        }
+
+        portraitSpriteMaterial = new Material(spriteShader);
+        portraitSpriteMaterial.name = "RuntimePortraitBillboardMaterial";
+        portraitSpriteMaterial.hideFlags = HideFlags.DontSave;
+        portraitSpriteMaterial.renderQueue = 3000;
+        return portraitSpriteMaterial;
+    }
+
+    Sprite ResolveDogPortraitSprite(Dog dog)
+    {
+        if (dog == null)
+        {
+            return null;
+        }
+
+        if (dog.dogSprite != null)
+        {
+            return dog.dogSprite;
+        }
+
+        return FindResourceDogSprite(dog);
+    }
+
+    Sprite FindResourceDogSprite(Dog dog)
+    {
+        Dog[] resourceDogs = GetCachedDogPortraitResourceDogs();
+
+        if (resourceDogs == null || resourceDogs.Length == 0 || dog == null)
+        {
+            return null;
+        }
+
+        string dogIdKey = NormalizeDogPortraitKey(dog.dogId);
+        string dogNameKey = NormalizeDogPortraitKey(dog.dogName);
+
+        foreach (Dog resourceDog in resourceDogs)
+        {
+            if (resourceDog == null || resourceDog.dogSprite == null)
+            {
+                continue;
+            }
+
+            string resourceIdKey = NormalizeDogPortraitKey(resourceDog.dogId);
+            string resourceNameKey = NormalizeDogPortraitKey(resourceDog.dogName);
+
+            if ((!string.IsNullOrEmpty(dogIdKey) && dogIdKey == resourceIdKey) ||
+                (!string.IsNullOrEmpty(dogNameKey) && dogNameKey == resourceNameKey))
+            {
+                return resourceDog.dogSprite;
+            }
+        }
+
+        return null;
+    }
+
+    Dog[] GetCachedDogPortraitResourceDogs()
+    {
+        if (cachedDogPortraitResourceDogs == null)
+        {
+            cachedDogPortraitResourceDogs = Resources.LoadAll<Dog>(string.Empty);
+        }
+
+        return cachedDogPortraitResourceDogs;
+    }
+
+    string NormalizeDogPortraitKey(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value
+            .Trim()
+            .ToLowerInvariant()
+            .Replace("(clone)", string.Empty)
+            .Replace(" ", string.Empty)
+            .Replace("_", string.Empty)
+            .Replace("-", string.Empty);
+    }
+
+    Vector3 GetPortraitSpriteScale(Sprite sprite)
+    {
+        if (sprite == null || sprite.bounds.size.y <= 0f)
+        {
+            return new Vector3(0.8f, 0.8f, 0.8f);
+        }
+
+        float targetHeight = 0.86f;
+        float scale = targetHeight / sprite.bounds.size.y;
+        float scaledWidth = sprite.bounds.size.x * scale;
+
+        if (scaledWidth > 1.2f && scaledWidth > 0f)
+        {
+            scale *= 1.2f / scaledWidth;
+        }
+
+        return new Vector3(scale, scale, scale);
+    }
+
+    void FacePortraitsTowardPresentationCamera()
+    {
+        if (presentationCamera == null)
+        {
+            return;
+        }
+
+        FacePortraitTowardPresentationCamera(fighterAPortraitBillboard);
+        FacePortraitTowardPresentationCamera(fighterBPortraitBillboard);
+    }
+
+    void FacePortraitTowardPresentationCamera(GameObject billboardObject)
+    {
+        if (billboardObject == null || !billboardObject.activeSelf || presentationCamera == null)
+        {
+            return;
+        }
+
+        billboardObject.transform.rotation = presentationCamera.transform.rotation;
+    }
+
+    void HideDogPortraitBillboards()
+    {
+        SetPortraitBillboardActive(fighterAPortraitBillboard, false);
+        SetPortraitBillboardActive(fighterBPortraitBillboard, false);
+    }
+
+    void SetPortraitBillboardActive(GameObject billboardObject, bool isActive)
+    {
+        if (billboardObject != null)
+        {
+            billboardObject.SetActive(isActive);
+        }
     }
 
     void CreateRoundStatusBannerIfNeeded()
@@ -1877,6 +2274,7 @@ public class FightPresentationManager : MonoBehaviour
         HideImpactEffects();
         roundAnimationCoroutine = null;
         ResetFighterArenaPositions();
+        UpdateDogPortraitBillboards(dogA, dogB);
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         UpdateArenaLabels(dogA, dogB);
         UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false);
@@ -1914,6 +2312,7 @@ public class FightPresentationManager : MonoBehaviour
 
             UpdateArenaLabels(dogA, dogB);
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+            UpdateDogPortraitBillboards(dogA, dogB);
             yield return null;
         }
     }
