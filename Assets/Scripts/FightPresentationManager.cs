@@ -9,6 +9,7 @@ public class FightPresentationManager : MonoBehaviour
     private const string MonitorTransitionRootName = "MonitorTransitionRoot";
     private const string PresentationCameraName = "PresentationCamera";
     private const string FightPresentationViewportName = "FightPresentationViewport";
+    private const string DogImprintResourcePath = "FightPresentation/DogImprint";
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
@@ -43,6 +44,11 @@ public class FightPresentationManager : MonoBehaviour
     private Transform fighterBTransform;
     private Transform scanDogATransform;
     private Transform scanDogBTransform;
+    private GameObject dogImprintPrefab;
+    private GameObject fighterADogImprintArt;
+    private GameObject fighterBDogImprintArt;
+    private bool attemptedDogImprintLoad;
+    private bool warnedMissingDogImprintPrefab;
     private GameObject impactSparkA;
     private GameObject impactSparkB;
     private GameObject corruptionNodeA;
@@ -115,6 +121,7 @@ public class FightPresentationManager : MonoBehaviour
         StopCinematicCameraIfRunning();
         StopArenaPulseIfRunning();
         CreateArenaObjectsIfNeeded();
+        CreateDogImprintArtIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
@@ -125,6 +132,7 @@ public class FightPresentationManager : MonoBehaviour
         HideRoundStatusBanner();
         HideClashText();
         UpdateImprintCorruptionVisuals(0, 0);
+        UpdateDogImprintArtPositions();
         UpdateDogPortraitBillboards(dogA, dogB);
         UpdateArenaLabels(dogA, dogB);
         arenaRoot.SetActive(true);
@@ -143,6 +151,7 @@ public class FightPresentationManager : MonoBehaviour
         HideRoundStatusBanner();
         HideClashText();
         HideStrategyEffects();
+        SetDogImprintArtVisible(false);
         HideDogPortraitBillboards();
 
         if (arenaRoot != null)
@@ -225,6 +234,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateArenaObjectsIfNeeded();
+        CreateDogImprintArtIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
         CreateHealthBarsIfNeeded();
@@ -378,6 +388,7 @@ public class FightPresentationManager : MonoBehaviour
         arenaRoot.SetActive(true);
         FrameArena();
         StopRoundAnimationIfRunning();
+        UpdateDogImprintArtPositions();
         UpdateDogPortraitBillboards(dogA, dogB);
 
         if (dogAHealth > dogBHealth)
@@ -389,6 +400,8 @@ public class FightPresentationManager : MonoBehaviour
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, true, false, Color.cyan);
             ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, false, Color.magenta);
+            ApplyDogImprintResultVisual(fighterADogImprintArt, true, false, Color.cyan);
+            ApplyDogImprintResultVisual(fighterBDogImprintArt, false, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.65f, 0.25f, 0.8f));
@@ -406,6 +419,8 @@ public class FightPresentationManager : MonoBehaviour
             UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
             ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, false, false, Color.cyan);
             ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, true, false, Color.magenta);
+            ApplyDogImprintResultVisual(fighterADogImprintArt, false, false, Color.cyan);
+            ApplyDogImprintResultVisual(fighterBDogImprintArt, true, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "DEFEATED", "WINNER", new Color(0.65f, 0.25f, 0.8f), new Color(0.1f, 1f, 0.35f));
@@ -421,6 +436,8 @@ public class FightPresentationManager : MonoBehaviour
         UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
         ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, false, true, Color.cyan);
         ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, true, Color.magenta);
+        ApplyDogImprintResultVisual(fighterADogImprintArt, false, true, Color.cyan);
+        ApplyDogImprintResultVisual(fighterBDogImprintArt, false, true, Color.magenta);
         UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
         SetRoundStatusBannerText(drawBannerText);
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
@@ -1272,6 +1289,7 @@ public class FightPresentationManager : MonoBehaviour
             fighterBTransform = CreateFighterPlaceholder("FighterB_Imprint", new Vector3(1.75f, 0.6f, 0f), new Color(0.78f, 0.1f, 0.68f)).transform;
         }
 
+        CreateDogImprintArtIfNeeded();
         CreateMarker("CenterMarker", new Vector3(0f, 0.08f, 0f), new Color(0.75f, 1f, 1f));
 
         arenaObjectsCreated = true;
@@ -1336,6 +1354,19 @@ public class FightPresentationManager : MonoBehaviour
         {
             fighterBTransform = fighterB;
         }
+
+        Transform dogImprintArtA = arenaRoot.transform.Find("FighterA_DogImprintArt");
+        Transform dogImprintArtB = arenaRoot.transform.Find("FighterB_DogImprintArt");
+
+        if (dogImprintArtA != null)
+        {
+            fighterADogImprintArt = dogImprintArtA.gameObject;
+        }
+
+        if (dogImprintArtB != null)
+        {
+            fighterBDogImprintArt = dogImprintArtB.gameObject;
+        }
     }
 
     void AssignExistingScanTransforms()
@@ -1351,6 +1382,155 @@ public class FightPresentationManager : MonoBehaviour
         if (dogB != null)
         {
             scanDogBTransform = dogB;
+        }
+    }
+
+    void LoadDogImprintPrefabIfNeeded()
+    {
+        if (attemptedDogImprintLoad)
+        {
+            return;
+        }
+
+        attemptedDogImprintLoad = true;
+        dogImprintPrefab = Resources.Load<GameObject>(DogImprintResourcePath);
+
+        if (dogImprintPrefab == null && !warnedMissingDogImprintPrefab)
+        {
+            Debug.LogWarning($"FightPresentationManager could not load Resources/{DogImprintResourcePath}. Capsules will remain as fallback fighters.");
+            warnedMissingDogImprintPrefab = true;
+        }
+    }
+
+    void CreateDogImprintArtIfNeeded()
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        LoadDogImprintPrefabIfNeeded();
+
+        if (dogImprintPrefab == null)
+        {
+            SetCapsuleFallbackVisible(true);
+            return;
+        }
+
+        if (fighterADogImprintArt == null)
+        {
+            fighterADogImprintArt = CreateSingleDogImprintArt("FighterA_DogImprintArt", true);
+        }
+
+        if (fighterBDogImprintArt == null)
+        {
+            fighterBDogImprintArt = CreateSingleDogImprintArt("FighterB_DogImprintArt", false);
+        }
+
+        SetCapsuleFallbackVisible(false);
+        SetDogImprintArtVisible(true);
+        UpdateDogImprintArtPositions();
+    }
+
+    GameObject CreateSingleDogImprintArt(string objectName, bool isFighterA)
+    {
+        Transform existingArt = arenaRoot.transform.Find(objectName);
+        GameObject artObject;
+
+        if (existingArt != null)
+        {
+            artObject = existingArt.gameObject;
+        }
+        else
+        {
+            artObject = Instantiate(dogImprintPrefab);
+            artObject.name = objectName;
+            artObject.transform.SetParent(arenaRoot.transform);
+        }
+
+        PrepareDogImprintArtObject(artObject);
+        UpdateSingleDogImprintArtPosition(artObject, isFighterA ? fighterATransform : fighterBTransform, isFighterA);
+        return artObject;
+    }
+
+    void PrepareDogImprintArtObject(GameObject artObject)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        artObject.hideFlags = HideFlags.DontSave;
+
+        foreach (Transform child in artObject.GetComponentsInChildren<Transform>(true))
+        {
+            child.gameObject.hideFlags = HideFlags.DontSave;
+        }
+
+        foreach (Collider artCollider in artObject.GetComponentsInChildren<Collider>(true))
+        {
+            artCollider.enabled = false;
+        }
+    }
+
+    void UpdateDogImprintArtPositions()
+    {
+        if (dogImprintPrefab == null)
+        {
+            return;
+        }
+
+        UpdateSingleDogImprintArtPosition(fighterADogImprintArt, fighterATransform, true);
+        UpdateSingleDogImprintArtPosition(fighterBDogImprintArt, fighterBTransform, false);
+    }
+
+    void UpdateSingleDogImprintArtPosition(GameObject artObject, Transform fighterTransform, bool isFighterA)
+    {
+        if (artObject == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        artObject.transform.localPosition = fighterTransform.localPosition + GetDogImprintArtOffset();
+        artObject.transform.localRotation = Quaternion.Euler(0f, isFighterA ? 90f : -90f, 0f);
+        artObject.transform.localScale = GetDogImprintBaseScale();
+        artObject.SetActive(true);
+    }
+
+    Vector3 GetDogImprintArtOffset()
+    {
+        return new Vector3(0f, -0.48f, 0f);
+    }
+
+    Vector3 GetDogImprintBaseScale()
+    {
+        return new Vector3(0.82f, 0.82f, 0.82f);
+    }
+
+    void SetCapsuleFallbackVisible(bool visible)
+    {
+        SetFighterCapsuleVisible(fighterATransform, visible);
+        SetFighterCapsuleVisible(fighterBTransform, visible);
+    }
+
+    void SetFighterCapsuleVisible(Transform fighterTransform, bool visible)
+    {
+        if (fighterTransform != null)
+        {
+            fighterTransform.gameObject.SetActive(visible);
+        }
+    }
+
+    void SetDogImprintArtVisible(bool visible)
+    {
+        if (fighterADogImprintArt != null)
+        {
+            fighterADogImprintArt.SetActive(visible);
+        }
+
+        if (fighterBDogImprintArt != null)
+        {
+            fighterBDogImprintArt.SetActive(visible);
         }
     }
 
@@ -1547,11 +1727,21 @@ public class FightPresentationManager : MonoBehaviour
 
     Vector3 GetPortraitBillboardOffset()
     {
+        if (dogImprintPrefab != null)
+        {
+            return new Vector3(0f, 1.24f, -0.95f);
+        }
+
         return new Vector3(0f, 1.08f, -0.72f);
     }
 
     Vector3 GetPortraitBillboardBaseScale()
     {
+        if (dogImprintPrefab != null)
+        {
+            return new Vector3(0.72f, 0.72f, 0.72f);
+        }
+
         return new Vector3(1.08f, 1.08f, 1.08f);
     }
 
@@ -2483,6 +2673,9 @@ public class FightPresentationManager : MonoBehaviour
 
         ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, new Color(0f, 0.58f, 0.78f));
         ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, new Color(0.78f, 0.1f, 0.68f));
+        UpdateDogImprintArtPositions();
+        ApplyDogImprintCorruptionVisual(fighterADogImprintArt, dogAHealth, visualMaxHealthA, new Color(0.45f, 0.95f, 1f));
+        ApplyDogImprintCorruptionVisual(fighterBDogImprintArt, dogBHealth, visualMaxHealthB, new Color(1f, 0.35f, 0.95f));
         UpdateHealthBars(dogAHealth, dogBHealth);
         UpdatePortraitFrameVisuals(dogAHealth, dogBHealth);
     }
@@ -2502,6 +2695,87 @@ public class FightPresentationManager : MonoBehaviour
         SetObjectUnlitColor(fighterTransform.gameObject, GetCorruptionColor(cleanColor, corruptionStrength));
         fighterTransform.localScale = GetCorruptionScale(corruptionStrength);
         UpdateCorruptionNodes(corruptionNodes, fighterTransform, corruptionStrength);
+    }
+
+    void ApplyDogImprintCorruptionVisual(GameObject artObject, int currentHealth, int maxLikelyHealth, Color cleanColor)
+    {
+        if (artObject == null || dogImprintPrefab == null)
+        {
+            return;
+        }
+
+        int safeMaxHealth = Mathf.Max(1, maxLikelyHealth);
+        float healthPercent = safeMaxHealth <= 1 && currentHealth <= 0
+            ? 1f
+            : Mathf.Clamp01((float)Mathf.Max(0, currentHealth) / safeMaxHealth);
+        float corruptionStrength = 1f - healthPercent;
+        Color corruptedColor = GetCorruptionColor(cleanColor, corruptionStrength);
+
+        TintDogImprintArt(artObject, corruptedColor);
+        artObject.transform.localScale = GetDogImprintBaseScale() * Mathf.Lerp(1f, 0.86f, corruptionStrength);
+    }
+
+    void ApplyDogImprintResultVisual(GameObject artObject, bool isWinner, bool isDraw, Color accentColor)
+    {
+        if (artObject == null || dogImprintPrefab == null)
+        {
+            return;
+        }
+
+        if (isWinner)
+        {
+            artObject.transform.localPosition += new Vector3(0f, 0.24f, -0.04f);
+            artObject.transform.localScale = GetDogImprintBaseScale() * 1.12f;
+            TintDogImprintArt(artObject, Color.Lerp(Color.white, accentColor, 0.25f));
+            return;
+        }
+
+        if (isDraw)
+        {
+            artObject.transform.localPosition += new Vector3(0f, 0.08f, 0f);
+            artObject.transform.localScale = GetDogImprintBaseScale();
+            TintDogImprintArt(artObject, new Color(1f, 0.9f, 0.45f));
+            return;
+        }
+
+        artObject.transform.localPosition += new Vector3(0f, -0.18f, 0.06f);
+        artObject.transform.localScale = GetDogImprintBaseScale() * 0.78f;
+        TintDogImprintArt(artObject, new Color(0.38f, 0.22f, 0.48f));
+    }
+
+    void TintDogImprintArt(GameObject artObject, Color color)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = artObject.GetComponentsInChildren<Renderer>(true);
+
+        foreach (Renderer artRenderer in renderers)
+        {
+            if (artRenderer == null)
+            {
+                continue;
+            }
+
+            Material runtimeMaterial = artRenderer.material;
+
+            if (runtimeMaterial == null)
+            {
+                continue;
+            }
+
+            if (runtimeMaterial.HasProperty("_BaseColor"))
+            {
+                runtimeMaterial.SetColor("_BaseColor", color);
+            }
+
+            if (runtimeMaterial.HasProperty("_Color"))
+            {
+                runtimeMaterial.SetColor("_Color", color);
+            }
+        }
     }
 
     void CreateCorruptionNodesIfNeeded()
@@ -3735,6 +4009,14 @@ public class FightPresentationManager : MonoBehaviour
             fighterBTransform.localScale = new Vector3(0.46f, 0.84f, 0.46f);
             SetObjectUnlitColor(fighterBTransform.gameObject, new Color(0.78f, 0.1f, 0.68f));
         }
+
+        SetCapsuleFallbackVisible(!HasDogImprintArt());
+        UpdateDogImprintArtPositions();
+    }
+
+    bool HasDogImprintArt()
+    {
+        return dogImprintPrefab != null && fighterADogImprintArt != null && fighterBDogImprintArt != null;
     }
 
     float GetStrategyLungeDistance(FightStrategy strategy, int impact, int roundNumber)
