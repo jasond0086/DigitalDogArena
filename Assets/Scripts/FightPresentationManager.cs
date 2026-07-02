@@ -13,6 +13,8 @@ public class FightPresentationManager : MonoBehaviour
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
     private const float RoundActionDurationSeconds = 0.8f;
+    private const float CinematicHitFreezeMinSeconds = 0.018f;
+    private const float CinematicHitFreezeMaxSeconds = 0.07f;
     private const int PresentationRenderTextureWidth = 1280;
     private const int PresentationRenderTextureHeight = 720;
 
@@ -53,6 +55,7 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject defensiveShellB;
     private GameObject styleEffectA;
     private GameObject styleEffectB;
+    private GameObject clashTextObject;
     private GameObject[] imprintCorruptionNodesA;
     private GameObject[] imprintCorruptionNodesB;
     private GameObject healthBarBackgroundA;
@@ -71,6 +74,8 @@ public class FightPresentationManager : MonoBehaviour
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
+    private Coroutine cinematicCameraCoroutine;
+    private Coroutine arenaPulseCoroutine;
 
     void Awake()
     {
@@ -105,6 +110,8 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         ResetVisualHealthTracking();
+        StopCinematicCameraIfRunning();
+        StopArenaPulseIfRunning();
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
@@ -114,6 +121,7 @@ public class FightPresentationManager : MonoBehaviour
         HideImpactEffects();
         HideStrategyEffects();
         HideRoundStatusBanner();
+        HideClashText();
         UpdateImprintCorruptionVisuals(0, 0);
         UpdateDogPortraitBillboards(dogA, dogB);
         UpdateArenaLabels(dogA, dogB);
@@ -127,7 +135,10 @@ public class FightPresentationManager : MonoBehaviour
     {
         EnsureArenaRoot();
         StopRoundAnimationIfRunning();
+        StopCinematicCameraIfRunning();
+        StopArenaPulseIfRunning();
         HideRoundStatusBanner();
+        HideClashText();
         HideStrategyEffects();
         HideDogPortraitBillboards();
 
@@ -368,6 +379,7 @@ public class FightPresentationManager : MonoBehaviour
 
         if (dogAHealth > dogBHealth)
         {
+            string resultBannerText = GetResultBannerText(dogAHealth, dogBHealth, false);
             MarkWinner(fighterATransform);
             MarkLoser(fighterBTransform);
             UpdateDogPortraitBillboards(dogA, dogB);
@@ -375,13 +387,16 @@ public class FightPresentationManager : MonoBehaviour
             ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, true, false, Color.cyan);
             ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
+            SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.65f, 0.25f, 0.8f));
+            PlayResultCinematic(fighterATransform, false, resultBannerText);
             Debug.Log($"Digital arena result: {dogA.dogName} imprint wins. {dogB.dogName} imprint falls back.");
             return;
         }
 
         if (dogBHealth > dogAHealth)
         {
+            string resultBannerText = GetResultBannerText(dogAHealth, dogBHealth, false);
             MarkWinner(fighterBTransform);
             MarkLoser(fighterATransform);
             UpdateDogPortraitBillboards(dogA, dogB);
@@ -389,11 +404,14 @@ public class FightPresentationManager : MonoBehaviour
             ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, false, false, Color.cyan);
             ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, true, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
+            SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "DEFEATED", "WINNER", new Color(0.65f, 0.25f, 0.8f), new Color(0.1f, 1f, 0.35f));
+            PlayResultCinematic(fighterBTransform, false, resultBannerText);
             Debug.Log($"Digital arena result: {dogB.dogName} imprint wins. {dogA.dogName} imprint falls back.");
             return;
         }
 
+        string drawBannerText = GetResultBannerText(dogAHealth, dogBHealth, true);
         MarkDraw(fighterATransform);
         MarkDraw(fighterBTransform);
         UpdateDogPortraitBillboards(dogA, dogB);
@@ -401,7 +419,9 @@ public class FightPresentationManager : MonoBehaviour
         ApplyPortraitResultVisual(fighterAPortraitBillboard, fighterAPortraitFrame, false, true, Color.cyan);
         ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, true, Color.magenta);
         UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
+        SetRoundStatusBannerText(drawBannerText);
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
+        PlayResultCinematic(null, true, drawBannerText);
         Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
     }
 
@@ -903,7 +923,17 @@ public class FightPresentationManager : MonoBehaviour
     void FrameArena()
     {
         SetFightPresentationViewportVisible(true);
-        MovePresentationCameraTo(new Vector3(0f, 4.2f, -7.2f), new Vector3(0f, 0.75f, 0.25f), CameraMoveDurationSeconds);
+        MovePresentationCameraTo(GetArenaCameraPosition(), GetArenaLookAtPosition(), CameraMoveDurationSeconds);
+    }
+
+    Vector3 GetArenaCameraPosition()
+    {
+        return new Vector3(0f, 4.2f, -7.2f);
+    }
+
+    Vector3 GetArenaLookAtPosition()
+    {
+        return new Vector3(0f, 0.75f, 0.25f);
     }
 
     void MovePresentationCameraTo(Vector3 targetPosition, Vector3 lookAtPosition, float duration)
@@ -973,6 +1003,116 @@ public class FightPresentationManager : MonoBehaviour
         presentationCameraObject.transform.LookAt(lookAtPosition);
         presentationCamera.enabled = true;
         FacePortraitsTowardPresentationCamera();
+    }
+
+    void PlayCameraPunchAndShake(int severity)
+    {
+        if (severity < 2)
+        {
+            return;
+        }
+
+        StopCinematicCameraIfRunning();
+        cinematicCameraCoroutine = StartCoroutine(CameraPunchAndShakeRoutine(severity));
+    }
+
+    IEnumerator CameraPunchAndShakeRoutine(int severity)
+    {
+        EnsurePresentationCamera();
+
+        if (presentationCamera == null || presentationCameraObject == null)
+        {
+            cinematicCameraCoroutine = null;
+            yield break;
+        }
+
+        StopCameraMoveIfRunning();
+
+        Vector3 basePosition = GetArenaCameraPosition();
+        Vector3 lookAtPosition = GetArenaLookAtPosition();
+        Vector3 forward = (lookAtPosition - basePosition).normalized;
+        float severityPercent = Mathf.InverseLerp(2f, 3f, severity);
+        float punchDistance = Mathf.Lerp(0.08f, 0.22f, severityPercent);
+        float shakeDistance = Mathf.Lerp(0.006f, 0.026f, severityPercent);
+        float duration = Mathf.Lerp(0.12f, 0.2f, severityPercent);
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsedTime / duration);
+            float punchCurve = Mathf.Sin(progress * Mathf.PI);
+            float fade = 1f - progress;
+            Vector3 shakeOffset = new Vector3(
+                Mathf.Sin(elapsedTime * 38f) * shakeDistance * fade,
+                Mathf.Cos(elapsedTime * 31f) * shakeDistance * fade,
+                0f
+            );
+
+            presentationCameraObject.transform.position = basePosition + (forward * punchDistance * punchCurve) + shakeOffset;
+            presentationCameraObject.transform.LookAt(lookAtPosition);
+            FacePortraitsTowardPresentationCamera();
+            yield return null;
+        }
+
+        cinematicCameraCoroutine = null;
+        SetPresentationCameraInstant(basePosition, lookAtPosition);
+    }
+
+    void PlayResultCinematic(Transform focusTransform, bool isDraw, string bannerText)
+    {
+        SetRoundStatusBannerText(bannerText);
+        StopCinematicCameraIfRunning();
+        cinematicCameraCoroutine = StartCoroutine(ResultCinematicRoutine(focusTransform, isDraw));
+    }
+
+    IEnumerator ResultCinematicRoutine(Transform focusTransform, bool isDraw)
+    {
+        EnsurePresentationCamera();
+
+        if (presentationCamera == null || presentationCameraObject == null)
+        {
+            cinematicCameraCoroutine = null;
+            yield break;
+        }
+
+        StopCameraMoveIfRunning();
+
+        Vector3 startPosition = presentationCameraObject.transform.position;
+        Vector3 focusPosition = isDraw || focusTransform == null
+            ? GetArenaLookAtPosition()
+            : focusTransform.position + new Vector3(0f, 0.7f, 0f);
+        Vector3 targetPosition = new Vector3(Mathf.Clamp(focusPosition.x * 0.28f, -0.7f, 0.7f), 3.45f, -6.15f);
+        float duration = 0.28f;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsedTime / duration);
+            float smoothProgress = progress * progress * (3f - (2f * progress));
+
+            presentationCameraObject.transform.position = Vector3.Lerp(startPosition, targetPosition, smoothProgress);
+            presentationCameraObject.transform.LookAt(focusPosition);
+            FacePortraitsTowardPresentationCamera();
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(0.22f);
+
+        cinematicCameraCoroutine = null;
+        FrameArena();
+    }
+
+    void StopCinematicCameraIfRunning()
+    {
+        if (cinematicCameraCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(cinematicCameraCoroutine);
+        cinematicCameraCoroutine = null;
     }
 
     void SetPresentationCameraEnabled(bool isEnabled)
@@ -1763,6 +1903,37 @@ public class FightPresentationManager : MonoBehaviour
         roundStatusBannerObject.SetActive(true);
     }
 
+    void SetRoundStatusBannerText(string message)
+    {
+        CreateRoundStatusBannerIfNeeded();
+
+        if (roundStatusBannerObject == null || string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        TextMesh banner = roundStatusBannerObject.GetComponent<TextMesh>();
+
+        if (banner == null)
+        {
+            banner = roundStatusBannerObject.AddComponent<TextMesh>();
+        }
+
+        SetLabelText(banner, message);
+        banner.color = GetRoundStatusColor(message);
+        roundStatusBannerObject.SetActive(true);
+    }
+
+    string GetResultBannerText(int dogAHealth, int dogBHealth, bool isDraw)
+    {
+        if (isDraw)
+        {
+            return "DRAW";
+        }
+
+        return Mathf.Min(dogAHealth, dogBHealth) <= 0 ? "FINISH" : "WINNER";
+    }
+
     string GetRoundStatusMessage(
         int roundNumber,
         int dogAHealth,
@@ -1943,6 +2114,26 @@ public class FightPresentationManager : MonoBehaviour
             return Color.white;
         }
 
+        if (message.StartsWith("WINNER"))
+        {
+            return new Color(0.1f, 1f, 0.35f);
+        }
+
+        if (message.StartsWith("FINISH"))
+        {
+            return new Color(1f, 0.45f, 0.05f);
+        }
+
+        if (message.StartsWith("DRAW"))
+        {
+            return new Color(1f, 0.85f, 0.2f);
+        }
+
+        if (message.StartsWith("SYNC") || message.StartsWith("EDGE") || message.StartsWith("HIT"))
+        {
+            return new Color(0.72f, 0.95f, 1f);
+        }
+
         if (message.StartsWith("CRITICAL"))
         {
             return new Color(1f, 0.05f, 0.1f);
@@ -2006,6 +2197,64 @@ public class FightPresentationManager : MonoBehaviour
         if (roundStatusBannerObject != null)
         {
             roundStatusBannerObject.SetActive(false);
+        }
+    }
+
+    void CreateClashTextIfNeeded()
+    {
+        if (clashTextObject != null || arenaRoot == null)
+        {
+            return;
+        }
+
+        TextMesh clashText = CreateOrUpdateLabel(arenaRoot, "CinematicClashText", "", new Vector3(0f, 1.92f, 0.22f), new Color(0.72f, 0.95f, 1f), 0.075f);
+
+        if (clashText == null)
+        {
+            return;
+        }
+
+        clashText.fontSize = 52;
+        clashText.alignment = TextAlignment.Center;
+        clashText.anchor = TextAnchor.MiddleCenter;
+        clashTextObject = clashText.gameObject;
+        clashTextObject.SetActive(false);
+    }
+
+    void ShowClashText(string message, Color color, float scaleMultiplier)
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+
+        CreateClashTextIfNeeded();
+
+        if (clashTextObject == null)
+        {
+            return;
+        }
+
+        TextMesh clashText = clashTextObject.GetComponent<TextMesh>();
+
+        if (clashText != null)
+        {
+            SetLabelText(clashText, message);
+            clashText.color = color;
+            clashText.characterSize = 0.075f;
+        }
+
+        clashTextObject.transform.localPosition = new Vector3(0f, 1.92f, 0.22f);
+        clashTextObject.transform.localRotation = Quaternion.identity;
+        clashTextObject.transform.localScale = Vector3.one * Mathf.Clamp(scaleMultiplier, 0.75f, 1.05f);
+        clashTextObject.SetActive(true);
+    }
+
+    void HideClashText()
+    {
+        if (clashTextObject != null)
+        {
+            clashTextObject.SetActive(false);
         }
     }
 
@@ -2749,7 +2998,7 @@ public class FightPresentationManager : MonoBehaviour
         shellEffect.SetActive(true);
         shellEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 0.48f, 0f);
         shellEffect.transform.localRotation = Quaternion.identity;
-        shellEffect.transform.localScale = new Vector3(1.25f, 0.08f, 1.25f);
+        shellEffect.transform.localScale = new Vector3(0.98f, 0.055f, 0.98f);
         SetObjectUnlitColor(shellEffect, effectName == "A" ? new Color(0.2f, 1f, 1f) : new Color(1f, 0.2f, 1f));
     }
 
@@ -2799,8 +3048,8 @@ public class FightPresentationManager : MonoBehaviour
         float flicker = Mathf.Abs(Mathf.Sin((elapsedTime * 24f) + (roundNumber * 1.7f) + sideDirection));
         float jitter = Mathf.Sin((elapsedTime * 18f) + sideDirection) * 0.08f;
         effectObject.transform.localPosition += new Vector3(jitter, 0f, -jitter * 0.5f);
-        effectObject.transform.localScale = Vector3.Lerp(new Vector3(0.36f, 0.36f, 0.36f), new Vector3(0.7f, 0.7f, 0.7f), flicker);
-        SetObjectUnlitColor(effectObject, Color.Lerp(new Color(0.1f, 0.95f, 1f), new Color(0.95f, 0.08f, 1f), flicker));
+        effectObject.transform.localScale = Vector3.Lerp(new Vector3(0.26f, 0.26f, 0.26f), new Vector3(0.46f, 0.46f, 0.46f), flicker);
+        SetObjectUnlitColor(effectObject, Color.Lerp(new Color(0.2f, 0.8f, 1f), GetStyleAccentColor(FightStyle.Wildcard), flicker));
     }
 
     Color GetStrategyEffectColor(FightStrategy strategy)
@@ -3053,8 +3302,8 @@ public class FightPresentationManager : MonoBehaviour
         styleEffect.SetActive(true);
         styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 1.18f, -0.14f);
         styleEffect.transform.localRotation = Quaternion.Euler(0f, 45f, -18f);
-        styleEffect.transform.localScale = Vector3.Lerp(new Vector3(0.34f, 0.34f, 0.34f), new Vector3(0.72f, 0.72f, 0.72f), intensity);
-        SetObjectUnlitColor(styleEffect, new Color(1f, 0.35f, 0.05f));
+        styleEffect.transform.localScale = Vector3.Lerp(new Vector3(0.22f, 0.22f, 0.22f), new Vector3(0.46f, 0.46f, 0.46f), intensity);
+        SetObjectUnlitColor(styleEffect, GetStyleAccentColor(FightStyle.Rushdown));
     }
 
     void ShowCounterDodgeEffect(Transform fighterTransform, string effectName, int roundNumber)
@@ -3068,10 +3317,10 @@ public class FightPresentationManager : MonoBehaviour
 
         float side = effectName == "A" ? 1f : -1f;
         styleEffect.SetActive(true);
-        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0.18f * side, 1.16f, -0.16f);
+        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0.13f * side, 1.1f, -0.12f);
         styleEffect.transform.localRotation = Quaternion.Euler(0f, 60f + (roundNumber * 12f), 0f);
-        styleEffect.transform.localScale = new Vector3(0.42f, 0.18f, 0.42f);
-        SetObjectUnlitColor(styleEffect, new Color(0.2f, 0.75f, 1f));
+        styleEffect.transform.localScale = new Vector3(0.32f, 0.1f, 0.32f);
+        SetObjectUnlitColor(styleEffect, GetStyleAccentColor(FightStyle.Counter));
     }
 
     void ShowTankAbsorbEffect(Transform fighterTransform, string effectName)
@@ -3088,8 +3337,8 @@ public class FightPresentationManager : MonoBehaviour
         styleEffect.SetActive(true);
         styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 0.85f, -0.05f);
         styleEffect.transform.localRotation = Quaternion.identity;
-        styleEffect.transform.localScale = new Vector3(0.85f, 0.2f, 0.85f);
-        SetObjectUnlitColor(styleEffect, new Color(0.35f, 1f, 0.85f));
+        styleEffect.transform.localScale = new Vector3(0.58f, 0.13f, 0.58f);
+        SetObjectUnlitColor(styleEffect, GetStyleAccentColor(FightStyle.Tank));
     }
 
     void ShowWildcardGlitchEffect(Transform fighterTransform, string effectName, int roundNumber)
@@ -3102,12 +3351,107 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         float side = effectName == "A" ? 1f : -1f;
-        float jitter = Mathf.Sin((roundNumber * 3.1f) + side) * 0.18f;
+        float jitter = Mathf.Sin((roundNumber * 3.1f) + side) * 0.08f;
         styleEffect.SetActive(true);
-        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(jitter, 1.18f, -0.18f);
+        styleEffect.transform.localPosition = fighterTransform.localPosition + new Vector3(jitter, 1.13f, -0.14f);
         styleEffect.transform.localRotation = Quaternion.Euler(0f, 35f + (roundNumber * 37f), 22f * side);
-        styleEffect.transform.localScale = new Vector3(0.48f + Mathf.Abs(jitter), 0.48f, 0.48f + Mathf.Abs(jitter));
-        SetObjectUnlitColor(styleEffect, roundNumber % 2 == 0 ? new Color(0.95f, 0.08f, 1f) : new Color(0.1f, 0.95f, 1f));
+        styleEffect.transform.localScale = new Vector3(0.32f + Mathf.Abs(jitter), 0.32f, 0.32f + Mathf.Abs(jitter));
+        SetObjectUnlitColor(styleEffect, roundNumber % 2 == 0 ? GetStyleAccentColor(FightStyle.Wildcard) : new Color(0.2f, 0.8f, 1f));
+    }
+
+    IEnumerator PlayCinematicHitBeat(int dogAImpact, int dogBImpact, FightStyle dogAStyle, FightStyle dogBStyle)
+    {
+        int severity = GetImpactSeverity(dogAImpact, dogBImpact);
+
+        if (severity <= 0)
+        {
+            yield break;
+        }
+
+        Color accentColor = GetDominantStyleAccentColor(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
+        string clashMessage = GetClashMessage(dogAImpact, dogBImpact, severity);
+
+        PulseArena(severity, accentColor);
+        PlayCameraPunchAndShake(severity);
+
+        if (severity >= 2 && !string.IsNullOrEmpty(clashMessage))
+        {
+            ShowClashText(clashMessage, Color.Lerp(accentColor, Color.white, 0.25f), 0.8f + (severity * 0.06f));
+        }
+
+        float freezeDuration = Mathf.Lerp(CinematicHitFreezeMinSeconds, CinematicHitFreezeMaxSeconds, Mathf.InverseLerp(1f, 3f, severity));
+        yield return new WaitForSeconds(freezeDuration);
+        HideClashText();
+    }
+
+    int GetImpactSeverity(int dogAImpact, int dogBImpact)
+    {
+        int highestImpact = Mathf.Max(dogAImpact, dogBImpact);
+        int impactDifference = Mathf.Abs(dogAImpact - dogBImpact);
+
+        if (highestImpact <= 0)
+        {
+            return 0;
+        }
+
+        if (highestImpact >= 26 || impactDifference >= 16)
+        {
+            return 3;
+        }
+
+        if (highestImpact >= 17 || impactDifference >= 10)
+        {
+            return 2;
+        }
+
+        if (highestImpact >= 8 || (dogAImpact > 0 && dogBImpact > 0))
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    string GetClashMessage(int dogAImpact, int dogBImpact, int severity)
+    {
+        if (dogAImpact > 0 && dogBImpact > 0)
+        {
+            return Mathf.Abs(dogAImpact - dogBImpact) <= 3 ? "SYNC" : "EDGE";
+        }
+
+        return severity >= 3 ? "HIT" : string.Empty;
+    }
+
+    Color GetDominantStyleAccentColor(int dogAImpact, int dogBImpact, FightStyle dogAStyle, FightStyle dogBStyle)
+    {
+        if (dogAImpact > 0 && dogBImpact > 0 && Mathf.Abs(dogAImpact - dogBImpact) <= 3)
+        {
+            return Color.Lerp(GetStyleAccentColor(dogAStyle), GetStyleAccentColor(dogBStyle), 0.5f);
+        }
+
+        return dogAImpact >= dogBImpact ? GetStyleAccentColor(dogAStyle) : GetStyleAccentColor(dogBStyle);
+    }
+
+    Color GetStyleAccentColor(FightStyle style)
+    {
+        switch (style)
+        {
+            case FightStyle.Rushdown:
+                return new Color(0.95f, 0.34f, 0.08f);
+
+            case FightStyle.Counter:
+                return new Color(0.22f, 0.82f, 1f);
+
+            case FightStyle.Tank:
+                return new Color(0.28f, 0.92f, 0.74f);
+
+            case FightStyle.Wildcard:
+                return new Color(0.72f, 0.18f, 1f);
+
+            case FightStyle.Balanced:
+            default:
+                return new Color(0.7f, 0.95f, 1f);
+        }
     }
 
     IEnumerator AnimateRoundExchange(
@@ -3181,6 +3525,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAWindupPosition, fighterBWindupPosition, fighterAImpactPosition, fighterBImpactPosition, strikeDuration, dogAStyle, dogBStyle, roundNumber);
+        yield return PlayCinematicHitBeat(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
         yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, Mathf.Max(0.05f, resetDuration), dogAStyle, dogBStyle, roundNumber);
 
         HideImpactEffects();
@@ -3241,6 +3586,9 @@ public class FightPresentationManager : MonoBehaviour
         {
             HideImpactEffects();
             HideStrategyEffects();
+            HideClashText();
+            StopCinematicCameraIfRunning();
+            StopArenaPulseIfRunning();
             return;
         }
 
@@ -3248,6 +3596,9 @@ public class FightPresentationManager : MonoBehaviour
         roundAnimationCoroutine = null;
         HideImpactEffects();
         HideStrategyEffects();
+        HideClashText();
+        StopCinematicCameraIfRunning();
+        StopArenaPulseIfRunning();
     }
 
     void ResetFighterArenaPositions()
@@ -3474,6 +3825,113 @@ public class FightPresentationManager : MonoBehaviour
     {
         GameObject wall = CreateWall(objectName, position, scale, color);
         SetObjectUnlitColor(wall, color);
+    }
+
+    void PulseArena(int severity, Color accentColor)
+    {
+        if (arenaRoot == null || severity <= 0)
+        {
+            return;
+        }
+
+        StopArenaPulseIfRunning();
+        arenaPulseCoroutine = StartCoroutine(PulseArenaRoutine(severity, accentColor));
+    }
+
+    IEnumerator PulseArenaRoutine(int severity, Color accentColor)
+    {
+        float duration = Mathf.Lerp(0.1f, 0.2f, Mathf.InverseLerp(1f, 3f, severity));
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsedTime / duration);
+            float pulse = Mathf.Sin(progress * Mathf.PI);
+            SetArenaPulseVisual(pulse, severity, accentColor);
+            yield return null;
+        }
+
+        arenaPulseCoroutine = null;
+        ResetArenaPulseVisual();
+    }
+
+    void StopArenaPulseIfRunning()
+    {
+        if (arenaPulseCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(arenaPulseCoroutine);
+        arenaPulseCoroutine = null;
+        ResetArenaPulseVisual();
+    }
+
+    void SetArenaPulseVisual(float pulse, int severity, Color accentColor)
+    {
+        Color platformBaseColor = new Color(0.01f, 0.014f, 0.022f);
+        Color gridBaseColor = new Color(0f, 0.78f, 1f);
+        Color borderBaseColor = new Color(0.25f, 1f, 1f);
+        float strength = Mathf.Lerp(0.08f, 0.22f, Mathf.InverseLerp(1f, 3f, severity)) * pulse;
+
+        GameObject platform = GetArenaChildObject("DigitalArenaPlatform");
+
+        if (platform != null)
+        {
+            platform.transform.localScale = Vector3.Lerp(new Vector3(5.8f, 0.08f, 3.55f), new Vector3(5.88f, 0.082f, 3.6f), strength);
+            SetObjectUnlitColor(platform, Color.Lerp(platformBaseColor, accentColor, strength * 0.28f));
+        }
+
+        for (int i = -3; i <= 3; i++)
+        {
+            ApplyArenaLinePulse($"GridLine_X_{i}", new Vector3(0.065f, 0.035f, 3.65f), Color.Lerp(gridBaseColor, accentColor, strength));
+        }
+
+        for (int i = -2; i <= 2; i++)
+        {
+            ApplyArenaLinePulse($"GridLine_Z_{i}", new Vector3(5.95f, 0.035f, 0.065f), Color.Lerp(gridBaseColor, accentColor, strength));
+        }
+
+        ApplyArenaLinePulse("ArenaBorder_North", new Vector3(6.15f, 0.075f, 0.11f), Color.Lerp(borderBaseColor, accentColor, strength));
+        ApplyArenaLinePulse("ArenaBorder_South", new Vector3(6.15f, 0.075f, 0.11f), Color.Lerp(borderBaseColor, accentColor, strength));
+        ApplyArenaLinePulse("ArenaBorder_East", new Vector3(0.11f, 0.075f, 3.75f), Color.Lerp(borderBaseColor, accentColor, strength));
+        ApplyArenaLinePulse("ArenaBorder_West", new Vector3(0.11f, 0.075f, 3.75f), Color.Lerp(borderBaseColor, accentColor, strength));
+    }
+
+    void ApplyArenaLinePulse(string objectName, Vector3 baseScale, Color color)
+    {
+        GameObject lineObject = GetArenaChildObject(objectName);
+
+        if (lineObject == null)
+        {
+            return;
+        }
+
+        lineObject.transform.localScale = new Vector3(baseScale.x * 1.01f, baseScale.y * 1.12f, baseScale.z * 1.01f);
+        SetObjectUnlitColor(lineObject, color);
+    }
+
+    void ResetArenaPulseVisual()
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreatePlatform();
+        CreateGridLines();
+    }
+
+    GameObject GetArenaChildObject(string objectName)
+    {
+        if (arenaRoot == null || string.IsNullOrEmpty(objectName))
+        {
+            return null;
+        }
+
+        Transform childTransform = arenaRoot.transform.Find(objectName);
+        return childTransform != null ? childTransform.gameObject : null;
     }
 
     void SetObjectColor(GameObject targetObject, Color color)
