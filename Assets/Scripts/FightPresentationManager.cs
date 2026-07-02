@@ -4,6 +4,18 @@ using UnityEngine.UI;
 
 public class FightPresentationManager : MonoBehaviour
 {
+    private enum BreedVisualArchetype
+    {
+        ShepherdSentinel,
+        BullyStriker,
+        GuardMastiff,
+        IronRott,
+        SpitzWarden,
+        VelocityHound,
+        HybridVariant,
+        Unknown
+    }
+
     private const string ArenaRootName = "ArenaRoot";
     private const string ScanChamberRootName = "ScanChamberRoot";
     private const string MonitorTransitionRootName = "MonitorTransitionRoot";
@@ -1503,9 +1515,12 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        artObject.transform.localPosition = fighterTransform.localPosition + GetDogImprintArtOffset();
+        Dog dog = isFighterA ? currentDogImprintA : currentDogImprintB;
+        Vector3 archetypeOffset = GetBreedArchetypeOffset(ResolveBreedVisualArchetype(dog));
+
+        artObject.transform.localPosition = fighterTransform.localPosition + GetDogImprintArtOffset() + archetypeOffset;
         artObject.transform.localRotation = Quaternion.Euler(0f, isFighterA ? 90f : -90f, 0f);
-        artObject.transform.localScale = GetDogImprintBaseScale();
+        artObject.transform.localScale = Vector3.Scale(GetDogImprintBaseScale(), GetBreedArchetypeScale(ResolveBreedVisualArchetype(dog)));
         artObject.SetActive(true);
     }
 
@@ -2720,6 +2735,7 @@ public class FightPresentationManager : MonoBehaviour
         Color identityColor = GetDogIdentityColor(dog, isFighterA);
         Vector3 identityScale = GetDogImprintBaseScale();
 
+        ApplyBreedArchetypeVisuals(dog, ref identityColor, ref identityScale);
         ApplyTraitVisualAccents(dog, healthPercent, ref identityColor, ref identityScale);
 
         Color finalColor = ApplyHealthCorruptionVisual(identityColor, healthPercent);
@@ -2743,7 +2759,10 @@ public class FightPresentationManager : MonoBehaviour
     {
         FightStyle style = dog != null ? dog.fightStyle : FightStyle.Balanced;
         Color styleColor = GetFightStyleAccentColor(style);
-        return GetDogNameColorVariation(dog, styleColor, isFighterA);
+        BreedVisualArchetype archetype = ResolveBreedVisualArchetype(dog);
+        Color archetypeColor = GetBreedArchetypeAccentColor(archetype);
+        Color blendedColor = Color.Lerp(styleColor, archetypeColor, 0.28f);
+        return GetDogNameColorVariation(dog, blendedColor, isFighterA);
     }
 
     Color GetFightStyleAccentColor(FightStyle style)
@@ -2795,6 +2814,197 @@ public class FightPresentationManager : MonoBehaviour
             }
 
             return (hash & 0x7fffffff) / (float)int.MaxValue;
+        }
+    }
+
+    BreedVisualArchetype ResolveBreedVisualArchetype(Dog dog)
+    {
+        string breedText = GetDogBreedText(dog);
+
+        if (string.IsNullOrWhiteSpace(breedText))
+        {
+            return BreedVisualArchetype.Unknown;
+        }
+
+        string normalizedBreed = breedText.Trim().ToLowerInvariant();
+
+        if (normalizedBreed.Contains("hybrid") || normalizedBreed.Contains("mix") || normalizedBreed.Contains("mixed"))
+        {
+            return BreedVisualArchetype.HybridVariant;
+        }
+
+        if (normalizedBreed.Contains("german shepherd") ||
+            normalizedBreed.Contains("german shepard") ||
+            normalizedBreed.Contains("belgian malinois") ||
+            normalizedBreed.Contains("shepherd") ||
+            normalizedBreed.Contains("shepard"))
+        {
+            return BreedVisualArchetype.ShepherdSentinel;
+        }
+
+        if (normalizedBreed.Contains("pit bull") ||
+            normalizedBreed.Contains("pitbull") ||
+            normalizedBreed.Contains("boxer") ||
+            normalizedBreed.Contains("bully"))
+        {
+            return BreedVisualArchetype.BullyStriker;
+        }
+
+        if (normalizedBreed.Contains("mastiff") ||
+            normalizedBreed.Contains("cane corso") ||
+            normalizedBreed.Contains("presa") ||
+            normalizedBreed.Contains("dogo argentino"))
+        {
+            return BreedVisualArchetype.GuardMastiff;
+        }
+
+        if (normalizedBreed.Contains("rottweiler") ||
+            normalizedBreed.Contains("doberman"))
+        {
+            return BreedVisualArchetype.IronRott;
+        }
+
+        if (normalizedBreed.Contains("akita") ||
+            normalizedBreed.Contains("spitz") ||
+            normalizedBreed.Contains("husky"))
+        {
+            return BreedVisualArchetype.SpitzWarden;
+        }
+
+        if (normalizedBreed.Contains("greyhound") ||
+            normalizedBreed.Contains("hound"))
+        {
+            return BreedVisualArchetype.VelocityHound;
+        }
+
+        return BreedVisualArchetype.Unknown;
+    }
+
+    string GetDogBreedText(Dog dog)
+    {
+        return dog != null ? dog.breed : string.Empty;
+    }
+
+    void ApplyBreedArchetypeVisuals(Dog dog, ref Color color, ref Vector3 scale)
+    {
+        BreedVisualArchetype archetype = ResolveBreedVisualArchetype(dog);
+        color = Color.Lerp(color, GetBreedArchetypeAccentColor(archetype), 0.16f);
+        scale = Vector3.Scale(scale, GetBreedArchetypeScale(archetype));
+    }
+
+    Color GetBreedArchetypeAccentColor(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.ShepherdSentinel:
+                return new Color(0.55f, 0.95f, 1f);
+
+            case BreedVisualArchetype.BullyStriker:
+                return new Color(1f, 0.36f, 0.08f);
+
+            case BreedVisualArchetype.GuardMastiff:
+                return new Color(0.38f, 0.82f, 0.78f);
+
+            case BreedVisualArchetype.IronRott:
+                return new Color(0.34f, 0.62f, 0.72f);
+
+            case BreedVisualArchetype.SpitzWarden:
+                return new Color(0.7f, 0.9f, 1f);
+
+            case BreedVisualArchetype.VelocityHound:
+                return new Color(0.86f, 1f, 1f);
+
+            case BreedVisualArchetype.HybridVariant:
+                return new Color(0.78f, 0.42f, 1f);
+
+            case BreedVisualArchetype.Unknown:
+            default:
+                return new Color(0.82f, 1f, 1f);
+        }
+    }
+
+    Vector3 GetBreedArchetypeScale(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.BullyStriker:
+                return new Vector3(1.13f, 0.9f, 1.08f);
+
+            case BreedVisualArchetype.GuardMastiff:
+                return new Vector3(1.18f, 1.08f, 1.16f);
+
+            case BreedVisualArchetype.IronRott:
+                return new Vector3(1.08f, 0.96f, 1.12f);
+
+            case BreedVisualArchetype.SpitzWarden:
+                return new Vector3(0.96f, 1.12f, 0.98f);
+
+            case BreedVisualArchetype.VelocityHound:
+                return new Vector3(0.82f, 1.18f, 0.82f);
+
+            case BreedVisualArchetype.HybridVariant:
+                return new Vector3(1.02f, 1.02f, 1.02f);
+
+            case BreedVisualArchetype.ShepherdSentinel:
+            case BreedVisualArchetype.Unknown:
+            default:
+                return Vector3.one;
+        }
+    }
+
+    Vector3 GetBreedArchetypeOffset(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.BullyStriker:
+                return new Vector3(0f, -0.04f, 0f);
+
+            case BreedVisualArchetype.GuardMastiff:
+                return new Vector3(0f, -0.02f, 0f);
+
+            case BreedVisualArchetype.SpitzWarden:
+                return new Vector3(0f, 0.05f, 0f);
+
+            case BreedVisualArchetype.VelocityHound:
+                return new Vector3(0f, 0.06f, 0f);
+
+            case BreedVisualArchetype.IronRott:
+            case BreedVisualArchetype.HybridVariant:
+            case BreedVisualArchetype.ShepherdSentinel:
+            case BreedVisualArchetype.Unknown:
+            default:
+                return Vector3.zero;
+        }
+    }
+
+    string GetBreedArchetypeStatusText(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.ShepherdSentinel:
+                return "Shepherd Sentinel";
+
+            case BreedVisualArchetype.BullyStriker:
+                return "Bully Striker";
+
+            case BreedVisualArchetype.GuardMastiff:
+                return "Guard Mastiff";
+
+            case BreedVisualArchetype.IronRott:
+                return "Iron Rott";
+
+            case BreedVisualArchetype.SpitzWarden:
+                return "Spitz Warden";
+
+            case BreedVisualArchetype.VelocityHound:
+                return "Velocity Hound";
+
+            case BreedVisualArchetype.HybridVariant:
+                return "Hybrid Variant";
+
+            case BreedVisualArchetype.Unknown:
+            default:
+                return "Unknown";
         }
     }
 
