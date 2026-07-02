@@ -1,12 +1,10 @@
 fileFormatVersion: 2
-guid: ddd70df283b5d8547ba800f4a281cdb6
-labels:
-- UnityAI
+guid: 02c39f813728cce41b8cb676b7b8a253
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -136029504368006317
-    second: DogReference_0
+      213: -9001396167650554662
+    second: Dog_imprint_Hybrid_Variant_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -128,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: DogReference_0
+      name: Dog_imprint_Hybrid_Variant_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 256
-        height: 256
+        width: 504
+        height: 340
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -143,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 35b2c21f2e9bc1ef0800000000000000
-      internalID: -136029504368006317
+      spriteID: adc40a080ed941380800000000000000
+      internalID: -9001396167650554662
       vertices: []
       indices: 
       edges: []
@@ -163,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      DogReference_0: -136029504368006317
+      Dog_imprint_Hybrid_Variant_0: -9001396167650554662
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
