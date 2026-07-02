@@ -24,6 +24,7 @@ public class FightPresentationManager : MonoBehaviour
     private const string FightPresentationViewportName = "FightPresentationViewport";
     private const string DogImprintResourcePath = "FightPresentation/DogImprint";
     private const string BreedArchetypeResourceFolder = "FightPresentation/BreedArchetypes/";
+    private const bool ShowDogPortraitPlaceholders = false;
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
@@ -1590,6 +1591,7 @@ public class FightPresentationManager : MonoBehaviour
         artObject.transform.localPosition = fighterTransform.localPosition + GetDogImprintArtOffset() + archetypeOffset;
         artObject.transform.localRotation = Quaternion.Euler(0f, isFighterA ? 90f : -90f, 0f);
         artObject.transform.localScale = Vector3.Scale(GetDogImprintBaseScale(), GetBreedArchetypeScale(ResolveBreedVisualArchetype(dog)));
+        SetDogArtFacing(artObject, !isFighterA);
         artObject.SetActive(true);
     }
 
@@ -1649,6 +1651,7 @@ public class FightPresentationManager : MonoBehaviour
         UpdateSingleBreedArchetypeArtPosition(fighterABreedArchetypeArt, fighterATransform, currentDogImprintA);
         UpdateSingleBreedArchetypeArtPosition(fighterBBreedArchetypeArt, fighterBTransform, currentDogImprintB);
         FaceBreedArchetypeArtsTowardPresentationCamera();
+        UpdateFighterFacingDirections();
     }
 
     void UpdateSingleBreedArchetypeArtPosition(GameObject artObject, Transform fighterTransform, Dog dog)
@@ -1699,6 +1702,7 @@ public class FightPresentationManager : MonoBehaviour
 
                 SetBreedArchetypeArtVisible(artObject, true);
                 FaceBreedArchetypeArtTowardPresentationCamera(artObject);
+                SetDogArtFacing(artObject, !isFighterA);
                 return;
             }
         }
@@ -1912,6 +1916,7 @@ public class FightPresentationManager : MonoBehaviour
         spriteRenderer.enabled = true;
         spriteRenderer.sprite = sprite;
         spriteRenderer.color = GetBreedArchetypeArtTint(dog, isFighterA, currentHealth, maxLikelyHealth);
+        SetSpriteFacing(spriteRenderer, !isFighterA);
         spriteRenderer.sortingOrder = 460;
         spriteRenderer.transform.localPosition = Vector3.zero;
         spriteRenderer.transform.localRotation = Quaternion.identity;
@@ -1944,6 +1949,7 @@ public class FightPresentationManager : MonoBehaviour
         textureQuad.transform.localPosition = Vector3.zero;
         textureQuad.transform.localRotation = Quaternion.identity;
         textureQuad.transform.localScale = GetBreedArchetypeTextureQuadScale(texture);
+        SetQuadFacing(textureQuad.transform, !isFighterA);
 
         Renderer quadRenderer = textureQuad.GetComponent<Renderer>();
 
@@ -2188,6 +2194,71 @@ public class FightPresentationManager : MonoBehaviour
         artObject.transform.rotation = Quaternion.LookRotation(cameraToArt.normalized, Vector3.up);
     }
 
+    void UpdateFighterFacingDirections()
+    {
+        // The current source dog art naturally faces left. FighterA must be mirrored
+        // to face center, while FighterB can keep the source direction.
+        SetDogArtFacing(fighterADogImprintArt, false);
+        SetDogArtFacing(fighterBDogImprintArt, true);
+        SetDogArtFacing(fighterABreedArchetypeArt, false);
+        SetDogArtFacing(fighterBBreedArchetypeArt, true);
+    }
+
+    void SetDogArtFacing(GameObject artObject, bool faceRight)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        bool isDogImprintPrefabArt = artObject == fighterADogImprintArt || artObject == fighterBDogImprintArt;
+
+        if (isDogImprintPrefabArt)
+        {
+            SetQuadFacing(artObject.transform, faceRight);
+            return;
+        }
+
+        foreach (SpriteRenderer spriteRenderer in artObject.GetComponentsInChildren<SpriteRenderer>(true))
+        {
+            SetSpriteFacing(spriteRenderer, faceRight);
+        }
+
+        Transform textureQuadTransform = artObject.transform.Find("BreedArchetypeTextureQuad");
+
+        if (textureQuadTransform != null)
+        {
+            SetQuadFacing(textureQuadTransform, faceRight);
+        }
+    }
+
+    void SetSpriteFacing(SpriteRenderer spriteRenderer, bool faceRight)
+    {
+        if (spriteRenderer == null)
+        {
+            return;
+        }
+
+        spriteRenderer.flipX = !faceRight;
+    }
+
+    void SetQuadFacing(Transform artTransform, bool faceRight)
+    {
+        if (artTransform == null)
+        {
+            return;
+        }
+
+        Vector3 scale = artTransform.localScale;
+        scale.x = Mathf.Abs(scale.x) * (faceRight ? 1f : -1f);
+        artTransform.localScale = scale;
+    }
+
+    bool ShouldDogArtFaceRight(GameObject artObject)
+    {
+        return artObject == fighterBDogImprintArt || artObject == fighterBBreedArchetypeArt;
+    }
+
     void ApplyBreedArchetypeResultVisual(GameObject artObject, bool isWinner, bool isDraw, Color accentColor)
     {
         if (artObject == null || !artObject.activeSelf)
@@ -2195,11 +2266,14 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        bool faceRight = ShouldDogArtFaceRight(artObject);
+
         if (isWinner)
         {
             artObject.transform.localPosition += new Vector3(0f, 0.22f, -0.05f);
             artObject.transform.localScale *= 1.12f;
             TintBreedArchetypeArt(artObject, Color.Lerp(Color.white, accentColor, 0.18f));
+            SetDogArtFacing(artObject, faceRight);
             return;
         }
 
@@ -2208,12 +2282,14 @@ public class FightPresentationManager : MonoBehaviour
             artObject.transform.localPosition += new Vector3(0f, 0.08f, 0f);
             artObject.transform.localScale *= 1.04f;
             TintBreedArchetypeArt(artObject, new Color(1f, 0.92f, 0.45f));
+            SetDogArtFacing(artObject, faceRight);
             return;
         }
 
         artObject.transform.localPosition += new Vector3(0f, -0.22f, 0.06f);
         artObject.transform.localScale *= 0.82f;
         TintBreedArchetypeArt(artObject, new Color(0.55f, 0.35f, 0.66f, 0.95f));
+        SetDogArtFacing(artObject, faceRight);
     }
 
     void PositionScanSubjects()
@@ -2286,6 +2362,12 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        if (!ShowDogPortraitPlaceholders)
+        {
+            HideDogPortraitBillboards();
+            return;
+        }
+
         if (fighterAPortraitBillboard == null)
         {
             fighterAPortraitBillboard = CreateDogPortraitBillboard("FighterA_PortraitBillboard", "FighterA_PortraitFrame", Color.cyan);
@@ -2337,6 +2419,12 @@ public class FightPresentationManager : MonoBehaviour
     {
         if (arenaRoot == null)
         {
+            return;
+        }
+
+        if (!ShowDogPortraitPlaceholders)
+        {
+            HideDogPortraitBillboards();
             return;
         }
 
@@ -2802,6 +2890,8 @@ public class FightPresentationManager : MonoBehaviour
     {
         SetPortraitBillboardActive(fighterAPortraitBillboard, false);
         SetPortraitBillboardActive(fighterBPortraitBillboard, false);
+        SetArenaChildActive("FighterA_PortraitBillboard", false);
+        SetArenaChildActive("FighterB_PortraitBillboard", false);
     }
 
     void SetPortraitBillboardActive(GameObject billboardObject, bool isActive)
@@ -2809,6 +2899,21 @@ public class FightPresentationManager : MonoBehaviour
         if (billboardObject != null)
         {
             billboardObject.SetActive(isActive);
+        }
+    }
+
+    void SetArenaChildActive(string childName, bool isActive)
+    {
+        if (arenaRoot == null || string.IsNullOrEmpty(childName))
+        {
+            return;
+        }
+
+        Transform childTransform = arenaRoot.transform.Find(childName);
+
+        if (childTransform != null)
+        {
+            childTransform.gameObject.SetActive(isActive);
         }
     }
 
@@ -3400,6 +3505,7 @@ public class FightPresentationManager : MonoBehaviour
         Color finalColor = ApplyHealthCorruptionVisual(identityColor, healthPercent);
         TintDogImprintArt(artObject, finalColor);
         artObject.transform.localScale = identityScale * Mathf.Lerp(1f, 0.86f, 1f - healthPercent);
+        SetDogArtFacing(artObject, !isFighterA);
     }
 
     float GetVisualHealthPercent(int currentHealth, int maxLikelyHealth)
@@ -3759,11 +3865,14 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        bool faceRight = ShouldDogArtFaceRight(artObject);
+
         if (isWinner)
         {
             artObject.transform.localPosition += new Vector3(0f, 0.24f, -0.04f);
             artObject.transform.localScale = GetDogImprintBaseScale() * 1.12f;
             TintDogImprintArt(artObject, Color.Lerp(Color.white, accentColor, 0.25f));
+            SetDogArtFacing(artObject, faceRight);
             return;
         }
 
@@ -3772,12 +3881,14 @@ public class FightPresentationManager : MonoBehaviour
             artObject.transform.localPosition += new Vector3(0f, 0.08f, 0f);
             artObject.transform.localScale = GetDogImprintBaseScale();
             TintDogImprintArt(artObject, new Color(1f, 0.9f, 0.45f));
+            SetDogArtFacing(artObject, faceRight);
             return;
         }
 
         artObject.transform.localPosition += new Vector3(0f, -0.18f, 0.06f);
         artObject.transform.localScale = GetDogImprintBaseScale() * 0.78f;
         TintDogImprintArt(artObject, new Color(0.38f, 0.22f, 0.48f));
+        SetDogArtFacing(artObject, faceRight);
     }
 
     void TintDogImprintArt(GameObject artObject, Color color)
