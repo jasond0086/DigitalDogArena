@@ -47,6 +47,8 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject dogImprintPrefab;
     private GameObject fighterADogImprintArt;
     private GameObject fighterBDogImprintArt;
+    private Dog currentDogImprintA;
+    private Dog currentDogImprintB;
     private bool attemptedDogImprintLoad;
     private bool warnedMissingDogImprintPrefab;
     private GameObject impactSparkA;
@@ -116,6 +118,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        SetCurrentDogImprintIdentity(dogA, dogB);
         ResetVisualHealthTracking();
         StopCameraBeatIfRunning();
         StopCinematicCameraIfRunning();
@@ -233,6 +236,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        SetCurrentDogImprintIdentity(dogA, dogB);
         CreateArenaObjectsIfNeeded();
         CreateDogImprintArtIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
@@ -338,6 +342,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        SetCurrentDogImprintIdentity(dogA, dogB);
         PresentRound(roundNumber, dogA, dogB, dogAHealth, dogBHealth);
         StopRoundAnimationIfRunning();
         ResetFighterArenaPositions();
@@ -379,6 +384,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        SetCurrentDogImprintIdentity(dogA, dogB);
         CreateArenaObjectsIfNeeded();
         CreateArenaImpactEffectsIfNeeded();
         CreateCorruptionNodesIfNeeded();
@@ -1383,6 +1389,12 @@ public class FightPresentationManager : MonoBehaviour
         {
             scanDogBTransform = dogB;
         }
+    }
+
+    void SetCurrentDogImprintIdentity(Dog dogA, Dog dogB)
+    {
+        currentDogImprintA = dogA;
+        currentDogImprintB = dogB;
     }
 
     void LoadDogImprintPrefabIfNeeded()
@@ -2674,8 +2686,8 @@ public class FightPresentationManager : MonoBehaviour
         ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, new Color(0f, 0.58f, 0.78f));
         ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, new Color(0.78f, 0.1f, 0.68f));
         UpdateDogImprintArtPositions();
-        ApplyDogImprintCorruptionVisual(fighterADogImprintArt, dogAHealth, visualMaxHealthA, new Color(0.45f, 0.95f, 1f));
-        ApplyDogImprintCorruptionVisual(fighterBDogImprintArt, dogBHealth, visualMaxHealthB, new Color(1f, 0.35f, 0.95f));
+        ApplyDogIdentityVisuals(fighterADogImprintArt, currentDogImprintA, dogAHealth, visualMaxHealthA, true);
+        ApplyDogIdentityVisuals(fighterBDogImprintArt, currentDogImprintB, dogBHealth, visualMaxHealthB, false);
         UpdateHealthBars(dogAHealth, dogBHealth);
         UpdatePortraitFrameVisuals(dogAHealth, dogBHealth);
     }
@@ -2697,22 +2709,158 @@ public class FightPresentationManager : MonoBehaviour
         UpdateCorruptionNodes(corruptionNodes, fighterTransform, corruptionStrength);
     }
 
-    void ApplyDogImprintCorruptionVisual(GameObject artObject, int currentHealth, int maxLikelyHealth, Color cleanColor)
+    void ApplyDogIdentityVisuals(GameObject artObject, Dog dog, int currentHealth, int maxLikelyHealth, bool isFighterA)
     {
         if (artObject == null || dogImprintPrefab == null)
         {
             return;
         }
 
-        int safeMaxHealth = Mathf.Max(1, maxLikelyHealth);
-        float healthPercent = safeMaxHealth <= 1 && currentHealth <= 0
-            ? 1f
-            : Mathf.Clamp01((float)Mathf.Max(0, currentHealth) / safeMaxHealth);
-        float corruptionStrength = 1f - healthPercent;
-        Color corruptedColor = GetCorruptionColor(cleanColor, corruptionStrength);
+        float healthPercent = GetVisualHealthPercent(currentHealth, maxLikelyHealth);
+        Color identityColor = GetDogIdentityColor(dog, isFighterA);
+        Vector3 identityScale = GetDogImprintBaseScale();
 
-        TintDogImprintArt(artObject, corruptedColor);
-        artObject.transform.localScale = GetDogImprintBaseScale() * Mathf.Lerp(1f, 0.86f, corruptionStrength);
+        ApplyTraitVisualAccents(dog, healthPercent, ref identityColor, ref identityScale);
+
+        Color finalColor = ApplyHealthCorruptionVisual(identityColor, healthPercent);
+        TintDogImprintArt(artObject, finalColor);
+        artObject.transform.localScale = identityScale * Mathf.Lerp(1f, 0.86f, 1f - healthPercent);
+    }
+
+    float GetVisualHealthPercent(int currentHealth, int maxLikelyHealth)
+    {
+        int safeMaxHealth = Mathf.Max(1, maxLikelyHealth);
+
+        if (safeMaxHealth <= 1 && currentHealth <= 0)
+        {
+            return 1f;
+        }
+
+        return Mathf.Clamp01((float)Mathf.Max(0, currentHealth) / safeMaxHealth);
+    }
+
+    Color GetDogIdentityColor(Dog dog, bool isFighterA)
+    {
+        FightStyle style = dog != null ? dog.fightStyle : FightStyle.Balanced;
+        Color styleColor = GetFightStyleAccentColor(style);
+        return GetDogNameColorVariation(dog, styleColor, isFighterA);
+    }
+
+    Color GetFightStyleAccentColor(FightStyle style)
+    {
+        switch (style)
+        {
+            case FightStyle.Rushdown:
+                return new Color(1f, 0.34f, 0.08f);
+
+            case FightStyle.Counter:
+                return new Color(0.18f, 0.78f, 1f);
+
+            case FightStyle.Tank:
+                return new Color(0.36f, 0.88f, 0.78f);
+
+            case FightStyle.Wildcard:
+                return new Color(0.82f, 0.16f, 1f);
+
+            case FightStyle.Balanced:
+            default:
+                return new Color(0.82f, 1f, 1f);
+        }
+    }
+
+    Color GetDogNameColorVariation(Dog dog, Color baseColor, bool isFighterA)
+    {
+        string nameKey = dog != null && !string.IsNullOrEmpty(dog.dogName)
+            ? dog.dogName
+            : (isFighterA ? "fighter_a" : "fighter_b");
+        float variation = GetStableNameHash01(nameKey);
+
+        Color.RGBToHSV(baseColor, out float hue, out float saturation, out float value);
+        hue = Mathf.Repeat(hue + Mathf.Lerp(-0.035f, 0.035f, variation), 1f);
+        saturation = Mathf.Clamp01(saturation * Mathf.Lerp(0.88f, 1.12f, variation));
+        value = Mathf.Clamp01(value * Mathf.Lerp(0.94f, 1.08f, 1f - variation));
+
+        return Color.HSVToRGB(hue, saturation, value);
+    }
+
+    float GetStableNameHash01(string value)
+    {
+        unchecked
+        {
+            int hash = 17;
+
+            for (int i = 0; i < value.Length; i++)
+            {
+                hash = (hash * 31) + char.ToUpperInvariant(value[i]);
+            }
+
+            return (hash & 0x7fffffff) / (float)int.MaxValue;
+        }
+    }
+
+    void ApplyTraitVisualAccents(Dog dog, float healthPercent, ref Color color, ref Vector3 scale)
+    {
+        if (dog == null)
+        {
+            return;
+        }
+
+        if (dog.HasTrait(DogTrait.Aggressive))
+        {
+            color = Color.Lerp(color, new Color(1f, 0.24f, 0.04f), 0.28f);
+        }
+
+        if (dog.HasTrait(DogTrait.Durable))
+        {
+            color = Color.Lerp(color, new Color(0.35f, 0.95f, 0.85f), 0.25f);
+            scale = new Vector3(scale.x * 1.05f, scale.y * 1.03f, scale.z * 1.05f);
+        }
+
+        if (dog.HasTrait(DogTrait.GlassCannon))
+        {
+            color = Color.Lerp(color, Color.white, 0.32f);
+            scale = new Vector3(scale.x * 0.92f, scale.y * 1.04f, scale.z * 0.92f);
+        }
+
+        if (dog.HasTrait(DogTrait.Clutch) && healthPercent <= 0.35f)
+        {
+            float pulse = Mathf.PingPong(Time.time * 2.8f, 1f);
+            color = Color.Lerp(color, new Color(1f, 0.86f, 0.25f), Mathf.Lerp(0.25f, 0.55f, pulse));
+            scale *= Mathf.Lerp(1f, 1.06f, pulse);
+        }
+
+        if (dog.HasTrait(DogTrait.LateBloomer))
+        {
+            color = Color.Lerp(color, new Color(0.34f, 0.85f, 0.72f), 0.18f);
+        }
+
+        if (dog.HasTrait(DogTrait.Prodigy))
+        {
+            color = Color.Lerp(color, new Color(0.85f, 1f, 1f), 0.34f);
+            scale *= 1.04f;
+        }
+    }
+
+    Color ApplyHealthCorruptionVisual(Color cleanColor, float healthPercent)
+    {
+        float corruptionStrength = 1f - Mathf.Clamp01(healthPercent);
+
+        if (healthPercent <= 0f)
+        {
+            return Color.Lerp(new Color(0.12f, 0.04f, 0.16f), new Color(0.42f, 0.05f, 0.08f), 0.45f);
+        }
+
+        if (healthPercent <= 0.25f)
+        {
+            return Color.Lerp(cleanColor, new Color(0.7f, 0.08f, 0.22f), Mathf.Lerp(0.45f, 0.72f, corruptionStrength));
+        }
+
+        if (healthPercent <= 0.55f)
+        {
+            return Color.Lerp(cleanColor, new Color(0.75f, 0.16f, 1f), 0.22f);
+        }
+
+        return Color.Lerp(cleanColor, Color.white, 0.08f);
     }
 
     void ApplyDogImprintResultVisual(GameObject artObject, bool isWinner, bool isDraw, Color accentColor)
@@ -2750,9 +2898,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        Renderer[] renderers = artObject.GetComponentsInChildren<Renderer>(true);
-
-        foreach (Renderer artRenderer in renderers)
+        foreach (Renderer artRenderer in GetRendererList(artObject))
         {
             if (artRenderer == null)
             {
@@ -2776,6 +2922,13 @@ public class FightPresentationManager : MonoBehaviour
                 runtimeMaterial.SetColor("_Color", color);
             }
         }
+    }
+
+    Renderer[] GetRendererList(GameObject artObject)
+    {
+        return artObject != null
+            ? artObject.GetComponentsInChildren<Renderer>(true)
+            : new Renderer[0];
     }
 
     void CreateCorruptionNodesIfNeeded()
@@ -3825,24 +3978,7 @@ public class FightPresentationManager : MonoBehaviour
 
     Color GetStyleAccentColor(FightStyle style)
     {
-        switch (style)
-        {
-            case FightStyle.Rushdown:
-                return new Color(0.95f, 0.34f, 0.08f);
-
-            case FightStyle.Counter:
-                return new Color(0.22f, 0.82f, 1f);
-
-            case FightStyle.Tank:
-                return new Color(0.28f, 0.92f, 0.74f);
-
-            case FightStyle.Wildcard:
-                return new Color(0.72f, 0.18f, 1f);
-
-            case FightStyle.Balanced:
-            default:
-                return new Color(0.7f, 0.95f, 1f);
-        }
+        return GetFightStyleAccentColor(style);
     }
 
     IEnumerator AnimateRoundExchange(
