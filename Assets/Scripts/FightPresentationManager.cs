@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,6 +23,7 @@ public class FightPresentationManager : MonoBehaviour
     private const string PresentationCameraName = "PresentationCamera";
     private const string FightPresentationViewportName = "FightPresentationViewport";
     private const string DogImprintResourcePath = "FightPresentation/DogImprint";
+    private const string BreedArchetypeResourceFolder = "FightPresentation/BreedArchetypes/";
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
@@ -59,6 +61,8 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject dogImprintPrefab;
     private GameObject fighterADogImprintArt;
     private GameObject fighterBDogImprintArt;
+    private GameObject fighterABreedArchetypeArt;
+    private GameObject fighterBBreedArchetypeArt;
     private Dog currentDogImprintA;
     private Dog currentDogImprintB;
     private bool attemptedDogImprintLoad;
@@ -167,6 +171,7 @@ public class FightPresentationManager : MonoBehaviour
         HideClashText();
         HideStrategyEffects();
         SetDogImprintArtVisible(false);
+        SetBreedArchetypeArtVisible(false);
         HideDogPortraitBillboards();
 
         if (arenaRoot != null)
@@ -420,6 +425,8 @@ public class FightPresentationManager : MonoBehaviour
             ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, false, Color.magenta);
             ApplyDogImprintResultVisual(fighterADogImprintArt, true, false, Color.cyan);
             ApplyDogImprintResultVisual(fighterBDogImprintArt, false, false, Color.magenta);
+            ApplyBreedArchetypeResultVisual(fighterABreedArchetypeArt, true, false, Color.cyan);
+            ApplyBreedArchetypeResultVisual(fighterBBreedArchetypeArt, false, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.65f, 0.25f, 0.8f));
@@ -439,6 +446,8 @@ public class FightPresentationManager : MonoBehaviour
             ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, true, false, Color.magenta);
             ApplyDogImprintResultVisual(fighterADogImprintArt, false, false, Color.cyan);
             ApplyDogImprintResultVisual(fighterBDogImprintArt, true, false, Color.magenta);
+            ApplyBreedArchetypeResultVisual(fighterABreedArchetypeArt, false, false, Color.cyan);
+            ApplyBreedArchetypeResultVisual(fighterBBreedArchetypeArt, true, false, Color.magenta);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "DEFEATED", "WINNER", new Color(0.65f, 0.25f, 0.8f), new Color(0.1f, 1f, 0.35f));
@@ -456,6 +465,8 @@ public class FightPresentationManager : MonoBehaviour
         ApplyPortraitResultVisual(fighterBPortraitBillboard, fighterBPortraitFrame, false, true, Color.magenta);
         ApplyDogImprintResultVisual(fighterADogImprintArt, false, true, Color.cyan);
         ApplyDogImprintResultVisual(fighterBDogImprintArt, false, true, Color.magenta);
+        ApplyBreedArchetypeResultVisual(fighterABreedArchetypeArt, false, true, Color.cyan);
+        ApplyBreedArchetypeResultVisual(fighterBBreedArchetypeArt, false, true, Color.magenta);
         UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
         SetRoundStatusBannerText(drawBannerText);
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
@@ -1375,6 +1386,8 @@ public class FightPresentationManager : MonoBehaviour
 
         Transform dogImprintArtA = arenaRoot.transform.Find("FighterA_DogImprintArt");
         Transform dogImprintArtB = arenaRoot.transform.Find("FighterB_DogImprintArt");
+        Transform breedArchetypeArtA = arenaRoot.transform.Find("FighterA_BreedArchetypeArt");
+        Transform breedArchetypeArtB = arenaRoot.transform.Find("FighterB_BreedArchetypeArt");
 
         if (dogImprintArtA != null)
         {
@@ -1384,6 +1397,16 @@ public class FightPresentationManager : MonoBehaviour
         if (dogImprintArtB != null)
         {
             fighterBDogImprintArt = dogImprintArtB.gameObject;
+        }
+
+        if (breedArchetypeArtA != null)
+        {
+            fighterABreedArchetypeArt = breedArchetypeArtA.gameObject;
+        }
+
+        if (breedArchetypeArtB != null)
+        {
+            fighterBBreedArchetypeArt = breedArchetypeArtB.gameObject;
         }
     }
 
@@ -1434,10 +1457,12 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         LoadDogImprintPrefabIfNeeded();
+        CreateBreedArchetypeArtIfNeeded();
 
         if (dogImprintPrefab == null)
         {
             SetCapsuleFallbackVisible(true);
+            UpdateBreedArchetypeArtPositions();
             return;
         }
 
@@ -1454,6 +1479,50 @@ public class FightPresentationManager : MonoBehaviour
         SetCapsuleFallbackVisible(false);
         SetDogImprintArtVisible(true);
         UpdateDogImprintArtPositions();
+    }
+
+    void CreateBreedArchetypeArtIfNeeded()
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        if (fighterABreedArchetypeArt == null)
+        {
+            fighterABreedArchetypeArt = CreateSingleBreedArchetypeArt("FighterA_BreedArchetypeArt");
+        }
+
+        if (fighterBBreedArchetypeArt == null)
+        {
+            fighterBBreedArchetypeArt = CreateSingleBreedArchetypeArt("FighterB_BreedArchetypeArt");
+        }
+
+        UpdateBreedArchetypeArtPositions();
+    }
+
+    GameObject CreateSingleBreedArchetypeArt(string objectName)
+    {
+        Transform existingArt = arenaRoot.transform.Find(objectName);
+        GameObject artObject;
+
+        if (existingArt != null)
+        {
+            artObject = existingArt.gameObject;
+        }
+        else
+        {
+            artObject = new GameObject(objectName);
+            artObject.transform.SetParent(arenaRoot.transform);
+        }
+
+        artObject.hideFlags = HideFlags.DontSave;
+        artObject.transform.localRotation = Quaternion.identity;
+        artObject.transform.localScale = Vector3.one;
+        GetBreedArchetypeSpriteRenderer(artObject);
+        GetBreedArchetypeTextureQuad(artObject);
+        artObject.SetActive(false);
+        return artObject;
     }
 
     GameObject CreateSingleDogImprintArt(string objectName, bool isFighterA)
@@ -1499,13 +1568,13 @@ public class FightPresentationManager : MonoBehaviour
 
     void UpdateDogImprintArtPositions()
     {
-        if (dogImprintPrefab == null)
+        if (dogImprintPrefab != null)
         {
-            return;
+            UpdateSingleDogImprintArtPosition(fighterADogImprintArt, fighterATransform, true);
+            UpdateSingleDogImprintArtPosition(fighterBDogImprintArt, fighterBTransform, false);
         }
 
-        UpdateSingleDogImprintArtPosition(fighterADogImprintArt, fighterATransform, true);
-        UpdateSingleDogImprintArtPosition(fighterBDogImprintArt, fighterBTransform, false);
+        UpdateBreedArchetypeArtPositions();
     }
 
     void UpdateSingleDogImprintArtPosition(GameObject artObject, Transform fighterTransform, bool isFighterA)
@@ -1559,6 +1628,592 @@ public class FightPresentationManager : MonoBehaviour
         {
             fighterBDogImprintArt.SetActive(visible);
         }
+    }
+
+    void SetBreedArchetypeArtVisible(bool visible)
+    {
+        SetBreedArchetypeArtVisible(fighterABreedArchetypeArt, visible);
+        SetBreedArchetypeArtVisible(fighterBBreedArchetypeArt, visible);
+    }
+
+    void SetBreedArchetypeArtVisible(GameObject artObject, bool visible)
+    {
+        if (artObject != null)
+        {
+            artObject.SetActive(visible);
+        }
+    }
+
+    void UpdateBreedArchetypeArtPositions()
+    {
+        UpdateSingleBreedArchetypeArtPosition(fighterABreedArchetypeArt, fighterATransform, currentDogImprintA);
+        UpdateSingleBreedArchetypeArtPosition(fighterBBreedArchetypeArt, fighterBTransform, currentDogImprintB);
+        FaceBreedArchetypeArtsTowardPresentationCamera();
+    }
+
+    void UpdateSingleBreedArchetypeArtPosition(GameObject artObject, Transform fighterTransform, Dog dog)
+    {
+        if (artObject == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        BreedVisualArchetype archetype = ResolveBreedVisualArchetype(dog);
+        artObject.transform.localPosition = fighterTransform.localPosition + GetBreedArchetypeArtOffset(archetype);
+        artObject.transform.localRotation = Quaternion.identity;
+        artObject.transform.localScale = GetBreedArchetypeArtRootScale(archetype);
+    }
+
+    Vector3 GetBreedArchetypeArtOffset(BreedVisualArchetype archetype)
+    {
+        return new Vector3(0f, 0.58f, -0.42f) + (GetBreedArchetypeOffset(archetype) * 0.45f);
+    }
+
+    Vector3 GetBreedArchetypeArtRootScale(BreedVisualArchetype archetype)
+    {
+        return Vector3.Scale(new Vector3(0.88f, 0.88f, 0.88f), GetBreedArchetypeScale(archetype));
+    }
+
+    void ApplyBreedArchetypeArtToFighter(GameObject artObject, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
+    {
+        if (artObject == null || dog == null)
+        {
+            SetBreedArchetypeArtVisible(artObject, false);
+            return;
+        }
+
+        UpdateSingleBreedArchetypeArtPosition(artObject, isFighterA ? fighterATransform : fighterBTransform, dog);
+
+        foreach (string resourceName in GetAvailableBreedArtResourceNames(dog))
+        {
+            if (TryLoadBreedArchetypeSpriteOrTexture(resourceName, out Sprite sprite, out Texture2D texture))
+            {
+                if (sprite != null)
+                {
+                    ConfigureBreedArchetypeSpriteArt(artObject, sprite, dog, isFighterA, currentHealth, maxLikelyHealth);
+                }
+                else
+                {
+                    ConfigureBreedArchetypeTextureArt(artObject, texture, dog, isFighterA, currentHealth, maxLikelyHealth);
+                }
+
+                SetBreedArchetypeArtVisible(artObject, true);
+                FaceBreedArchetypeArtTowardPresentationCamera(artObject);
+                return;
+            }
+        }
+
+        SetBreedArchetypeArtVisible(artObject, false);
+    }
+
+    List<string> GetAvailableBreedArtResourceNames(Dog dog)
+    {
+        List<string> resourceNames = new List<string>();
+        string breedText = GetDogBreedText(dog);
+        bool isHybridBreed = IsHybridBreedText(breedText);
+        BreedVisualArchetype resolvedArchetype = ResolveBreedVisualArchetype(dog);
+        BreedVisualArchetype breedFamilyArchetype = GetBreedArtFamilyArchetype(breedText);
+
+        if (isHybridBreed)
+        {
+            AddBreedArtResourceName(resourceNames, GetHybridSpecificResourceName(breedText));
+
+            if (breedFamilyArchetype == BreedVisualArchetype.BullyStriker ||
+                breedFamilyArchetype == BreedVisualArchetype.ShepherdSentinel)
+            {
+                AddBreedArtVariantNames(resourceNames, breedFamilyArchetype, dog);
+                return resourceNames;
+            }
+
+            if (breedFamilyArchetype != BreedVisualArchetype.Unknown &&
+                breedFamilyArchetype != BreedVisualArchetype.HybridVariant)
+            {
+                AddBreedArtVariantNames(resourceNames, breedFamilyArchetype, dog);
+                return resourceNames;
+            }
+
+            AddBreedArtResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+            return resourceNames;
+        }
+
+        if (resolvedArchetype == BreedVisualArchetype.HybridVariant)
+        {
+            AddBreedArtResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+            return resourceNames;
+        }
+
+        AddBreedArtVariantNames(resourceNames, resolvedArchetype, dog);
+        return resourceNames;
+    }
+
+    void AddBreedArtVariantNames(List<string> resourceNames, BreedVisualArchetype archetype, Dog dog)
+    {
+        string baseName = GetBreedArchetypeResourceBaseName(archetype);
+
+        if (string.IsNullOrEmpty(baseName))
+        {
+            return;
+        }
+
+        int firstVariant = GetDeterministicVariantIndex(dog);
+        int secondVariant = firstVariant == 1 ? 2 : 1;
+        AddBreedArtResourceName(resourceNames, $"{baseName}_{firstVariant:00}");
+        AddBreedArtResourceName(resourceNames, $"{baseName}_{secondVariant:00}");
+    }
+
+    void AddBreedArtResourceName(List<string> resourceNames, string resourceName)
+    {
+        if (string.IsNullOrEmpty(resourceName) || resourceNames.Contains(resourceName))
+        {
+            return;
+        }
+
+        resourceNames.Add(resourceName);
+    }
+
+    string GetBreedArchetypeResourceBaseName(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.ShepherdSentinel:
+                return "dog_imprint_shepherd_sentinel";
+
+            case BreedVisualArchetype.BullyStriker:
+                return "dog_imprint_bully_striker";
+
+            case BreedVisualArchetype.GuardMastiff:
+                return "dog_imprint_guard_mastiff";
+
+            case BreedVisualArchetype.IronRott:
+                return "dog_imprint_iron_rott";
+
+            case BreedVisualArchetype.SpitzWarden:
+                return "dog_imprint_spitz_warden";
+
+            case BreedVisualArchetype.VelocityHound:
+                return "dog_imprint_velocity_hound";
+
+            case BreedVisualArchetype.HybridVariant:
+                return "dog_imprint_hybrid_variant";
+
+            case BreedVisualArchetype.Unknown:
+            default:
+                return string.Empty;
+        }
+    }
+
+    string GetHybridSpecificResourceName(string breedText)
+    {
+        if (!IsHybridBreedText(breedText))
+        {
+            return string.Empty;
+        }
+
+        if (ContainsBullyBreedText(breedText))
+        {
+            return "dog_imprint_bully_hybrid_variant_01";
+        }
+
+        if (ContainsShepherdBreedText(breedText))
+        {
+            return "dog_imprint_shepherd_hybrid_variant_01";
+        }
+
+        return string.Empty;
+    }
+
+    BreedVisualArchetype GetBreedArtFamilyArchetype(string breedText)
+    {
+        if (ContainsBullyBreedText(breedText))
+        {
+            return BreedVisualArchetype.BullyStriker;
+        }
+
+        if (ContainsShepherdBreedText(breedText))
+        {
+            return BreedVisualArchetype.ShepherdSentinel;
+        }
+
+        return ResolveBreedVisualArchetypeFromBreedText(breedText, false);
+    }
+
+    bool ContainsBullyBreedText(string breedText)
+    {
+        if (string.IsNullOrWhiteSpace(breedText))
+        {
+            return false;
+        }
+
+        string normalizedBreed = breedText.Trim().ToLowerInvariant();
+        return normalizedBreed.Contains("pit bull") ||
+               normalizedBreed.Contains("pitbull") ||
+               normalizedBreed.Contains("boxer") ||
+               normalizedBreed.Contains("bully");
+    }
+
+    bool ContainsShepherdBreedText(string breedText)
+    {
+        if (string.IsNullOrWhiteSpace(breedText))
+        {
+            return false;
+        }
+
+        string normalizedBreed = breedText.Trim().ToLowerInvariant();
+        return normalizedBreed.Contains("german shepherd") ||
+               normalizedBreed.Contains("german shepard") ||
+               normalizedBreed.Contains("belgian malinois") ||
+               normalizedBreed.Contains("shepherd") ||
+               normalizedBreed.Contains("shepard");
+    }
+
+    int GetDeterministicVariantIndex(Dog dog)
+    {
+        string key = $"{GetDogDisplayName(dog, "dog")}|{GetDogBreedText(dog)}";
+        return GetStableNameHash01(key) < 0.5f ? 1 : 2;
+    }
+
+    bool TryLoadBreedArchetypeSpriteOrTexture(string resourceName, out Sprite sprite, out Texture2D texture)
+    {
+        sprite = null;
+        texture = null;
+
+        if (string.IsNullOrEmpty(resourceName))
+        {
+            return false;
+        }
+
+        string resourcePath = BreedArchetypeResourceFolder + resourceName;
+        sprite = Resources.Load<Sprite>(resourcePath);
+
+        if (sprite != null)
+        {
+            return true;
+        }
+
+        texture = Resources.Load<Texture2D>(resourcePath);
+        return texture != null;
+    }
+
+    void ConfigureBreedArchetypeSpriteArt(GameObject artObject, Sprite sprite, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
+    {
+        SpriteRenderer spriteRenderer = GetBreedArchetypeSpriteRenderer(artObject);
+        GameObject textureQuad = GetBreedArchetypeTextureQuad(artObject);
+
+        if (spriteRenderer == null)
+        {
+            return;
+        }
+
+        if (textureQuad != null)
+        {
+            textureQuad.SetActive(false);
+        }
+
+        spriteRenderer.enabled = true;
+        spriteRenderer.sprite = sprite;
+        spriteRenderer.color = GetBreedArchetypeArtTint(dog, isFighterA, currentHealth, maxLikelyHealth);
+        spriteRenderer.sortingOrder = 460;
+        spriteRenderer.transform.localPosition = Vector3.zero;
+        spriteRenderer.transform.localRotation = Quaternion.identity;
+        spriteRenderer.transform.localScale = GetBreedArchetypeSpriteScale(sprite);
+
+        Material runtimeMaterial = GetPortraitSpriteMaterial();
+
+        if (runtimeMaterial != null)
+        {
+            spriteRenderer.material = runtimeMaterial;
+        }
+    }
+
+    void ConfigureBreedArchetypeTextureArt(GameObject artObject, Texture2D texture, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
+    {
+        SpriteRenderer spriteRenderer = GetBreedArchetypeSpriteRenderer(artObject);
+        GameObject textureQuad = GetBreedArchetypeTextureQuad(artObject);
+
+        if (textureQuad == null || texture == null)
+        {
+            return;
+        }
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.enabled = false;
+        }
+
+        textureQuad.SetActive(true);
+        textureQuad.transform.localPosition = Vector3.zero;
+        textureQuad.transform.localRotation = Quaternion.identity;
+        textureQuad.transform.localScale = GetBreedArchetypeTextureQuadScale(texture);
+
+        Renderer quadRenderer = textureQuad.GetComponent<Renderer>();
+
+        if (quadRenderer == null)
+        {
+            return;
+        }
+
+        Material runtimeMaterial = GetBreedArchetypeTextureMaterial(quadRenderer);
+        Color tintColor = GetBreedArchetypeArtTint(dog, isFighterA, currentHealth, maxLikelyHealth);
+
+        runtimeMaterial.mainTexture = texture;
+        SetMaterialColor(runtimeMaterial, tintColor);
+        quadRenderer.material = runtimeMaterial;
+    }
+
+    SpriteRenderer GetBreedArchetypeSpriteRenderer(GameObject artObject)
+    {
+        if (artObject == null)
+        {
+            return null;
+        }
+
+        Transform spriteTransform = artObject.transform.Find("BreedArchetypeSprite");
+        GameObject spriteObject;
+
+        if (spriteTransform != null)
+        {
+            spriteObject = spriteTransform.gameObject;
+        }
+        else
+        {
+            spriteObject = new GameObject("BreedArchetypeSprite");
+            spriteObject.transform.SetParent(artObject.transform);
+        }
+
+        spriteObject.hideFlags = HideFlags.DontSave;
+        spriteObject.transform.localPosition = Vector3.zero;
+        spriteObject.transform.localRotation = Quaternion.identity;
+
+        SpriteRenderer spriteRenderer = spriteObject.GetComponent<SpriteRenderer>();
+
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = spriteObject.AddComponent<SpriteRenderer>();
+        }
+
+        spriteRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        spriteRenderer.receiveShadows = false;
+        return spriteRenderer;
+    }
+
+    GameObject GetBreedArchetypeTextureQuad(GameObject artObject)
+    {
+        if (artObject == null)
+        {
+            return null;
+        }
+
+        Transform quadTransform = artObject.transform.Find("BreedArchetypeTextureQuad");
+        GameObject quadObject;
+        bool createdQuad = false;
+
+        if (quadTransform != null)
+        {
+            quadObject = quadTransform.gameObject;
+        }
+        else
+        {
+            quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quadObject.name = "BreedArchetypeTextureQuad";
+            quadObject.transform.SetParent(artObject.transform);
+            createdQuad = true;
+        }
+
+        quadObject.hideFlags = HideFlags.DontSave;
+        quadObject.transform.localPosition = Vector3.zero;
+        quadObject.transform.localRotation = Quaternion.identity;
+
+        Collider quadCollider = quadObject.GetComponent<Collider>();
+
+        if (quadCollider != null)
+        {
+            quadCollider.enabled = false;
+        }
+
+        Renderer quadRenderer = quadObject.GetComponent<Renderer>();
+
+        if (quadRenderer != null)
+        {
+            quadRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            quadRenderer.receiveShadows = false;
+        }
+
+        if (createdQuad)
+        {
+            quadObject.SetActive(false);
+        }
+
+        return quadObject;
+    }
+
+    Material GetBreedArchetypeTextureMaterial(Renderer objectRenderer)
+    {
+        Material runtimeMaterial = objectRenderer.material;
+
+        if (runtimeMaterial != null && runtimeMaterial.name.StartsWith("RuntimeBreedArchetypeTextureMaterial"))
+        {
+            return runtimeMaterial;
+        }
+
+        Shader textureShader = Shader.Find("Unlit/Transparent");
+
+        if (textureShader == null)
+        {
+            textureShader = Shader.Find("Universal Render Pipeline/Unlit");
+        }
+
+        if (textureShader == null)
+        {
+            textureShader = Shader.Find("Unlit/Texture");
+        }
+
+        runtimeMaterial = textureShader != null
+            ? new Material(textureShader)
+            : new Material(objectRenderer.sharedMaterial);
+        runtimeMaterial.name = "RuntimeBreedArchetypeTextureMaterial";
+        runtimeMaterial.hideFlags = HideFlags.DontSave;
+        runtimeMaterial.renderQueue = 3000;
+        return runtimeMaterial;
+    }
+
+    Vector3 GetBreedArchetypeSpriteScale(Sprite sprite)
+    {
+        if (sprite == null || sprite.bounds.size.y <= 0f)
+        {
+            return Vector3.one;
+        }
+
+        float targetHeight = 1.72f;
+        float scale = targetHeight / sprite.bounds.size.y;
+        float scaledWidth = sprite.bounds.size.x * scale;
+
+        if (scaledWidth > 2.05f && scaledWidth > 0f)
+        {
+            scale *= 2.05f / scaledWidth;
+        }
+
+        return new Vector3(scale, scale, scale);
+    }
+
+    Vector3 GetBreedArchetypeTextureQuadScale(Texture2D texture)
+    {
+        if (texture == null || texture.height <= 0)
+        {
+            return Vector3.one;
+        }
+
+        float targetHeight = 1.72f;
+        float aspectRatio = Mathf.Clamp((float)texture.width / texture.height, 0.35f, 1.55f);
+        return new Vector3(targetHeight * aspectRatio, targetHeight, 1f);
+    }
+
+    Color GetBreedArchetypeArtTint(Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
+    {
+        float healthPercent = GetVisualHealthPercent(currentHealth, maxLikelyHealth);
+        Color identityColor = GetDogIdentityColor(dog, isFighterA);
+        Color finalColor = ApplyHealthCorruptionVisual(identityColor, healthPercent);
+        return Color.Lerp(Color.white, finalColor, 0.34f);
+    }
+
+    void SetMaterialColor(Material runtimeMaterial, Color color)
+    {
+        if (runtimeMaterial == null)
+        {
+            return;
+        }
+
+        runtimeMaterial.color = color;
+
+        if (runtimeMaterial.HasProperty("_BaseColor"))
+        {
+            runtimeMaterial.SetColor("_BaseColor", color);
+        }
+
+        if (runtimeMaterial.HasProperty("_Color"))
+        {
+            runtimeMaterial.SetColor("_Color", color);
+        }
+    }
+
+    void TintBreedArchetypeArt(GameObject artObject, Color color)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        SpriteRenderer spriteRenderer = GetBreedArchetypeSpriteRenderer(artObject);
+
+        if (spriteRenderer != null && spriteRenderer.enabled)
+        {
+            spriteRenderer.color = color;
+        }
+
+        GameObject textureQuad = GetBreedArchetypeTextureQuad(artObject);
+
+        if (textureQuad == null || !textureQuad.activeSelf)
+        {
+            return;
+        }
+
+        Renderer quadRenderer = textureQuad.GetComponent<Renderer>();
+
+        if (quadRenderer != null && quadRenderer.material != null)
+        {
+            SetMaterialColor(quadRenderer.material, color);
+        }
+    }
+
+    void FaceBreedArchetypeArtsTowardPresentationCamera()
+    {
+        FaceBreedArchetypeArtTowardPresentationCamera(fighterABreedArchetypeArt);
+        FaceBreedArchetypeArtTowardPresentationCamera(fighterBBreedArchetypeArt);
+    }
+
+    void FaceBreedArchetypeArtTowardPresentationCamera(GameObject artObject)
+    {
+        if (artObject == null || !artObject.activeSelf || presentationCamera == null)
+        {
+            return;
+        }
+
+        Vector3 cameraToArt = artObject.transform.position - presentationCamera.transform.position;
+
+        if (cameraToArt.sqrMagnitude < 0.0001f)
+        {
+            artObject.transform.rotation = presentationCamera.transform.rotation;
+            return;
+        }
+
+        artObject.transform.rotation = Quaternion.LookRotation(cameraToArt.normalized, Vector3.up);
+    }
+
+    void ApplyBreedArchetypeResultVisual(GameObject artObject, bool isWinner, bool isDraw, Color accentColor)
+    {
+        if (artObject == null || !artObject.activeSelf)
+        {
+            return;
+        }
+
+        if (isWinner)
+        {
+            artObject.transform.localPosition += new Vector3(0f, 0.22f, -0.05f);
+            artObject.transform.localScale *= 1.12f;
+            TintBreedArchetypeArt(artObject, Color.Lerp(Color.white, accentColor, 0.18f));
+            return;
+        }
+
+        if (isDraw)
+        {
+            artObject.transform.localPosition += new Vector3(0f, 0.08f, 0f);
+            artObject.transform.localScale *= 1.04f;
+            TintBreedArchetypeArt(artObject, new Color(1f, 0.92f, 0.45f));
+            return;
+        }
+
+        artObject.transform.localPosition += new Vector3(0f, -0.22f, 0.06f);
+        artObject.transform.localScale *= 0.82f;
+        TintBreedArchetypeArt(artObject, new Color(0.55f, 0.35f, 0.66f, 0.95f));
     }
 
     void PositionScanSubjects()
@@ -2120,6 +2775,7 @@ public class FightPresentationManager : MonoBehaviour
 
         FacePortraitTowardPresentationCamera(fighterAPortraitBillboard);
         FacePortraitTowardPresentationCamera(fighterBPortraitBillboard);
+        FaceBreedArchetypeArtsTowardPresentationCamera();
     }
 
     void FacePortraitTowardPresentationCamera(GameObject billboardObject)
@@ -2703,6 +3359,9 @@ public class FightPresentationManager : MonoBehaviour
         UpdateDogImprintArtPositions();
         ApplyDogIdentityVisuals(fighterADogImprintArt, currentDogImprintA, dogAHealth, visualMaxHealthA, true);
         ApplyDogIdentityVisuals(fighterBDogImprintArt, currentDogImprintB, dogBHealth, visualMaxHealthB, false);
+        CreateBreedArchetypeArtIfNeeded();
+        ApplyBreedArchetypeArtToFighter(fighterABreedArchetypeArt, currentDogImprintA, true, dogAHealth, visualMaxHealthA);
+        ApplyBreedArchetypeArtToFighter(fighterBBreedArchetypeArt, currentDogImprintB, false, dogBHealth, visualMaxHealthB);
         UpdateHealthBars(dogAHealth, dogBHealth);
         UpdatePortraitFrameVisuals(dogAHealth, dogBHealth);
     }
@@ -2819,8 +3478,11 @@ public class FightPresentationManager : MonoBehaviour
 
     BreedVisualArchetype ResolveBreedVisualArchetype(Dog dog)
     {
-        string breedText = GetDogBreedText(dog);
+        return ResolveBreedVisualArchetypeFromBreedText(GetDogBreedText(dog), true);
+    }
 
+    BreedVisualArchetype ResolveBreedVisualArchetypeFromBreedText(string breedText, bool preferHybrid)
+    {
         if (string.IsNullOrWhiteSpace(breedText))
         {
             return BreedVisualArchetype.Unknown;
@@ -2828,7 +3490,7 @@ public class FightPresentationManager : MonoBehaviour
 
         string normalizedBreed = breedText.Trim().ToLowerInvariant();
 
-        if (normalizedBreed.Contains("hybrid") || normalizedBreed.Contains("mix") || normalizedBreed.Contains("mixed"))
+        if (preferHybrid && IsHybridBreedText(normalizedBreed))
         {
             return BreedVisualArchetype.HybridVariant;
         }
@@ -2877,12 +3539,29 @@ public class FightPresentationManager : MonoBehaviour
             return BreedVisualArchetype.VelocityHound;
         }
 
-        return BreedVisualArchetype.Unknown;
+        return IsHybridBreedText(normalizedBreed)
+            ? BreedVisualArchetype.HybridVariant
+            : BreedVisualArchetype.Unknown;
     }
 
     string GetDogBreedText(Dog dog)
     {
         return dog != null ? dog.breed : string.Empty;
+    }
+
+    bool IsHybridBreedText(string breedText)
+    {
+        if (string.IsNullOrWhiteSpace(breedText))
+        {
+            return false;
+        }
+
+        string normalizedBreed = breedText.Trim().ToLowerInvariant();
+        return normalizedBreed.Contains("hybrid") ||
+               normalizedBreed.Contains("mix") ||
+               normalizedBreed.Contains("mixed") ||
+               normalizedBreed.Contains("cross") ||
+               normalizedBreed.Contains(" x ");
     }
 
     void ApplyBreedArchetypeVisuals(Dog dog, ref Color color, ref Vector3 scale)
