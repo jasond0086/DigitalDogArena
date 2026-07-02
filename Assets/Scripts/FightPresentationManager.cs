@@ -75,6 +75,7 @@ public class FightPresentationManager : MonoBehaviour
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
     private Coroutine cinematicCameraCoroutine;
+    private Coroutine cameraBeatCoroutine;
     private Coroutine arenaPulseCoroutine;
 
     void Awake()
@@ -110,6 +111,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         ResetVisualHealthTracking();
+        StopCameraBeatIfRunning();
         StopCinematicCameraIfRunning();
         StopArenaPulseIfRunning();
         CreateArenaObjectsIfNeeded();
@@ -135,6 +137,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         EnsureArenaRoot();
         StopRoundAnimationIfRunning();
+        StopCameraBeatIfRunning();
         StopCinematicCameraIfRunning();
         StopArenaPulseIfRunning();
         HideRoundStatusBanner();
@@ -783,15 +786,6 @@ public class FightPresentationManager : MonoBehaviour
         viewportRect.offsetMax = Vector2.zero;
         viewportRect.localScale = Vector3.one;
         viewportRect.localRotation = Quaternion.identity;
-
-        if (fightPresentationViewportObject.transform.parent != null &&
-            fightPresentationViewportObject.transform.parent.name == "FightPage")
-        {
-            fightPresentationViewportObject.transform.SetAsFirstSibling();
-            return;
-        }
-
-        fightPresentationViewportObject.transform.SetAsLastSibling();
     }
 
     void EnsurePresentationRenderTexture()
@@ -922,8 +916,20 @@ public class FightPresentationManager : MonoBehaviour
 
     void FrameArena()
     {
+        FrameFightWide();
+    }
+
+    void FrameFightWide()
+    {
         SetFightPresentationViewportVisible(true);
+        StopCameraBeatIfRunning();
         MovePresentationCameraTo(GetArenaCameraPosition(), GetArenaLookAtPosition(), CameraMoveDurationSeconds);
+    }
+
+    void ReturnToFightWide()
+    {
+        SetFightPresentationViewportVisible(true);
+        MovePresentationCameraTo(GetArenaCameraPosition(), GetArenaLookAtPosition(), 0.24f);
     }
 
     Vector3 GetArenaCameraPosition()
@@ -934,6 +940,117 @@ public class FightPresentationManager : MonoBehaviour
     Vector3 GetArenaLookAtPosition()
     {
         return new Vector3(0f, 0.75f, 0.25f);
+    }
+
+    Vector3 GetArenaWorldPoint(Vector3 localPoint)
+    {
+        return arenaRoot != null ? arenaRoot.transform.TransformPoint(localPoint) : localPoint;
+    }
+
+    void FrameAttackerBeat(int dogAImpact, int dogBImpact, Vector3 fighterALocalPosition, Vector3 fighterBLocalPosition)
+    {
+        if (dogAImpact <= 0 && dogBImpact <= 0)
+        {
+            return;
+        }
+
+        if (dogAImpact > 0 && dogBImpact > 0)
+        {
+            FrameClashPoint((fighterALocalPosition + fighterBLocalPosition) * 0.5f);
+            return;
+        }
+
+        bool dogAIsAttacker = dogAImpact >= dogBImpact;
+        Vector3 attackerLocalPosition = dogAIsAttacker ? fighterALocalPosition : fighterBLocalPosition;
+        Vector3 targetLocalPosition = dogAIsAttacker ? fighterBLocalPosition : fighterALocalPosition;
+        Vector3 focusLocalPosition = Vector3.Lerp(attackerLocalPosition, targetLocalPosition, 0.42f);
+        Vector3 baseCameraPosition = GetArenaCameraPosition();
+        Vector3 targetCameraPosition = baseCameraPosition + new Vector3(Mathf.Clamp(focusLocalPosition.x * 0.16f, -0.42f, 0.42f), -0.08f, 0.36f);
+        Vector3 lookAtPosition = GetArenaWorldPoint(new Vector3(Mathf.Clamp(focusLocalPosition.x * 0.55f, -0.9f, 0.9f), 0.82f, focusLocalPosition.z + 0.08f));
+
+        StartCameraBeat(targetCameraPosition, lookAtPosition, 0.16f, 0.12f, 0.22f);
+    }
+
+    void FrameClashPoint(Vector3 clashLocalPosition)
+    {
+        Vector3 baseCameraPosition = GetArenaCameraPosition();
+        Vector3 targetCameraPosition = baseCameraPosition + new Vector3(Mathf.Clamp(clashLocalPosition.x * 0.12f, -0.25f, 0.25f), -0.12f, 0.5f);
+        Vector3 lookAtPosition = GetArenaWorldPoint(new Vector3(Mathf.Clamp(clashLocalPosition.x * 0.35f, -0.55f, 0.55f), 0.84f, clashLocalPosition.z + 0.05f));
+
+        StartCameraBeat(targetCameraPosition, lookAtPosition, 0.14f, 0.14f, 0.24f);
+    }
+
+    void FrameWinner(Transform winnerTransform, bool isDraw, string bannerText)
+    {
+        SetRoundStatusBannerText(bannerText);
+        StopCameraBeatIfRunning();
+        StopCinematicCameraIfRunning();
+        cinematicCameraCoroutine = StartCoroutine(ResultCinematicRoutine(winnerTransform, isDraw));
+    }
+
+    void StartCameraBeat(Vector3 targetPosition, Vector3 lookAtPosition, float moveInDuration, float holdDuration, float returnDuration)
+    {
+        EnsurePresentationCamera();
+
+        if (presentationCamera == null || presentationCameraObject == null)
+        {
+            return;
+        }
+
+        StopCameraBeatIfRunning();
+        StopCameraMoveIfRunning();
+        cameraBeatCoroutine = StartCoroutine(CameraBeatRoutine(targetPosition, lookAtPosition, moveInDuration, holdDuration, returnDuration));
+    }
+
+    IEnumerator CameraBeatRoutine(Vector3 targetPosition, Vector3 lookAtPosition, float moveInDuration, float holdDuration, float returnDuration)
+    {
+        Vector3 startPosition = presentationCameraObject.transform.position;
+
+        yield return MoveCameraBetweenPoints(startPosition, targetPosition, lookAtPosition, moveInDuration);
+
+        if (holdDuration > 0f)
+        {
+            yield return new WaitForSeconds(holdDuration);
+        }
+
+        yield return MoveCameraBetweenPoints(targetPosition, GetArenaCameraPosition(), GetArenaLookAtPosition(), returnDuration);
+        cameraBeatCoroutine = null;
+    }
+
+    IEnumerator MoveCameraBetweenPoints(Vector3 startPosition, Vector3 targetPosition, Vector3 lookAtPosition, float duration)
+    {
+        if (duration <= 0f)
+        {
+            presentationCameraObject.transform.position = targetPosition;
+            presentationCameraObject.transform.LookAt(lookAtPosition);
+            FacePortraitsTowardPresentationCamera();
+            yield break;
+        }
+
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(elapsedTime / duration);
+            float smoothProgress = progress * progress * (3f - (2f * progress));
+
+            presentationCameraObject.transform.position = Vector3.Lerp(startPosition, targetPosition, smoothProgress);
+            presentationCameraObject.transform.LookAt(lookAtPosition);
+            FacePortraitsTowardPresentationCamera();
+            yield return null;
+        }
+    }
+
+    void StopCameraBeatIfRunning()
+    {
+        if (cameraBeatCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(cameraBeatCoroutine);
+        cameraBeatCoroutine = null;
     }
 
     void MovePresentationCameraTo(Vector3 targetPosition, Vector3 lookAtPosition, float duration)
@@ -1012,6 +1129,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
+        StopCameraBeatIfRunning();
         StopCinematicCameraIfRunning();
         cinematicCameraCoroutine = StartCoroutine(CameraPunchAndShakeRoutine(severity));
     }
@@ -1061,9 +1179,7 @@ public class FightPresentationManager : MonoBehaviour
 
     void PlayResultCinematic(Transform focusTransform, bool isDraw, string bannerText)
     {
-        SetRoundStatusBannerText(bannerText);
-        StopCinematicCameraIfRunning();
-        cinematicCameraCoroutine = StartCoroutine(ResultCinematicRoutine(focusTransform, isDraw));
+        FrameWinner(focusTransform, isDraw, bannerText);
     }
 
     IEnumerator ResultCinematicRoutine(Transform focusTransform, bool isDraw)
@@ -1101,7 +1217,7 @@ public class FightPresentationManager : MonoBehaviour
         yield return new WaitForSeconds(0.22f);
 
         cinematicCameraCoroutine = null;
-        FrameArena();
+        ReturnToFightWide();
     }
 
     void StopCinematicCameraIfRunning()
@@ -1125,6 +1241,7 @@ public class FightPresentationManager : MonoBehaviour
         if (!isEnabled)
         {
             StopCameraMoveIfRunning();
+            StopCameraBeatIfRunning();
         }
 
         EnsurePresentationCamera();
@@ -2129,7 +2246,7 @@ public class FightPresentationManager : MonoBehaviour
             return new Color(1f, 0.85f, 0.2f);
         }
 
-        if (message.StartsWith("SYNC") || message.StartsWith("EDGE") || message.StartsWith("HIT"))
+        if (message.StartsWith("CLASH") || message.StartsWith("TRADE") || message.StartsWith("HIT"))
         {
             return new Color(0.72f, 0.95f, 1f);
         }
@@ -3416,7 +3533,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         if (dogAImpact > 0 && dogBImpact > 0)
         {
-            return Mathf.Abs(dogAImpact - dogBImpact) <= 3 ? "SYNC" : "EDGE";
+            return Mathf.Abs(dogAImpact - dogBImpact) <= 3 ? "TRADE" : "CLASH";
         }
 
         return severity >= 3 ? "HIT" : string.Empty;
@@ -3510,6 +3627,8 @@ public class FightPresentationManager : MonoBehaviour
         {
             ShowImpactEffect(fighterATransform, GetStyleImpactVisualIntensity(dogBStyle, GetStrategyImpactVisualIntensity(dogBStrategy, dogBImpact, roundNumber), roundNumber), "A");
         }
+
+        FrameAttackerBeat(dogAImpact, dogBImpact, fighterAImpactPosition, fighterBImpactPosition);
 
         bool hasWindup = Vector3.Distance(fighterAHome, fighterAWindupPosition) > 0.01f ||
                          Vector3.Distance(fighterBHome, fighterBWindupPosition) > 0.01f;
