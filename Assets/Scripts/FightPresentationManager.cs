@@ -68,6 +68,7 @@ public class FightPresentationManager : MonoBehaviour
     private Dog currentDogImprintB;
     private bool attemptedDogImprintLoad;
     private bool warnedMissingDogImprintPrefab;
+    private HashSet<string> warnedMissingBreedArtKeys = new HashSet<string>();
     private GameObject impactSparkA;
     private GameObject impactSparkB;
     private GameObject corruptionNodeA;
@@ -1687,7 +1688,9 @@ public class FightPresentationManager : MonoBehaviour
 
         UpdateSingleBreedArchetypeArtPosition(artObject, isFighterA ? fighterATransform : fighterBTransform, dog);
 
-        foreach (string resourceName in GetAvailableBreedArtResourceNames(dog))
+        List<string> resourceNames = GetAvailableBreedArtResourceNames(dog);
+
+        foreach (string resourceName in resourceNames)
         {
             if (TryLoadBreedArchetypeSpriteOrTexture(resourceName, out Sprite sprite, out Texture2D texture))
             {
@@ -1708,6 +1711,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         SetBreedArchetypeArtVisible(artObject, false);
+        WarnMissingBreedArtIfNeeded(dog, resourceNames);
     }
 
     List<string> GetAvailableBreedArtResourceNames(Dog dog)
@@ -1717,6 +1721,14 @@ public class FightPresentationManager : MonoBehaviour
         bool isHybridBreed = IsHybridBreedText(breedText);
         BreedVisualArchetype resolvedArchetype = ResolveBreedVisualArchetype(dog);
         BreedVisualArchetype breedFamilyArchetype = GetBreedArtFamilyArchetype(breedText);
+
+        if (IsShepherdBullyHybridText(breedText))
+        {
+            AddBreedArtResourceName(resourceNames, "dog_imprint_shepherd_hybrid_variant_01");
+            AddBreedArtResourceName(resourceNames, "dog_imprint_bully_hybrid_variant_01");
+            AddBreedArtResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+            return resourceNames;
+        }
 
         if (isHybridBreed)
         {
@@ -1813,6 +1825,11 @@ public class FightPresentationManager : MonoBehaviour
             return string.Empty;
         }
 
+        if (IsShepherdBullyHybridText(breedText))
+        {
+            return "dog_imprint_shepherd_hybrid_variant_01";
+        }
+
         if (ContainsBullyBreedText(breedText))
         {
             return "dog_imprint_bully_hybrid_variant_01";
@@ -1848,11 +1865,16 @@ public class FightPresentationManager : MonoBehaviour
             return false;
         }
 
-        string normalizedBreed = breedText.Trim().ToLowerInvariant();
-        return normalizedBreed.Contains("pit bull") ||
-               normalizedBreed.Contains("pitbull") ||
-               normalizedBreed.Contains("boxer") ||
-               normalizedBreed.Contains("bully");
+        string rawBreed = GetRawNormalizedBreedText(breedText);
+        string separatorNormalizedBreed = GetSeparatorNormalizedBreedText(breedText);
+        string compactBreed = GetCompactBreedText(breedText);
+
+        return separatorNormalizedBreed.Contains("pit bull") ||
+               compactBreed.Contains("pitbull") ||
+               rawBreed.Contains("boxer") ||
+               compactBreed.Contains("boxer") ||
+               rawBreed.Contains("bully") ||
+               compactBreed.Contains("bully");
     }
 
     bool ContainsShepherdBreedText(string breedText)
@@ -1862,12 +1884,45 @@ public class FightPresentationManager : MonoBehaviour
             return false;
         }
 
-        string normalizedBreed = breedText.Trim().ToLowerInvariant();
-        return normalizedBreed.Contains("german shepherd") ||
-               normalizedBreed.Contains("german shepard") ||
-               normalizedBreed.Contains("belgian malinois") ||
-               normalizedBreed.Contains("shepherd") ||
-               normalizedBreed.Contains("shepard");
+        string rawBreed = GetRawNormalizedBreedText(breedText);
+        string separatorNormalizedBreed = GetSeparatorNormalizedBreedText(breedText);
+        string compactBreed = GetCompactBreedText(breedText);
+
+        return separatorNormalizedBreed.Contains("german shepherd") ||
+               separatorNormalizedBreed.Contains("german shepard") ||
+               separatorNormalizedBreed.Contains("belgian malinois") ||
+               rawBreed.Contains("shepherd") ||
+               rawBreed.Contains("shepard") ||
+               compactBreed.Contains("shepherd") ||
+               compactBreed.Contains("shepard") ||
+               rawBreed.Contains("malinois") ||
+               compactBreed.Contains("malinois") ||
+               compactBreed.Contains("german");
+    }
+
+    bool IsShepherdBullyHybridText(string breedText)
+    {
+        if (string.IsNullOrWhiteSpace(breedText))
+        {
+            return false;
+        }
+
+        string compactBreed = GetCompactBreedText(breedText);
+
+        if (string.IsNullOrEmpty(compactBreed))
+        {
+            return false;
+        }
+
+        return compactBreed.Contains("germanbull") ||
+               compactBreed.Contains("germanbully") ||
+               compactBreed.Contains("shepherdbull") ||
+               compactBreed.Contains("shepherdbully") ||
+               compactBreed.Contains("pitgerman") ||
+               compactBreed.Contains("pitshepherd") ||
+               compactBreed.Contains("bullshepherd") ||
+               compactBreed.Contains("bullyshepherd") ||
+               (ContainsShepherdBreedText(breedText) && ContainsBullyBreedText(breedText) && IsHybridBreedText(breedText));
     }
 
     int GetDeterministicVariantIndex(Dog dog)
@@ -1896,6 +1951,27 @@ public class FightPresentationManager : MonoBehaviour
 
         texture = Resources.Load<Texture2D>(resourcePath);
         return texture != null;
+    }
+
+    void WarnMissingBreedArtIfNeeded(Dog dog, List<string> attemptedResourceNames)
+    {
+        string dogName = GetDogDisplayName(dog, "dog");
+        string rawBreedText = GetDogBreedText(dog);
+        string compactBreedText = GetCompactBreedText(rawBreedText);
+        string warningKey = $"{dogName}|{rawBreedText}|{compactBreedText}";
+
+        if (warnedMissingBreedArtKeys.Contains(warningKey))
+        {
+            return;
+        }
+
+        warnedMissingBreedArtKeys.Add(warningKey);
+
+        string attemptedResources = attemptedResourceNames != null && attemptedResourceNames.Count > 0
+            ? string.Join(", ", attemptedResourceNames)
+            : "none";
+
+        Debug.LogWarning($"FightPresentationManager could not resolve breed art for {dogName}. Raw breed: '{rawBreedText}'. Compact breed: '{compactBreedText}'. Attempted resources: {attemptedResources}.");
     }
 
     void ConfigureBreedArchetypeSpriteArt(GameObject artObject, Sprite sprite, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
@@ -3594,58 +3670,77 @@ public class FightPresentationManager : MonoBehaviour
             return BreedVisualArchetype.Unknown;
         }
 
-        string normalizedBreed = breedText.Trim().ToLowerInvariant();
+        string rawBreed = GetRawNormalizedBreedText(breedText);
+        string separatorNormalizedBreed = GetSeparatorNormalizedBreedText(breedText);
+        string compactBreed = GetCompactBreedText(breedText);
 
-        if (preferHybrid && IsHybridBreedText(normalizedBreed))
+        if (preferHybrid && (IsHybridBreedText(breedText) || IsShepherdBullyHybridText(breedText)))
         {
             return BreedVisualArchetype.HybridVariant;
         }
 
-        if (normalizedBreed.Contains("german shepherd") ||
-            normalizedBreed.Contains("german shepard") ||
-            normalizedBreed.Contains("belgian malinois") ||
-            normalizedBreed.Contains("shepherd") ||
-            normalizedBreed.Contains("shepard"))
+        if (separatorNormalizedBreed.Contains("german shepherd") ||
+            separatorNormalizedBreed.Contains("german shepard") ||
+            separatorNormalizedBreed.Contains("belgian malinois") ||
+            rawBreed.Contains("shepherd") ||
+            rawBreed.Contains("shepard") ||
+            compactBreed.Contains("shepherd") ||
+            compactBreed.Contains("shepard") ||
+            rawBreed.Contains("malinois") ||
+            compactBreed.Contains("malinois"))
         {
             return BreedVisualArchetype.ShepherdSentinel;
         }
 
-        if (normalizedBreed.Contains("pit bull") ||
-            normalizedBreed.Contains("pitbull") ||
-            normalizedBreed.Contains("boxer") ||
-            normalizedBreed.Contains("bully"))
+        if (separatorNormalizedBreed.Contains("pit bull") ||
+            compactBreed.Contains("pitbull") ||
+            rawBreed.Contains("boxer") ||
+            compactBreed.Contains("boxer") ||
+            rawBreed.Contains("bully") ||
+            compactBreed.Contains("bully"))
         {
             return BreedVisualArchetype.BullyStriker;
         }
 
-        if (normalizedBreed.Contains("mastiff") ||
-            normalizedBreed.Contains("cane corso") ||
-            normalizedBreed.Contains("presa") ||
-            normalizedBreed.Contains("dogo argentino"))
+        if (rawBreed.Contains("mastiff") ||
+            compactBreed.Contains("mastiff") ||
+            separatorNormalizedBreed.Contains("cane corso") ||
+            compactBreed.Contains("canecorso") ||
+            rawBreed.Contains("presa") ||
+            compactBreed.Contains("presa") ||
+            separatorNormalizedBreed.Contains("dogo argentino") ||
+            compactBreed.Contains("dogoargentino"))
         {
             return BreedVisualArchetype.GuardMastiff;
         }
 
-        if (normalizedBreed.Contains("rottweiler") ||
-            normalizedBreed.Contains("doberman"))
+        if (rawBreed.Contains("rottweiler") ||
+            compactBreed.Contains("rottweiler") ||
+            rawBreed.Contains("doberman") ||
+            compactBreed.Contains("doberman"))
         {
             return BreedVisualArchetype.IronRott;
         }
 
-        if (normalizedBreed.Contains("akita") ||
-            normalizedBreed.Contains("spitz") ||
-            normalizedBreed.Contains("husky"))
+        if (rawBreed.Contains("akita") ||
+            compactBreed.Contains("akita") ||
+            rawBreed.Contains("spitz") ||
+            compactBreed.Contains("spitz") ||
+            rawBreed.Contains("husky") ||
+            compactBreed.Contains("husky"))
         {
             return BreedVisualArchetype.SpitzWarden;
         }
 
-        if (normalizedBreed.Contains("greyhound") ||
-            normalizedBreed.Contains("hound"))
+        if (rawBreed.Contains("greyhound") ||
+            compactBreed.Contains("greyhound") ||
+            rawBreed.Contains("hound") ||
+            compactBreed.Contains("hound"))
         {
             return BreedVisualArchetype.VelocityHound;
         }
 
-        return IsHybridBreedText(normalizedBreed)
+        return IsHybridBreedText(breedText)
             ? BreedVisualArchetype.HybridVariant
             : BreedVisualArchetype.Unknown;
     }
@@ -3655,6 +3750,84 @@ public class FightPresentationManager : MonoBehaviour
         return dog != null ? dog.breed : string.Empty;
     }
 
+    string GetRawNormalizedBreedText(string breedText)
+    {
+        return string.IsNullOrWhiteSpace(breedText)
+            ? string.Empty
+            : breedText.Trim().ToLowerInvariant();
+    }
+
+    string GetSeparatorNormalizedBreedText(string breedText)
+    {
+        string rawBreed = GetRawNormalizedBreedText(breedText);
+
+        if (string.IsNullOrEmpty(rawBreed))
+        {
+            return string.Empty;
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder(rawBreed.Length);
+        bool previousWasSpace = false;
+
+        for (int i = 0; i < rawBreed.Length; i++)
+        {
+            char breedCharacter = rawBreed[i];
+            bool isSeparator = char.IsWhiteSpace(breedCharacter) ||
+                               breedCharacter == '_' ||
+                               breedCharacter == '-' ||
+                               breedCharacter == '/' ||
+                               breedCharacter == '\\' ||
+                               breedCharacter == '\'';
+
+            if (isSeparator)
+            {
+                if (!previousWasSpace && builder.Length > 0)
+                {
+                    builder.Append(' ');
+                    previousWasSpace = true;
+                }
+
+                continue;
+            }
+
+            builder.Append(breedCharacter);
+            previousWasSpace = false;
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    string GetCompactBreedText(string breedText)
+    {
+        string rawBreed = GetRawNormalizedBreedText(breedText);
+
+        if (string.IsNullOrEmpty(rawBreed))
+        {
+            return string.Empty;
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder(rawBreed.Length);
+
+        for (int i = 0; i < rawBreed.Length; i++)
+        {
+            char breedCharacter = rawBreed[i];
+
+            if (char.IsWhiteSpace(breedCharacter) ||
+                breedCharacter == '_' ||
+                breedCharacter == '-' ||
+                breedCharacter == '/' ||
+                breedCharacter == '\\' ||
+                breedCharacter == '\'')
+            {
+                continue;
+            }
+
+            builder.Append(breedCharacter);
+        }
+
+        return builder.ToString();
+    }
+
     bool IsHybridBreedText(string breedText)
     {
         if (string.IsNullOrWhiteSpace(breedText))
@@ -3662,12 +3835,18 @@ public class FightPresentationManager : MonoBehaviour
             return false;
         }
 
-        string normalizedBreed = breedText.Trim().ToLowerInvariant();
-        return normalizedBreed.Contains("hybrid") ||
-               normalizedBreed.Contains("mix") ||
-               normalizedBreed.Contains("mixed") ||
-               normalizedBreed.Contains("cross") ||
-               normalizedBreed.Contains(" x ");
+        string rawBreed = GetRawNormalizedBreedText(breedText);
+        string separatorNormalizedBreed = GetSeparatorNormalizedBreedText(breedText);
+        string compactBreed = GetCompactBreedText(breedText);
+
+        return rawBreed.Contains("hybrid") ||
+               rawBreed.Contains("mix") ||
+               rawBreed.Contains("mixed") ||
+               rawBreed.Contains("cross") ||
+               separatorNormalizedBreed.Contains(" x ") ||
+               compactBreed.Contains("hybrid") ||
+               compactBreed.Contains("mixed") ||
+               compactBreed.Contains("cross");
     }
 
     void ApplyBreedArchetypeVisuals(Dog dog, ref Color color, ref Vector3 scale)
