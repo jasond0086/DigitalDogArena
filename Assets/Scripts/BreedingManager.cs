@@ -247,7 +247,7 @@ public class BreedingManager : MonoBehaviour
         bool isHybrid = IsHybridBreed(parent1, parent2);
 
         return
-            $"Breed: {newborn.breed}\n" +
+            $"Breed: {GetDisplayBreedName(newborn.breed)}\n" +
             $"Hybrid: {(isHybrid ? "Yes" : "No")}\n" +
             $"Parents: {fatherBreed} x {motherBreed}\n\n";
     }
@@ -271,12 +271,12 @@ public class BreedingManager : MonoBehaviour
     {
         if (parent1 != null && parent1.gender == gender)
         {
-            return parent1.breed;
+            return GetDisplayBreedName(parent1.breed);
         }
 
         if (parent2 != null && parent2.gender == gender)
         {
-            return parent2.breed;
+            return GetDisplayBreedName(parent2.breed);
         }
 
         return "Unknown";
@@ -860,7 +860,71 @@ public class BreedingManager : MonoBehaviour
 
     string GenerateBreed(Dog parent1, Dog parent2)
     {
-        return BreedLibrary.GetHybridBreedName(parent1.breed, parent2.breed);
+        return GetDisplayBreedName(BreedLibrary.GetHybridBreedName(parent1.breed, parent2.breed));
+    }
+
+    string GetDisplayBreedName(string breedName)
+    {
+        string compactBreed = GetCompactBreedName(breedName);
+
+        switch (compactBreed)
+        {
+            case "germanbull":
+                return "German Bull Hybrid";
+
+            case "germanbully":
+                return "German Bully Hybrid";
+
+            case "shepherdbull":
+                return "Shepherd Bull Hybrid";
+
+            case "shepherdbully":
+                return "Shepherd Bully Hybrid";
+
+            case "pitgerman":
+                return "Pit German Hybrid";
+
+            case "pitshepherd":
+                return "Pit Shepherd Hybrid";
+
+            case "bullshepherd":
+                return "Bull Shepherd Hybrid";
+
+            case "bullyshepherd":
+                return "Bully Shepherd Hybrid";
+
+            default:
+                return string.IsNullOrWhiteSpace(breedName) ? "Unknown" : breedName.Trim();
+        }
+    }
+
+    string GetCompactBreedName(string breedName)
+    {
+        if (string.IsNullOrWhiteSpace(breedName))
+        {
+            return string.Empty;
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder(breedName.Length);
+
+        for (int i = 0; i < breedName.Length; i++)
+        {
+            char breedCharacter = char.ToLowerInvariant(breedName[i]);
+
+            if (char.IsWhiteSpace(breedCharacter) ||
+                breedCharacter == '_' ||
+                breedCharacter == '-' ||
+                breedCharacter == '/' ||
+                breedCharacter == '\\' ||
+                breedCharacter == '\'')
+            {
+                continue;
+            }
+
+            builder.Append(breedCharacter);
+        }
+
+        return builder.ToString();
     }
 
     string GenerateName()
