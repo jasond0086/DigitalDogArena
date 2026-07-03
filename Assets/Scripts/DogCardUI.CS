@@ -42,7 +42,7 @@ public class DogCardUI : MonoBehaviour
             string breedingStatus = GetBreedingStatusText();
 
             statsText.text =
-                $"Breed: {dog.breed}\n" +
+                $"Breed: {GetDisplayBreedName(dog.breed)}\n" +
                 $"Gender: {dog.gender}\n" +
                 $"Age {dog.age} | {dog.GetLifeStage()}\n" +
                 $"{dog.GetStatusText()} | {breedingStatus}\n" +
@@ -113,5 +113,69 @@ public class DogCardUI : MonoBehaviour
         }
 
         return text;
+    }
+
+    string GetDisplayBreedName(string breedName)
+    {
+        string compactBreed = GetCompactBreedName(breedName);
+
+        switch (compactBreed)
+        {
+            case "germanbull":
+                return "German Bull Hybrid";
+
+            case "germanbully":
+                return "German Bully Hybrid";
+
+            case "shepherdbull":
+                return "Shepherd Bull Hybrid";
+
+            case "shepherdbully":
+                return "Shepherd Bully Hybrid";
+
+            case "pitgerman":
+                return "Pit German Hybrid";
+
+            case "pitshepherd":
+                return "Pit Shepherd Hybrid";
+
+            case "bullshepherd":
+                return "Bull Shepherd Hybrid";
+
+            case "bullyshepherd":
+                return "Bully Shepherd Hybrid";
+
+            default:
+                return string.IsNullOrWhiteSpace(breedName) ? "Unknown" : breedName.Trim();
+        }
+    }
+
+    string GetCompactBreedName(string breedName)
+    {
+        if (string.IsNullOrWhiteSpace(breedName))
+        {
+            return string.Empty;
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder(breedName.Length);
+
+        for (int i = 0; i < breedName.Length; i++)
+        {
+            char breedCharacter = char.ToLowerInvariant(breedName[i]);
+
+            if (char.IsWhiteSpace(breedCharacter) ||
+                breedCharacter == '_' ||
+                breedCharacter == '-' ||
+                breedCharacter == '/' ||
+                breedCharacter == '\\' ||
+                breedCharacter == '\'')
+            {
+                continue;
+            }
+
+            builder.Append(breedCharacter);
+        }
+
+        return builder.ToString();
     }
 }
