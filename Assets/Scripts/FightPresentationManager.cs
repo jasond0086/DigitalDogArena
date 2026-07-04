@@ -27,8 +27,11 @@ public class FightPresentationManager : MonoBehaviour
     private const bool ShowDogPortraitPlaceholders = false;
     private const float DogArtGroundY = 0.16f;
     private const float DogArtGroundPadding = 0.02f;
+    private const float ContactShadowY = DogArtGroundY + 0.008f;
+    private const int ContactShadowSegmentCount = 40;
     private const float DogImprintFallbackVerticalOffset = -0.48f;
     private const float BreedArchetypeArtForwardOffset = -0.42f;
+    private const float ContactShadowForwardOffset = BreedArchetypeArtForwardOffset * 0.45f;
     private const float BreedArchetypeArtBaseScale = 0.9f;
     private const float BreedArchetypeSpriteTargetHeight = 1.56f;
     private const float BreedArchetypeSpriteMaxWidth = 2f;
@@ -71,6 +74,8 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject fighterBDogImprintArt;
     private GameObject fighterABreedArchetypeArt;
     private GameObject fighterBBreedArchetypeArt;
+    private GameObject fighterAContactShadow;
+    private GameObject fighterBContactShadow;
     private Dog currentDogImprintA;
     private Dog currentDogImprintB;
     private bool attemptedDogImprintLoad;
@@ -104,6 +109,8 @@ public class FightPresentationManager : MonoBehaviour
     private bool warnedMissingDogSpriteB;
     private Dog[] cachedDogPortraitResourceDogs;
     private Material portraitSpriteMaterial;
+    private Material contactShadowMaterial;
+    private Mesh contactShadowMesh;
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
@@ -125,6 +132,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         ReleasePresentationRenderTexture();
         ReleasePortraitSpriteMaterial();
+        ReleaseContactShadowResources();
     }
 
     public void ShowPlaceholderArena(Dog dogA, Dog dogB)
@@ -155,6 +163,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateHealthBarsIfNeeded();
         CreateRoundStatusBannerIfNeeded();
         CreateDogPortraitBillboardsIfNeeded();
+        CreateContactShadowsIfNeeded();
         HideImpactEffects();
         HideStrategyEffects();
         HideRoundStatusBanner();
@@ -181,6 +190,7 @@ public class FightPresentationManager : MonoBehaviour
         HideStrategyEffects();
         SetDogImprintArtVisible(false);
         SetBreedArchetypeArtVisible(false);
+        SetContactShadowVisible(false);
         HideDogPortraitBillboards();
 
         if (arenaRoot != null)
@@ -939,6 +949,37 @@ public class FightPresentationManager : MonoBehaviour
         portraitSpriteMaterial = null;
     }
 
+    void ReleaseContactShadowResources()
+    {
+        if (contactShadowMaterial != null)
+        {
+            if (Application.isPlaying)
+            {
+                Destroy(contactShadowMaterial);
+            }
+            else
+            {
+                DestroyImmediate(contactShadowMaterial);
+            }
+
+            contactShadowMaterial = null;
+        }
+
+        if (contactShadowMesh != null)
+        {
+            if (Application.isPlaying)
+            {
+                Destroy(contactShadowMesh);
+            }
+            else
+            {
+                DestroyImmediate(contactShadowMesh);
+            }
+
+            contactShadowMesh = null;
+        }
+    }
+
     void ConfigurePresentationCamera()
     {
         if (presentationCamera == null)
@@ -1328,6 +1369,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateDogImprintArtIfNeeded();
+        CreateContactShadowsIfNeeded();
         CreateMarker("CenterMarker", new Vector3(0f, 0.08f, 0f), new Color(0.75f, 1f, 1f));
 
         arenaObjectsCreated = true;
@@ -1508,6 +1550,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         UpdateBreedArchetypeArtPositions();
+        UpdateFighterContactShadows();
     }
 
     GameObject CreateSingleBreedArchetypeArt(string objectName)
@@ -1584,6 +1627,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         UpdateBreedArchetypeArtPositions();
+        UpdateFighterContactShadows();
     }
 
     void UpdateSingleDogImprintArtPosition(GameObject artObject, Transform fighterTransform, bool isFighterA)
@@ -1762,6 +1806,319 @@ public class FightPresentationManager : MonoBehaviour
             case BreedVisualArchetype.Unknown:
             default:
                 return Vector3.one;
+        }
+    }
+
+    void CreateContactShadowsIfNeeded()
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        if (fighterAContactShadow == null)
+        {
+            fighterAContactShadow = CreateFighterContactShadow("FighterA_ContactShadow");
+        }
+
+        if (fighterBContactShadow == null)
+        {
+            fighterBContactShadow = CreateFighterContactShadow("FighterB_ContactShadow");
+        }
+    }
+
+    GameObject CreateFighterContactShadow(string objectName)
+    {
+        Transform existingShadow = arenaRoot.transform.Find(objectName);
+        GameObject shadowObject;
+
+        if (existingShadow != null)
+        {
+            shadowObject = existingShadow.gameObject;
+        }
+        else
+        {
+            shadowObject = new GameObject(objectName);
+            shadowObject.transform.SetParent(arenaRoot.transform);
+        }
+
+        shadowObject.hideFlags = HideFlags.DontSave;
+
+        MeshFilter shadowFilter = shadowObject.GetComponent<MeshFilter>();
+
+        if (shadowFilter == null)
+        {
+            shadowFilter = shadowObject.AddComponent<MeshFilter>();
+        }
+
+        shadowFilter.sharedMesh = EnsureContactShadowMesh();
+
+        MeshRenderer shadowRenderer = shadowObject.GetComponent<MeshRenderer>();
+
+        if (shadowRenderer == null)
+        {
+            shadowRenderer = shadowObject.AddComponent<MeshRenderer>();
+        }
+
+        shadowRenderer.sharedMaterial = EnsureContactShadowMaterial();
+        shadowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        shadowRenderer.receiveShadows = false;
+        shadowRenderer.allowOcclusionWhenDynamic = false;
+
+        Collider shadowCollider = shadowObject.GetComponent<Collider>();
+
+        if (shadowCollider != null)
+        {
+            if (Application.isPlaying)
+            {
+                Destroy(shadowCollider);
+            }
+            else
+            {
+                DestroyImmediate(shadowCollider);
+            }
+        }
+
+        shadowObject.transform.localRotation = Quaternion.identity;
+        shadowObject.SetActive(false);
+        return shadowObject;
+    }
+
+    Mesh EnsureContactShadowMesh()
+    {
+        if (contactShadowMesh != null)
+        {
+            return contactShadowMesh;
+        }
+
+        int segmentCount = Mathf.Max(12, ContactShadowSegmentCount);
+        Vector3[] vertices = new Vector3[segmentCount + 1];
+        Vector2[] uvs = new Vector2[segmentCount + 1];
+        int[] triangles = new int[segmentCount * 3];
+
+        vertices[0] = Vector3.zero;
+        uvs[0] = new Vector2(0.5f, 0.5f);
+
+        for (int i = 0; i < segmentCount; i++)
+        {
+            float angle = (Mathf.PI * 2f * i) / segmentCount;
+            float x = Mathf.Cos(angle) * 0.5f;
+            float z = Mathf.Sin(angle) * 0.5f;
+
+            vertices[i + 1] = new Vector3(x, 0f, z);
+            uvs[i + 1] = new Vector2(0.5f + x, 0.5f + z);
+
+            int nextVertex = i == segmentCount - 1 ? 1 : i + 2;
+            int triangleIndex = i * 3;
+
+            triangles[triangleIndex] = 0;
+            triangles[triangleIndex + 1] = nextVertex;
+            triangles[triangleIndex + 2] = i + 1;
+        }
+
+        contactShadowMesh = new Mesh();
+        contactShadowMesh.name = "RuntimeContactShadowEllipse";
+        contactShadowMesh.hideFlags = HideFlags.DontSave;
+        contactShadowMesh.vertices = vertices;
+        contactShadowMesh.uv = uvs;
+        contactShadowMesh.triangles = triangles;
+        contactShadowMesh.RecalculateNormals();
+        contactShadowMesh.RecalculateBounds();
+        return contactShadowMesh;
+    }
+
+    Material EnsureContactShadowMaterial()
+    {
+        if (contactShadowMaterial != null)
+        {
+            return contactShadowMaterial;
+        }
+
+        Shader shadowShader = Shader.Find("Universal Render Pipeline/Unlit");
+
+        if (shadowShader == null)
+        {
+            shadowShader = Shader.Find("Unlit/Transparent");
+        }
+
+        if (shadowShader == null)
+        {
+            shadowShader = Shader.Find("Sprites/Default");
+        }
+
+        if (shadowShader == null)
+        {
+            shadowShader = Shader.Find("Unlit/Color");
+        }
+
+        if (shadowShader == null)
+        {
+            shadowShader = Shader.Find("Standard");
+        }
+
+        if (shadowShader == null)
+        {
+            return null;
+        }
+
+        contactShadowMaterial = new Material(shadowShader);
+
+        contactShadowMaterial.name = "RuntimeContactShadowMaterial";
+        contactShadowMaterial.hideFlags = HideFlags.DontSave;
+        Color shadowColor = new Color(0.06f, 0.18f, 0.22f, 0.5f);
+
+        contactShadowMaterial.color = shadowColor;
+
+        if (contactShadowMaterial.HasProperty("_BaseColor"))
+        {
+            contactShadowMaterial.SetColor("_BaseColor", shadowColor);
+        }
+
+        if (contactShadowMaterial.HasProperty("_Color"))
+        {
+            contactShadowMaterial.SetColor("_Color", shadowColor);
+        }
+
+        ConfigureContactShadowMaterialForTransparency(contactShadowMaterial);
+        return contactShadowMaterial;
+    }
+
+    void ConfigureContactShadowMaterialForTransparency(Material shadowMaterial)
+    {
+        if (shadowMaterial == null)
+        {
+            return;
+        }
+
+        if (shadowMaterial.HasProperty("_Surface"))
+        {
+            shadowMaterial.SetFloat("_Surface", 1f);
+        }
+
+        if (shadowMaterial.HasProperty("_Blend"))
+        {
+            shadowMaterial.SetFloat("_Blend", 0f);
+        }
+
+        if (shadowMaterial.HasProperty("_AlphaClip"))
+        {
+            shadowMaterial.SetFloat("_AlphaClip", 0f);
+        }
+
+        if (shadowMaterial.HasProperty("_SrcBlend"))
+        {
+            shadowMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        }
+
+        if (shadowMaterial.HasProperty("_DstBlend"))
+        {
+            shadowMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        }
+
+        if (shadowMaterial.HasProperty("_ZWrite"))
+        {
+            shadowMaterial.SetFloat("_ZWrite", 0f);
+        }
+
+        shadowMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        shadowMaterial.EnableKeyword("_ALPHABLEND_ON");
+        shadowMaterial.DisableKeyword("_ALPHATEST_ON");
+        shadowMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+    }
+
+    void UpdateFighterContactShadows()
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateContactShadowsIfNeeded();
+        UpdateFighterContactShadow(fighterAContactShadow, fighterATransform, currentDogImprintA);
+        UpdateFighterContactShadow(fighterBContactShadow, fighterBTransform, currentDogImprintB);
+    }
+
+    void UpdateFighterContactShadow(GameObject shadowObject, Transform fighterTransform, Dog dog)
+    {
+        if (shadowObject == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        BreedVisualArchetype archetype = ResolveBreedVisualArchetype(dog);
+        Vector3 fighterPosition = fighterTransform.localPosition;
+        shadowObject.transform.localPosition = new Vector3(
+            fighterPosition.x,
+            ContactShadowY,
+            fighterPosition.z + GetContactShadowForwardOffset(archetype)
+        );
+        shadowObject.transform.localRotation = Quaternion.identity;
+        shadowObject.transform.localScale = GetContactShadowScaleForArchetype(archetype);
+        shadowObject.SetActive(true);
+    }
+
+    float GetContactShadowForwardOffset(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.GuardMastiff:
+            case BreedVisualArchetype.IronRott:
+                return ContactShadowForwardOffset - 0.02f;
+
+            case BreedVisualArchetype.VelocityHound:
+                return ContactShadowForwardOffset - 0.04f;
+
+            case BreedVisualArchetype.BullyStriker:
+            case BreedVisualArchetype.SpitzWarden:
+            case BreedVisualArchetype.HybridVariant:
+            case BreedVisualArchetype.ShepherdSentinel:
+            case BreedVisualArchetype.Unknown:
+            default:
+                return ContactShadowForwardOffset;
+        }
+    }
+
+    Vector3 GetContactShadowScaleForArchetype(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.GuardMastiff:
+                return new Vector3(1.46f, 1f, 0.66f);
+
+            case BreedVisualArchetype.IronRott:
+                return new Vector3(1.34f, 1f, 0.58f);
+
+            case BreedVisualArchetype.VelocityHound:
+                return new Vector3(1.42f, 1f, 0.42f);
+
+            case BreedVisualArchetype.BullyStriker:
+                return new Vector3(1.28f, 1f, 0.54f);
+
+            case BreedVisualArchetype.SpitzWarden:
+                return new Vector3(1.12f, 1f, 0.5f);
+
+            case BreedVisualArchetype.HybridVariant:
+                return new Vector3(1.24f, 1f, 0.52f);
+
+            case BreedVisualArchetype.ShepherdSentinel:
+                return new Vector3(1.2f, 1f, 0.52f);
+
+            case BreedVisualArchetype.Unknown:
+            default:
+                return new Vector3(1.15f, 1f, 0.5f);
+        }
+    }
+
+    void SetContactShadowVisible(bool visible)
+    {
+        if (fighterAContactShadow != null)
+        {
+            fighterAContactShadow.SetActive(visible);
+        }
+
+        if (fighterBContactShadow != null)
+        {
+            fighterBContactShadow.SetActive(visible);
         }
     }
 
