@@ -38,7 +38,7 @@ public class FightPresentationManager : MonoBehaviour
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
-    private const float RoundActionDurationSeconds = 0.8f;
+    private const float RoundActionDurationSeconds = 1.6f;
     private const float CinematicHitFreezeMinSeconds = 0.018f;
     private const float CinematicHitFreezeMaxSeconds = 0.07f;
     private const int PresentationRenderTextureWidth = 1280;
@@ -114,6 +114,7 @@ public class FightPresentationManager : MonoBehaviour
     private Coroutine scanIntroCoroutine;
     private Coroutine cameraMoveCoroutine;
     private Coroutine roundAnimationCoroutine;
+    private Coroutine delayedResultPresentationCoroutine;
     private Coroutine cinematicCameraCoroutine;
     private Coroutine cameraBeatCoroutine;
     private Coroutine arenaPulseCoroutine;
@@ -182,6 +183,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         EnsureArenaRoot();
         StopRoundAnimationIfRunning();
+        StopDelayedResultPresentationIfRunning();
         StopCameraBeatIfRunning();
         StopCinematicCameraIfRunning();
         StopArenaPulseIfRunning();
@@ -379,13 +381,29 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         SetCurrentDogImprintIdentity(dogA, dogB);
-        PresentRound(roundNumber, dogA, dogB, dogAHealth, dogBHealth);
+        EnsureArenaRoot();
+
+        if (arenaRoot == null)
+        {
+            Debug.LogWarning("FightPresentationManager could not present round action because ArenaRoot was missing.");
+            return;
+        }
+
+        CreateArenaObjectsIfNeeded();
+        CreateDogImprintArtIfNeeded();
+        CreateArenaImpactEffectsIfNeeded();
+        CreateCorruptionNodesIfNeeded();
+        CreateHealthBarsIfNeeded();
+        CreateRoundStatusBannerIfNeeded();
+        CreateDogPortraitBillboardsIfNeeded();
+        CreateContactShadowsIfNeeded();
+        arenaRoot.SetActive(true);
+        SetFightPresentationViewportVisible(true);
         StopRoundAnimationIfRunning();
+        StopDelayedResultPresentationIfRunning();
         ResetFighterArenaPositions();
         HideStrategyEffects();
-        UpdateDogPortraitBillboards(dogA, dogB);
-        UpdateArenaLabels(dogA, dogB);
-        UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+        UpdateMovingFighterVisualPositions(dogA, dogB, dogAHealth, dogBHealth);
         UpdateRoundStatusBanner(roundNumber, dogAHealth, dogBHealth, dogAImpact, dogBImpact, false, dogAStrategy, dogBStrategy, dogAStyle, dogBStyle);
         FrameArena();
 
@@ -417,6 +435,13 @@ public class FightPresentationManager : MonoBehaviour
         if (arenaRoot == null)
         {
             Debug.LogWarning("FightPresentationManager could not present result because ArenaRoot was missing.");
+            return;
+        }
+
+        if (roundAnimationCoroutine != null)
+        {
+            StopDelayedResultPresentationIfRunning();
+            delayedResultPresentationCoroutine = StartCoroutine(PresentFightResultAfterRoundAnimation(dogA, dogB, dogAHealth, dogBHealth));
             return;
         }
 
@@ -491,6 +516,28 @@ public class FightPresentationManager : MonoBehaviour
         UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
         PlayResultCinematic(null, true, drawBannerText);
         Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
+    }
+
+    IEnumerator PresentFightResultAfterRoundAnimation(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
+    {
+        while (roundAnimationCoroutine != null)
+        {
+            yield return null;
+        }
+
+        delayedResultPresentationCoroutine = null;
+        PresentFightResult(dogA, dogB, dogAHealth, dogBHealth);
+    }
+
+    void StopDelayedResultPresentationIfRunning()
+    {
+        if (delayedResultPresentationCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(delayedResultPresentationCoroutine);
+        delayedResultPresentationCoroutine = null;
     }
 
     void EnsureArenaRoot()
@@ -4046,7 +4093,7 @@ public class FightPresentationManager : MonoBehaviour
         visualMaxHealthB = 0;
     }
 
-    void UpdateImprintCorruptionVisuals(int dogAHealth, int dogBHealth)
+    void UpdateImprintCorruptionVisuals(int dogAHealth, int dogBHealth, bool refreshBreedArt = true)
     {
         if (arenaRoot == null)
         {
@@ -4062,9 +4109,12 @@ public class FightPresentationManager : MonoBehaviour
         UpdateDogImprintArtPositions();
         ApplyDogIdentityVisuals(fighterADogImprintArt, currentDogImprintA, dogAHealth, visualMaxHealthA, true);
         ApplyDogIdentityVisuals(fighterBDogImprintArt, currentDogImprintB, dogBHealth, visualMaxHealthB, false);
-        CreateBreedArchetypeArtIfNeeded();
-        ApplyBreedArchetypeArtToFighter(fighterABreedArchetypeArt, currentDogImprintA, true, dogAHealth, visualMaxHealthA);
-        ApplyBreedArchetypeArtToFighter(fighterBBreedArchetypeArt, currentDogImprintB, false, dogBHealth, visualMaxHealthB);
+        if (refreshBreedArt)
+        {
+            CreateBreedArchetypeArtIfNeeded();
+            ApplyBreedArchetypeArtToFighter(fighterABreedArchetypeArt, currentDogImprintA, true, dogAHealth, visualMaxHealthA);
+            ApplyBreedArchetypeArtToFighter(fighterBBreedArchetypeArt, currentDogImprintB, false, dogBHealth, visualMaxHealthB);
+        }
         UpdateHealthBars(dogAHealth, dogBHealth);
         UpdatePortraitFrameVisuals(dogAHealth, dogBHealth);
     }
@@ -5042,12 +5092,12 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        impactSparkA = CreateArenaImpactEffectObject("ImpactSparkA", PrimitiveType.Sphere, new Vector3(0.7f, 0.7f, 0.7f), Color.red);
-        impactSparkB = CreateArenaImpactEffectObject("ImpactSparkB", PrimitiveType.Sphere, new Vector3(0.7f, 0.7f, 0.7f), Color.red);
-        corruptionNodeA = CreateArenaImpactEffectObject("CorruptionNodeA", PrimitiveType.Cube, new Vector3(0.5f, 0.5f, 0.5f), new Color(0.75f, 0.1f, 1f));
-        corruptionNodeB = CreateArenaImpactEffectObject("CorruptionNodeB", PrimitiveType.Cube, new Vector3(0.5f, 0.5f, 0.5f), new Color(0.75f, 0.1f, 1f));
-        impactRingA = CreateArenaImpactEffectObject("ImpactRingA", PrimitiveType.Cylinder, new Vector3(1.15f, 0.045f, 1.15f), new Color(1f, 0.45f, 0.05f));
-        impactRingB = CreateArenaImpactEffectObject("ImpactRingB", PrimitiveType.Cylinder, new Vector3(1.15f, 0.045f, 1.15f), new Color(1f, 0.45f, 0.05f));
+        impactSparkA = CreateArenaImpactEffectObject("ImpactSparkA", PrimitiveType.Sphere, new Vector3(0.32f, 0.32f, 0.32f), Color.red);
+        impactSparkB = CreateArenaImpactEffectObject("ImpactSparkB", PrimitiveType.Sphere, new Vector3(0.32f, 0.32f, 0.32f), Color.red);
+        corruptionNodeA = CreateArenaImpactEffectObject("CorruptionNodeA", PrimitiveType.Cube, new Vector3(0.24f, 0.24f, 0.24f), new Color(0.75f, 0.1f, 1f));
+        corruptionNodeB = CreateArenaImpactEffectObject("CorruptionNodeB", PrimitiveType.Cube, new Vector3(0.24f, 0.24f, 0.24f), new Color(0.75f, 0.1f, 1f));
+        impactRingA = CreateArenaImpactEffectObject("ImpactRingA", PrimitiveType.Cylinder, new Vector3(0.62f, 0.025f, 0.62f), new Color(1f, 0.45f, 0.05f));
+        impactRingB = CreateArenaImpactEffectObject("ImpactRingB", PrimitiveType.Cylinder, new Vector3(0.62f, 0.025f, 0.62f), new Color(1f, 0.45f, 0.05f));
 
         arenaImpactEffectsCreated = true;
         HideImpactEffects();
@@ -5127,7 +5177,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         float intensity = Mathf.InverseLerp(1f, 35f, impact);
-        float scaleMultiplier = Mathf.Lerp(1.05f, 2.35f, intensity);
+        float scaleMultiplier = Mathf.Lerp(0.75f, 1.35f, intensity);
         effectObject.transform.localScale = baseScale * scaleMultiplier;
     }
 
@@ -5617,8 +5667,15 @@ public class FightPresentationManager : MonoBehaviour
         Color accentColor = GetDominantStyleAccentColor(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
         string clashMessage = GetClashMessage(dogAImpact, dogBImpact, severity);
 
-        PulseArena(severity, accentColor);
-        PlayCameraPunchAndShake(severity);
+        if (severity >= 2)
+        {
+            PulseArena(severity, accentColor);
+        }
+
+        if (severity >= 3)
+        {
+            PlayCameraPunchAndShake(severity);
+        }
 
         if (severity >= 2 && !string.IsNullOrEmpty(clashMessage))
         {
@@ -5725,29 +5782,20 @@ public class FightPresentationManager : MonoBehaviour
         CreateStrategyEffectsIfNeeded();
         HideImpactEffects();
         HideStrategyEffects();
-        ShowStrategyEffect(fighterATransform, dogAStrategy, "A", roundNumber);
-        ShowStrategyEffect(fighterBTransform, dogBStrategy, "B", roundNumber);
-        ApplyStyleVisualModifier(fighterATransform, dogAStyle, "A", roundNumber, dogAImpact);
-        ApplyStyleVisualModifier(fighterBTransform, dogBStyle, "B", roundNumber, dogBImpact);
-
-        if (dogAImpact > 0)
-        {
-            ShowImpactEffect(fighterBTransform, GetStyleImpactVisualIntensity(dogAStyle, GetStrategyImpactVisualIntensity(dogAStrategy, dogAImpact, roundNumber), roundNumber), "B");
-        }
-
-        if (dogBImpact > 0)
-        {
-            ShowImpactEffect(fighterATransform, GetStyleImpactVisualIntensity(dogBStyle, GetStrategyImpactVisualIntensity(dogBStrategy, dogBImpact, roundNumber), roundNumber), "A");
-        }
-
-        FrameAttackerBeat(dogAImpact, dogBImpact, fighterAImpactPosition, fighterBImpactPosition);
 
         bool hasWindup = Vector3.Distance(fighterAHome, fighterAWindupPosition) > 0.01f ||
                          Vector3.Distance(fighterBHome, fighterBWindupPosition) > 0.01f;
-        float styleSpeedMultiplier = Mathf.Max(GetStyleSpeedMultiplier(dogAStyle), GetStyleSpeedMultiplier(dogBStyle));
-        float adjustedRoundDuration = RoundActionDurationSeconds / Mathf.Max(0.5f, styleSpeedMultiplier);
-        float windupDuration = hasWindup ? adjustedRoundDuration * 0.24f : 0f;
-        float strikeDuration = adjustedRoundDuration * (hasWindup ? 0.46f : 0.52f);
+
+        if (!hasWindup && (dogAImpact > 0 || dogBImpact > 0))
+        {
+            fighterAWindupPosition = GetDefaultReadableWindupPosition(fighterAHome, 1f, dogAImpact);
+            fighterBWindupPosition = GetDefaultReadableWindupPosition(fighterBHome, -1f, dogBImpact);
+            hasWindup = true;
+        }
+
+        float adjustedRoundDuration = RoundActionDurationSeconds;
+        float windupDuration = hasWindup ? adjustedRoundDuration * 0.3f : 0f;
+        float strikeDuration = adjustedRoundDuration * (hasWindup ? 0.5f : 0.58f);
         float resetDuration = adjustedRoundDuration - windupDuration - strikeDuration;
 
         if (hasWindup)
@@ -5756,6 +5804,12 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAWindupPosition, fighterBWindupPosition, fighterAImpactPosition, fighterBImpactPosition, strikeDuration, dogAStyle, dogBStyle, roundNumber);
+        yield return HoldFightersAtPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, 0.16f, dogAStyle, dogBStyle, roundNumber);
+        ShowStrategyEffect(fighterATransform, dogAStrategy, "A", roundNumber);
+        ShowStrategyEffect(fighterBTransform, dogBStrategy, "B", roundNumber);
+        ApplyStyleVisualModifier(fighterATransform, dogAStyle, "A", roundNumber, dogAImpact);
+        ApplyStyleVisualModifier(fighterBTransform, dogBStyle, "B", roundNumber, dogBImpact);
+        ShowRoundImpactEffects(dogAImpact, dogBImpact, dogAStrategy, dogBStrategy, dogAStyle, dogBStyle, roundNumber);
         yield return PlayCinematicHitBeat(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
         yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, Mathf.Max(0.05f, resetDuration), dogAStyle, dogBStyle, roundNumber);
 
@@ -5802,13 +5856,88 @@ public class FightPresentationManager : MonoBehaviour
                 fighterBTransform.localPosition = Vector3.Lerp(fighterBStart, fighterBTarget, smoothProgress);
             }
 
-            UpdateArenaLabels(dogA, dogB);
-            UpdateDogPortraitBillboards(dogA, dogB);
-            UpdateImprintCorruptionVisuals(dogAHealth, dogBHealth);
+            UpdateMovingFighterVisualPositions(dogA, dogB, dogAHealth, dogBHealth);
             UpdateStrategyEffectPositions();
             UpdateStyleEffectVisuals(dogAStyle, dogBStyle, roundNumber, elapsedTime);
             yield return null;
         }
+    }
+
+    IEnumerator HoldFightersAtPositions(
+        Dog dogA,
+        Dog dogB,
+        int dogAHealth,
+        int dogBHealth,
+        Vector3 fighterAPosition,
+        Vector3 fighterBPosition,
+        float duration,
+        FightStyle dogAStyle,
+        FightStyle dogBStyle,
+        int roundNumber
+    )
+    {
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+
+            if (fighterATransform != null)
+            {
+                fighterATransform.localPosition = fighterAPosition;
+            }
+
+            if (fighterBTransform != null)
+            {
+                fighterBTransform.localPosition = fighterBPosition;
+            }
+
+            UpdateMovingFighterVisualPositions(dogA, dogB, dogAHealth, dogBHealth);
+            UpdateStrategyEffectPositions();
+            UpdateStyleEffectVisuals(dogAStyle, dogBStyle, roundNumber, elapsedTime);
+            yield return null;
+        }
+    }
+
+    void UpdateMovingFighterVisualPositions(Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
+    {
+        if (dogImprintPrefab != null)
+        {
+            UpdateSingleDogImprintArtPosition(fighterADogImprintArt, fighterATransform, true);
+            UpdateSingleDogImprintArtPosition(fighterBDogImprintArt, fighterBTransform, false);
+        }
+
+        UpdateSingleBreedArchetypeArtPosition(fighterABreedArchetypeArt, fighterATransform, currentDogImprintA);
+        UpdateSingleBreedArchetypeArtPosition(fighterBBreedArchetypeArt, fighterBTransform, currentDogImprintB);
+        FaceBreedArchetypeArtsTowardPresentationCamera();
+        UpdateFighterFacingDirections();
+        UpdateFighterContactShadows();
+        UpdatePortraitBillboardPositions();
+        FacePortraitsTowardPresentationCamera();
+        UpdateArenaLabels(dogA, dogB);
+        UpdateHealthBarPositionsOnly();
+    }
+
+    void UpdateHealthBarPositionsOnly()
+    {
+        UpdateSingleHealthBarPositionOnly(healthBarBackgroundA, healthBarFillA, fighterATransform, -1);
+        UpdateSingleHealthBarPositionOnly(healthBarBackgroundB, healthBarFillB, fighterBTransform, 1);
+    }
+
+    void UpdateSingleHealthBarPositionOnly(GameObject backgroundBar, GameObject fillBar, Transform fighterTransform, int fillDirection)
+    {
+        if (backgroundBar == null || fillBar == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        Vector3 basePosition = PositionHealthBarAboveFighter(fighterTransform);
+        float fullWidth = Mathf.Max(0.05f, Mathf.Abs(backgroundBar.transform.localScale.x));
+        float fillWidth = Mathf.Max(0.05f, Mathf.Abs(fillBar.transform.localScale.x));
+        float fillOffset = ((fullWidth - fillWidth) * 0.5f) * fillDirection;
+
+        backgroundBar.transform.localPosition = basePosition;
+        fillBar.transform.localPosition = basePosition + new Vector3(fillOffset, 0.02f, -0.02f);
     }
 
     void StopRoundAnimationIfRunning()
@@ -5936,6 +6065,50 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
+    Vector3 GetDefaultReadableWindupPosition(Vector3 homePosition, float forwardDirection, int impact)
+    {
+        if (impact <= 0)
+        {
+            return homePosition;
+        }
+
+        float pullbackDistance = Mathf.Clamp(0.16f + (impact * 0.004f), 0.16f, 0.28f);
+        return homePosition + new Vector3(-forwardDirection * pullbackDistance, 0f, 0f);
+    }
+
+    void ShowRoundImpactEffects(
+        int dogAImpact,
+        int dogBImpact,
+        FightStrategy dogAStrategy,
+        FightStrategy dogBStrategy,
+        FightStyle dogAStyle,
+        FightStyle dogBStyle,
+        int roundNumber
+    )
+    {
+        CreateArenaImpactEffectsIfNeeded();
+
+        if (dogAImpact > 0)
+        {
+            int visualImpact = GetStyleImpactVisualIntensity(
+                dogAStyle,
+                GetStrategyImpactVisualIntensity(dogAStrategy, dogAImpact, roundNumber),
+                roundNumber
+            );
+            ShowImpactEffect(fighterBTransform, visualImpact, "B");
+        }
+
+        if (dogBImpact > 0)
+        {
+            int visualImpact = GetStyleImpactVisualIntensity(
+                dogBStyle,
+                GetStrategyImpactVisualIntensity(dogBStrategy, dogBImpact, roundNumber),
+                roundNumber
+            );
+            ShowImpactEffect(fighterATransform, visualImpact, "A");
+        }
+    }
+
     float GetImpactLungeDistance(int impact)
     {
         if (impact <= 0)
@@ -5943,7 +6116,7 @@ public class FightPresentationManager : MonoBehaviour
             return 0f;
         }
 
-        return Mathf.Clamp(0.25f + (impact * 0.015f), 0.25f, 0.7f);
+        return Mathf.Clamp(0.42f + (impact * 0.022f), 0.42f, 1.05f);
     }
 
     float GetImpactRecoilDistance(int incomingImpact, int ownImpact)
