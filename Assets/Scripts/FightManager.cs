@@ -230,18 +230,11 @@ public class FightManager : MonoBehaviour
         FightStrategy strategy1 = dogManager.fighter1Strategy;
         FightStrategy strategy2 = dogManager.fighter2Strategy;
 
-        int rawDmg1 = Random.Range(
-            activeFighter1.strength - damageVariance,
-            activeFighter1.strength + damageVariance + 1
-        ) - (activeFighter2.agility / 6);
+        float baseDamage1 = CalculateBaseDamage(activeFighter1);
+        float baseDamage2 = CalculateBaseDamage(activeFighter2);
 
-        int rawDmg2 = Random.Range(
-            activeFighter2.strength - damageVariance,
-            activeFighter2.strength + damageVariance + 1
-        ) - (activeFighter1.agility / 6);
-
-        int dmg1 = CalculateFinalDamage(activeFighter1, activeFighter2, rawDmg1, currentRound, strategy1, strategy2);
-        int dmg2 = CalculateFinalDamage(activeFighter2, activeFighter1, rawDmg2, currentRound, strategy2, strategy1);
+        int dmg1 = CalculateFinalDamage(activeFighter1, activeFighter2, baseDamage1, currentRound, strategy1, strategy2);
+        int dmg2 = CalculateFinalDamage(activeFighter2, activeFighter1, baseDamage2, currentRound, strategy2, strategy1);
 
         currentFighter2Health = Mathf.Max(0, currentFighter2Health - dmg1);
         currentFighter1Health = Mathf.Max(0, currentFighter1Health - dmg2);
@@ -567,96 +560,117 @@ public class FightManager : MonoBehaviour
 
     int CalculateStartingHealth(Dog dog)
     {
-        int health = dog.stamina * healthMultiplier;
+        float health = CalculateMaxHealth(dog);
 
         if (HasTrait(dog, DogTrait.Durable))
         {
-            health += Mathf.RoundToInt(dog.stamina * 0.25f);
+            health *= 1.12f;
         }
 
         if (HasTrait(dog, DogTrait.GlassCannon))
         {
-            health -= Mathf.RoundToInt(dog.stamina * 0.15f);
+            health *= 0.90f;
         }
 
-        return Mathf.Max(1, health);
+        return Mathf.Max(1, Mathf.RoundToInt(health));
     }
 
-        int CalculateFinalDamage(
+    float CalculateMaxHealth(Dog dog)
+    {
+        if (dog == null)
+        {
+            return 1f;
+        }
+
+        return 45f + (dog.stamina * 3f);
+    }
+
+    float CalculateBaseDamage(Dog attacker)
+    {
+        if (attacker == null)
+        {
+            return 1f;
+        }
+
+        return 3f + (attacker.strength * 0.85f) + (attacker.agility * 0.35f);
+    }
+
+    int CalculateFinalDamage(
         Dog attacker,
         Dog defender,
-        int baseDamage,
+        float baseDamage,
         int round,
         FightStrategy attackerStrategy,
         FightStrategy defenderStrategy
     )
     {
-        int damage = baseDamage;
+        float damage = Mathf.Max(1f, baseDamage);
 
         damage = ApplyStyleModifier(attacker, defender, damage, round);
         damage = ApplyAttackerStrategy(attackerStrategy, defenderStrategy, damage, round);
         damage = ApplyDefenderStrategy(defenderStrategy, damage, round);
+        damage = ApplyDefenderAgilityMitigation(defender, damage);
         damage = ApplyTraitModifiers(attacker, defender, damage, round);
+        damage = ApplyRandomDamageVariance(damage);
 
-        return Mathf.Max(0, damage);
+        return ClampFinalDamage(baseDamage, damage);
     }
 
-    int ApplyTraitModifiers(Dog attacker, Dog defender, int damage, int round)
+    float ApplyTraitModifiers(Dog attacker, Dog defender, float damage, int round)
     {
         if (HasTrait(attacker, DogTrait.Aggressive))
         {
-            damage += 5;
+            damage *= 1.08f;
         }
 
         if (HasTrait(attacker, DogTrait.GlassCannon))
         {
-            damage += 8;
+            damage *= 1.12f;
         }
 
         if (HasTrait(attacker, DogTrait.Clutch) && round >= maxRounds - 1)
         {
-            damage += 10;
+            damage *= 1.15f;
         }
 
         if (HasTrait(defender, DogTrait.Durable))
         {
-            damage -= 4;
+            damage *= 0.90f;
         }
 
         if (HasTrait(defender, DogTrait.GlassCannon))
         {
-            damage += 4;
+            damage *= 1.08f;
         }
 
         return damage;
     }
 
-    int ApplyStyleModifier(Dog attacker, Dog defender, int damage, int round)
+    float ApplyStyleModifier(Dog attacker, Dog defender, float damage, int round)
     {
         switch (attacker.fightStyle)
         {
             case FightStyle.Rushdown:
-                damage += round <= 2 ? 10 : -5;
+                damage *= round <= 2 ? 1.12f : 0.94f;
                 break;
 
             case FightStyle.Counter:
                 if (defender.fightStyle == FightStyle.Rushdown)
                 {
-                    damage += 10;
+                    damage *= 1.15f;
                 }
                 else if (defender.strength > attacker.strength)
                 {
-                    damage += 6;
+                    damage *= 1.08f;
                 }
                 break;
 
             case FightStyle.Tank:
-                damage -= 3;
-                damage = Mathf.Max(damage, attacker.strength / 3);
+                damage *= 0.94f;
                 break;
 
             case FightStyle.Wildcard:
-                damage += Random.Range(-15, 21);
+                damage *= Random.Range(0.92f, 1.13f);
                 break;
 
             case FightStyle.Balanced:
@@ -667,40 +681,40 @@ public class FightManager : MonoBehaviour
         return damage;
     }
 
-    int ApplyAttackerStrategy(
+    float ApplyAttackerStrategy(
         FightStrategy attackerStrategy,
         FightStrategy defenderStrategy,
-        int damage,
+        float damage,
         int round
     )
     {
         switch (attackerStrategy)
         {
             case FightStrategy.RushEarly:
-                damage += round <= 2 ? 8 : -4;
+                damage *= round <= 2 ? 1.15f : 0.92f;
                 break;
 
             case FightStrategy.CounterPlan:
                 if (defenderStrategy == FightStrategy.RushEarly || defenderStrategy == FightStrategy.AllIn)
                 {
-                    damage += 8;
+                    damage *= 1.18f;
                 }
                 else
                 {
-                    damage -= 2;
+                    damage *= 0.95f;
                 }
                 break;
 
             case FightStrategy.WearDown:
-                damage += round >= 4 ? 10 : -4;
+                damage *= round >= 4 ? 1.16f : 0.92f;
                 break;
 
             case FightStrategy.DefensiveShell:
-                damage -= 5;
+                damage *= 0.88f;
                 break;
 
             case FightStrategy.AllIn:
-                damage += Random.Range(6, 16);
+                damage *= Random.Range(1.12f, 1.24f);
                 break;
 
             case FightStrategy.Balanced:
@@ -711,23 +725,23 @@ public class FightManager : MonoBehaviour
         return damage;
     }
 
-    int ApplyDefenderStrategy(FightStrategy defenderStrategy, int incomingDamage, int round)
+    float ApplyDefenderStrategy(FightStrategy defenderStrategy, float incomingDamage, int round)
     {
         switch (defenderStrategy)
         {
             case FightStrategy.DefensiveShell:
-                incomingDamage -= 7;
+                incomingDamage *= 0.80f;
                 break;
 
             case FightStrategy.WearDown:
                 if (round >= 4)
                 {
-                    incomingDamage -= 4;
+                    incomingDamage *= 0.92f;
                 }
                 break;
 
             case FightStrategy.AllIn:
-                incomingDamage += 5;
+                incomingDamage *= 1.10f;
                 break;
 
             case FightStrategy.RushEarly:
@@ -738,6 +752,29 @@ public class FightManager : MonoBehaviour
         }
 
         return incomingDamage;
+    }
+
+    float ApplyDefenderAgilityMitigation(Dog defender, float incomingDamage)
+    {
+        if (defender == null)
+        {
+            return incomingDamage;
+        }
+
+        float agilityMitigation = Mathf.Clamp(1f - (defender.agility * 0.0018f), 0.82f, 0.96f);
+        return incomingDamage * agilityMitigation;
+    }
+
+    float ApplyRandomDamageVariance(float damage)
+    {
+        return damage * Random.Range(0.90f, 1.10f);
+    }
+
+    int ClampFinalDamage(float baseDamage, float finalDamage)
+    {
+        float safeBaseDamage = Mathf.Max(1f, baseDamage);
+        float clampedDamage = Mathf.Clamp(finalDamage, 1f, safeBaseDamage * 1.75f);
+        return Mathf.Max(1, Mathf.RoundToInt(clampedDamage));
     }
 
     string GetRoundFlavor(
