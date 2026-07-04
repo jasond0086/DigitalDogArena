@@ -25,6 +25,13 @@ public class FightPresentationManager : MonoBehaviour
     private const string DogImprintResourcePath = "FightPresentation/DogImprint";
     private const string BreedArchetypeResourceFolder = "FightPresentation/BreedArchetypes/";
     private const bool ShowDogPortraitPlaceholders = false;
+    private const float DogArtGroundY = 0.16f;
+    private const float DogArtGroundPadding = 0.02f;
+    private const float DogImprintFallbackVerticalOffset = -0.48f;
+    private const float BreedArchetypeArtForwardOffset = -0.42f;
+    private const float BreedArchetypeArtBaseScale = 0.9f;
+    private const float BreedArchetypeSpriteTargetHeight = 1.56f;
+    private const float BreedArchetypeSpriteMaxWidth = 2f;
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
@@ -1587,18 +1594,19 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         Dog dog = isFighterA ? currentDogImprintA : currentDogImprintB;
-        Vector3 archetypeOffset = GetBreedArchetypeOffset(ResolveBreedVisualArchetype(dog));
+        BreedVisualArchetype archetype = ResolveBreedVisualArchetype(dog);
 
-        artObject.transform.localPosition = fighterTransform.localPosition + GetDogImprintArtOffset() + archetypeOffset;
+        artObject.transform.localPosition = fighterTransform.localPosition + GetDogImprintArtOffset(archetype);
         artObject.transform.localRotation = Quaternion.Euler(0f, isFighterA ? 90f : -90f, 0f);
-        artObject.transform.localScale = Vector3.Scale(GetDogImprintBaseScale(), GetBreedArchetypeScale(ResolveBreedVisualArchetype(dog)));
+        artObject.transform.localScale = Vector3.Scale(GetDogImprintBaseScale(), GetBreedArchetypeScaleModifier(archetype));
         SetDogArtFacing(artObject, !isFighterA);
         artObject.SetActive(true);
+        GroundAlignDogArt(artObject, DogArtGroundY);
     }
 
-    Vector3 GetDogImprintArtOffset()
+    Vector3 GetDogImprintArtOffset(BreedVisualArchetype archetype)
     {
-        return new Vector3(0f, -0.48f, 0f);
+        return new Vector3(0f, DogImprintFallbackVerticalOffset + GetDogArtVerticalOffset(archetype), 0f);
     }
 
     Vector3 GetDogImprintBaseScale()
@@ -1663,19 +1671,98 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         BreedVisualArchetype archetype = ResolveBreedVisualArchetype(dog);
-        artObject.transform.localPosition = fighterTransform.localPosition + GetBreedArchetypeArtOffset(archetype);
-        artObject.transform.localRotation = Quaternion.identity;
-        artObject.transform.localScale = GetBreedArchetypeArtRootScale(archetype);
+        SetDogArtLocalPresentationTransform(artObject.transform, fighterTransform, archetype);
     }
 
     Vector3 GetBreedArchetypeArtOffset(BreedVisualArchetype archetype)
     {
-        return new Vector3(0f, 0.58f, -0.42f) + (GetBreedArchetypeOffset(archetype) * 0.45f);
+        return new Vector3(0f, GetDogArtVerticalOffset(archetype), BreedArchetypeArtForwardOffset);
     }
 
     Vector3 GetBreedArchetypeArtRootScale(BreedVisualArchetype archetype)
     {
-        return Vector3.Scale(new Vector3(0.88f, 0.88f, 0.88f), GetBreedArchetypeScale(archetype));
+        return Vector3.Scale(Vector3.one * BreedArchetypeArtBaseScale, GetBreedArchetypeScaleModifier(archetype));
+    }
+
+    void SetDogArtLocalPresentationTransform(Transform artTransform, Transform fighterTransform, BreedVisualArchetype archetype)
+    {
+        if (artTransform == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        Vector3 localPosition = fighterTransform.localPosition + GetBreedArchetypeArtOffset(archetype);
+        localPosition.y = DogArtGroundY;
+
+        artTransform.localPosition = localPosition;
+        artTransform.localRotation = Quaternion.identity;
+        artTransform.localScale = GetBreedArchetypeArtRootScale(archetype);
+    }
+
+    void ApplyDogArtPresentationTuning(GameObject artObject, Transform visualTransform, BreedVisualArchetype archetype)
+    {
+        if (artObject == null || visualTransform == null)
+        {
+            return;
+        }
+
+        visualTransform.localPosition += new Vector3(0f, GetDogArtVerticalOffset(archetype), 0f);
+    }
+
+    float GetDogArtVerticalOffset(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.GuardMastiff:
+                return -0.01f;
+
+            case BreedVisualArchetype.IronRott:
+                return -0.005f;
+
+            case BreedVisualArchetype.SpitzWarden:
+                return 0.025f;
+
+            case BreedVisualArchetype.VelocityHound:
+                return 0.02f;
+
+            case BreedVisualArchetype.BullyStriker:
+                return -0.015f;
+
+            case BreedVisualArchetype.HybridVariant:
+            case BreedVisualArchetype.ShepherdSentinel:
+            case BreedVisualArchetype.Unknown:
+            default:
+                return 0f;
+        }
+    }
+
+    Vector3 GetBreedArchetypeScaleModifier(BreedVisualArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case BreedVisualArchetype.GuardMastiff:
+                return new Vector3(1.12f, 1.08f, 1.08f);
+
+            case BreedVisualArchetype.IronRott:
+                return new Vector3(1.08f, 1.02f, 1.04f);
+
+            case BreedVisualArchetype.BullyStriker:
+                return new Vector3(1.07f, 0.98f, 1.04f);
+
+            case BreedVisualArchetype.SpitzWarden:
+                return new Vector3(0.96f, 1.06f, 0.98f);
+
+            case BreedVisualArchetype.VelocityHound:
+                return new Vector3(0.86f, 1.06f, 0.9f);
+
+            case BreedVisualArchetype.HybridVariant:
+                return new Vector3(1.02f, 1.02f, 1.02f);
+
+            case BreedVisualArchetype.ShepherdSentinel:
+            case BreedVisualArchetype.Unknown:
+            default:
+                return Vector3.one;
+        }
     }
 
     void ApplyBreedArchetypeArtToFighter(GameObject artObject, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
@@ -1997,6 +2084,8 @@ public class FightPresentationManager : MonoBehaviour
         spriteRenderer.transform.localPosition = Vector3.zero;
         spriteRenderer.transform.localRotation = Quaternion.identity;
         spriteRenderer.transform.localScale = GetBreedArchetypeSpriteScale(sprite);
+        GroundAlignDogArt(spriteRenderer);
+        ApplyDogArtPresentationTuning(artObject, spriteRenderer.transform, ResolveBreedVisualArchetype(dog));
 
         Material runtimeMaterial = GetPortraitSpriteMaterial();
 
@@ -2025,6 +2114,8 @@ public class FightPresentationManager : MonoBehaviour
         textureQuad.transform.localPosition = Vector3.zero;
         textureQuad.transform.localRotation = Quaternion.identity;
         textureQuad.transform.localScale = GetBreedArchetypeTextureQuadScale(texture);
+        GroundAlignDogArt(textureQuad.transform, Mathf.Abs(textureQuad.transform.localScale.y));
+        ApplyDogArtPresentationTuning(artObject, textureQuad.transform, ResolveBreedVisualArchetype(dog));
         SetQuadFacing(textureQuad.transform, !isFighterA);
 
         Renderer quadRenderer = textureQuad.GetComponent<Renderer>();
@@ -2165,13 +2256,13 @@ public class FightPresentationManager : MonoBehaviour
             return Vector3.one;
         }
 
-        float targetHeight = 1.72f;
+        float targetHeight = BreedArchetypeSpriteTargetHeight;
         float scale = targetHeight / sprite.bounds.size.y;
         float scaledWidth = sprite.bounds.size.x * scale;
 
-        if (scaledWidth > 2.05f && scaledWidth > 0f)
+        if (scaledWidth > BreedArchetypeSpriteMaxWidth && scaledWidth > 0f)
         {
-            scale *= 2.05f / scaledWidth;
+            scale *= BreedArchetypeSpriteMaxWidth / scaledWidth;
         }
 
         return new Vector3(scale, scale, scale);
@@ -2184,9 +2275,83 @@ public class FightPresentationManager : MonoBehaviour
             return Vector3.one;
         }
 
-        float targetHeight = 1.72f;
+        float targetHeight = BreedArchetypeSpriteTargetHeight;
         float aspectRatio = Mathf.Clamp((float)texture.width / texture.height, 0.35f, 1.55f);
         return new Vector3(targetHeight * aspectRatio, targetHeight, 1f);
+    }
+
+    void GroundAlignDogArt(SpriteRenderer spriteRenderer)
+    {
+        if (spriteRenderer == null || spriteRenderer.sprite == null)
+        {
+            return;
+        }
+
+        Vector3 localPosition = spriteRenderer.transform.localPosition;
+        float visualBottom = spriteRenderer.sprite.bounds.min.y * Mathf.Abs(spriteRenderer.transform.localScale.y);
+        localPosition.y = DogArtGroundPadding - visualBottom;
+        spriteRenderer.transform.localPosition = localPosition;
+    }
+
+    void GroundAlignDogArt(Transform visualTransform, float visualHeight)
+    {
+        if (visualTransform == null)
+        {
+            return;
+        }
+
+        Vector3 localPosition = visualTransform.localPosition;
+        localPosition.y = DogArtGroundPadding + (Mathf.Abs(visualHeight) * 0.5f);
+        visualTransform.localPosition = localPosition;
+    }
+
+    void GroundAlignDogArt(GameObject artObject, float groundY)
+    {
+        if (artObject == null || artObject.transform.parent == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = GetRendererList(artObject);
+
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
+        bool hasBounds = false;
+        Bounds combinedBounds = new Bounds();
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer artRenderer = renderers[i];
+
+            if (artRenderer == null || !artRenderer.enabled)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                combinedBounds = artRenderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                combinedBounds.Encapsulate(artRenderer.bounds);
+            }
+        }
+
+        if (!hasBounds)
+        {
+            return;
+        }
+
+        Vector3 worldBottom = new Vector3(combinedBounds.center.x, combinedBounds.min.y, combinedBounds.center.z);
+        float localBottomY = artObject.transform.parent.InverseTransformPoint(worldBottom).y;
+        Vector3 localPosition = artObject.transform.localPosition;
+        localPosition.y += groundY - localBottomY;
+        artObject.transform.localPosition = localPosition;
     }
 
     Color GetBreedArchetypeArtTint(Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
@@ -3582,6 +3747,7 @@ public class FightPresentationManager : MonoBehaviour
         TintDogImprintArt(artObject, finalColor);
         artObject.transform.localScale = identityScale * Mathf.Lerp(1f, 0.86f, 1f - healthPercent);
         SetDogArtFacing(artObject, !isFighterA);
+        GroundAlignDogArt(artObject, DogArtGroundY);
     }
 
     float GetVisualHealthPercent(int currentHealth, int maxLikelyHealth)
@@ -3853,7 +4019,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         BreedVisualArchetype archetype = ResolveBreedVisualArchetype(dog);
         color = Color.Lerp(color, GetBreedArchetypeAccentColor(archetype), 0.16f);
-        scale = Vector3.Scale(scale, GetBreedArchetypeScale(archetype));
+        scale = Vector3.Scale(scale, GetBreedArchetypeScaleModifier(archetype));
     }
 
     Color GetBreedArchetypeAccentColor(BreedVisualArchetype archetype)
