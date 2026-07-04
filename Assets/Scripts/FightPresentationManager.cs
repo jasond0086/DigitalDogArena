@@ -199,6 +199,7 @@ public class FightPresentationManager : MonoBehaviour
         StopArenaPulseIfRunning();
         HideRoundStatusBanner();
         HideClashText();
+        HideArenaResultLabels();
         HideStrategyEffects();
         SetDogImprintArtVisible(false);
         SetBreedArchetypeArtVisible(false);
@@ -523,7 +524,7 @@ public class FightPresentationManager : MonoBehaviour
         ApplyBreedArchetypeResultVisual(fighterBBreedArchetypeArt, false, true, Color.magenta);
         UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
         SetRoundStatusBannerText(drawBannerText);
-        UpdateArenaResultLabels(dogA, dogB, "DRAW", "DRAW", new Color(1f, 0.85f, 0.2f), new Color(1f, 0.85f, 0.2f));
+        UpdateArenaDrawLabels(dogA, dogB, new Color(1f, 0.85f, 0.2f));
         PlayResultCinematic(null, true, drawBannerText);
         Debug.Log($"Digital arena result: {dogA.dogName} and {dogB.dogName} imprints end in a draw.");
     }
@@ -3026,6 +3027,19 @@ public class FightPresentationManager : MonoBehaviour
         CreateOrUpdateLabel(arenaRoot, "FighterBResultLabel", dogBStatus, GetArenaResultLabelPosition(fighterBTransform, new Vector3(1.75f, 2.62f, 0f)), dogBColor, FighterResultCharacterSize);
     }
 
+    void UpdateArenaDrawLabels(Dog dogA, Dog dogB, Color drawColor)
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", GetArenaTitleLabelPosition(), Color.white, ArenaTitleCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", GetDogDisplayName(dogA, "DOG A"), GetArenaFighterLabelPosition(fighterATransform, new Vector3(-1.75f, 2.08f, 0f)), drawColor, FighterNameCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", GetDogDisplayName(dogB, "DOG B"), GetArenaFighterLabelPosition(fighterBTransform, new Vector3(1.75f, 2.08f, 0f)), drawColor, FighterNameCharacterSize);
+        HideArenaResultLabels();
+    }
+
     void CreateDogPortraitBillboardsIfNeeded()
     {
         if (arenaRoot == null)
@@ -5328,22 +5342,22 @@ public class FightPresentationManager : MonoBehaviour
 
         if (traitAuraA == null)
         {
-            traitAuraA = CreateArenaImpactEffectObject("TraitAuraA", PrimitiveType.Cylinder, new Vector3(1.22f, 0.045f, 0.82f), new Color(0.5f, 1f, 0.9f));
+            traitAuraA = CreateArenaImpactEffectObject("TraitAuraA", PrimitiveType.Cylinder, new Vector3(0.82f, 0.018f, 0.5f), new Color(0.42f, 1f, 0.92f));
         }
 
         if (traitAuraB == null)
         {
-            traitAuraB = CreateArenaImpactEffectObject("TraitAuraB", PrimitiveType.Cylinder, new Vector3(1.22f, 0.045f, 0.82f), new Color(1f, 0.45f, 0.95f));
+            traitAuraB = CreateArenaImpactEffectObject("TraitAuraB", PrimitiveType.Cylinder, new Vector3(0.82f, 0.018f, 0.5f), new Color(1f, 0.42f, 0.92f));
         }
 
         if (traitSlashA == null)
         {
-            traitSlashA = CreateArenaImpactEffectObject("TraitSlashA", PrimitiveType.Cube, new Vector3(0.12f, 0.72f, 0.22f), new Color(1f, 0.18f, 0.32f));
+            traitSlashA = CreateArenaImpactEffectObject("TraitSlashA", PrimitiveType.Cube, new Vector3(0.035f, 0.34f, 0.055f), new Color(1f, 0.18f, 0.32f));
         }
 
         if (traitSlashB == null)
         {
-            traitSlashB = CreateArenaImpactEffectObject("TraitSlashB", PrimitiveType.Cube, new Vector3(0.12f, 0.72f, 0.22f), new Color(1f, 0.18f, 0.82f));
+            traitSlashB = CreateArenaImpactEffectObject("TraitSlashB", PrimitiveType.Cube, new Vector3(0.035f, 0.34f, 0.055f), new Color(1f, 0.18f, 0.82f));
         }
     }
 
@@ -5430,10 +5444,10 @@ public class FightPresentationManager : MonoBehaviour
 
     void UpdateTraitEffectPositions()
     {
-        UpdateSingleStrategyEffectPosition(traitAuraA, fighterATransform, new Vector3(0f, 0.36f, -0.05f));
-        UpdateSingleStrategyEffectPosition(traitAuraB, fighterBTransform, new Vector3(0f, 0.36f, -0.05f));
-        UpdateSingleStrategyEffectPosition(traitSlashA, fighterATransform, new Vector3(0.16f, 1.04f, -0.18f));
-        UpdateSingleStrategyEffectPosition(traitSlashB, fighterBTransform, new Vector3(-0.16f, 1.04f, -0.18f));
+        UpdateSingleStrategyEffectPosition(traitAuraA, fighterATransform, new Vector3(0f, 0.3f, -0.2f));
+        UpdateSingleStrategyEffectPosition(traitAuraB, fighterBTransform, new Vector3(0f, 0.3f, -0.2f));
+        UpdateSingleStrategyEffectPosition(traitSlashA, fighterATransform, new Vector3(0.22f, 0.9f, -0.34f));
+        UpdateSingleStrategyEffectPosition(traitSlashB, fighterBTransform, new Vector3(-0.22f, 0.9f, -0.34f));
     }
 
     void UpdateSingleStrategyEffectPosition(GameObject effectObject, Transform fighterTransform, Vector3 offset)
@@ -5638,9 +5652,9 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         auraObject.SetActive(true);
-        auraObject.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 0.36f, -0.05f);
+        auraObject.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 0.3f, -0.2f);
         auraObject.transform.localRotation = Quaternion.identity;
-        auraObject.transform.localScale = new Vector3(1.05f * scale, 0.035f, 0.72f * scale);
+        auraObject.transform.localScale = new Vector3(0.82f * scale, 0.018f, 0.5f * scale);
         SetRuntimeObjectColor(auraObject, color);
     }
 
@@ -5653,9 +5667,9 @@ public class FightPresentationManager : MonoBehaviour
 
         float side = isFighterA ? 1f : -1f;
         slashObject.SetActive(true);
-        slashObject.transform.localPosition = fighterTransform.localPosition + new Vector3(0.16f * side, 1.04f, -0.18f);
+        slashObject.transform.localPosition = fighterTransform.localPosition + new Vector3(0.22f * side, 0.9f, -0.34f);
         slashObject.transform.localRotation = Quaternion.Euler(0f, 52f * side, (32f + angleOffset) * side);
-        slashObject.transform.localScale = new Vector3(0.075f, 0.48f * scale, 0.17f);
+        slashObject.transform.localScale = new Vector3(0.035f, 0.34f * scale, 0.055f);
         SetRuntimeObjectColor(slashObject, color);
     }
 
