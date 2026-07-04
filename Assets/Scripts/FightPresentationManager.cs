@@ -43,6 +43,11 @@ public class FightPresentationManager : MonoBehaviour
     private const float CinematicHitFreezeMaxSeconds = 0.07f;
     private const int PresentationRenderTextureWidth = 1280;
     private const int PresentationRenderTextureHeight = 720;
+    private const float ArenaTitleCharacterSize = 0.082f;
+    private const float FighterNameCharacterSize = 0.052f;
+    private const float FighterResultCharacterSize = 0.058f;
+    private const float RoundStatusCharacterSize = 0.058f;
+    private const float ClashTextCharacterSize = 0.052f;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
@@ -3001,9 +3006,10 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.12f, 0.2f), Color.white, 0.145f);
-        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\nIMPRINT", GetArenaFighterLabelPosition(fighterATransform, new Vector3(-1.75f, 2.55f, 0f)), Color.cyan, 0.085f);
-        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\nIMPRINT", GetArenaFighterLabelPosition(fighterBTransform, new Vector3(1.75f, 2.55f, 0f)), Color.magenta, 0.085f);
+        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", GetArenaTitleLabelPosition(), Color.white, ArenaTitleCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", GetDogDisplayName(dogA, "DOG A"), GetArenaFighterLabelPosition(fighterATransform, new Vector3(-1.75f, 2.08f, 0f)), Color.cyan, FighterNameCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", GetDogDisplayName(dogB, "DOG B"), GetArenaFighterLabelPosition(fighterBTransform, new Vector3(1.75f, 2.08f, 0f)), Color.magenta, FighterNameCharacterSize);
+        HideArenaResultLabels();
     }
 
     void UpdateArenaResultLabels(Dog dogA, Dog dogB, string dogAStatus, string dogBStatus, Color dogAColor, Color dogBColor)
@@ -3013,9 +3019,11 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", new Vector3(0f, 3.12f, 0.2f), Color.white, 0.145f);
-        CreateOrUpdateLabel(arenaRoot, "FighterALabel", $"{GetDogDisplayName(dogA, "DOG A")}\n{dogAStatus}", GetArenaFighterLabelPosition(fighterATransform, new Vector3(-1.75f, 2.55f, 0f)), dogAColor, 0.09f);
-        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", $"{GetDogDisplayName(dogB, "DOG B")}\n{dogBStatus}", GetArenaFighterLabelPosition(fighterBTransform, new Vector3(1.75f, 2.55f, 0f)), dogBColor, 0.09f);
+        CreateOrUpdateLabel(arenaRoot, "ArenaTitleLabel", "DIGITAL ARENA", GetArenaTitleLabelPosition(), Color.white, ArenaTitleCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterALabel", GetDogDisplayName(dogA, "DOG A"), GetArenaFighterLabelPosition(fighterATransform, new Vector3(-1.75f, 2.08f, 0f)), dogAColor, FighterNameCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterBLabel", GetDogDisplayName(dogB, "DOG B"), GetArenaFighterLabelPosition(fighterBTransform, new Vector3(1.75f, 2.08f, 0f)), dogBColor, FighterNameCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterAResultLabel", dogAStatus, GetArenaResultLabelPosition(fighterATransform, new Vector3(-1.75f, 2.62f, 0f)), dogAColor, FighterResultCharacterSize);
+        CreateOrUpdateLabel(arenaRoot, "FighterBResultLabel", dogBStatus, GetArenaResultLabelPosition(fighterBTransform, new Vector3(1.75f, 2.62f, 0f)), dogBColor, FighterResultCharacterSize);
     }
 
     void CreateDogPortraitBillboardsIfNeeded()
@@ -3592,7 +3600,7 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        TextMesh banner = CreateOrUpdateLabel(arenaRoot, "RoundStatusBanner", "", new Vector3(0f, 2.28f, 1.55f), Color.white, 0.1f);
+        TextMesh banner = CreateOrUpdateLabel(arenaRoot, "RoundStatusBanner", "", GetRoundStatusBannerPosition(), Color.white, RoundStatusCharacterSize);
 
         if (banner == null)
         {
@@ -3650,14 +3658,7 @@ public class FightPresentationManager : MonoBehaviour
 
         SetLabelText(banner, message);
         banner.color = GetRoundStatusColor(message);
-        banner.fontSize = 72;
-        banner.characterSize = 0.1f;
-        banner.alignment = TextAlignment.Center;
-        banner.anchor = TextAnchor.MiddleCenter;
-
-        roundStatusBannerObject.transform.localPosition = new Vector3(0f, 2.28f, 1.55f);
-        roundStatusBannerObject.transform.localRotation = Quaternion.identity;
-        roundStatusBannerObject.transform.localScale = Vector3.one;
+        ApplyRoundStatusBannerLayout(banner);
         roundStatusBannerObject.SetActive(true);
     }
 
@@ -3679,6 +3680,7 @@ public class FightPresentationManager : MonoBehaviour
 
         SetLabelText(banner, message);
         banner.color = GetRoundStatusColor(message);
+        ApplyRoundStatusBannerLayout(banner);
         roundStatusBannerObject.SetActive(true);
     }
 
@@ -3965,14 +3967,14 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        TextMesh clashText = CreateOrUpdateLabel(arenaRoot, "CinematicClashText", "", new Vector3(0f, 1.92f, 0.22f), new Color(0.72f, 0.95f, 1f), 0.075f);
+        TextMesh clashText = CreateOrUpdateLabel(arenaRoot, "CinematicClashText", "", GetClashTextPosition(), new Color(0.72f, 0.95f, 1f), ClashTextCharacterSize);
 
         if (clashText == null)
         {
             return;
         }
 
-        clashText.fontSize = 52;
+        clashText.fontSize = 48;
         clashText.alignment = TextAlignment.Center;
         clashText.anchor = TextAnchor.MiddleCenter;
         clashTextObject = clashText.gameObject;
@@ -3999,12 +4001,12 @@ public class FightPresentationManager : MonoBehaviour
         {
             SetLabelText(clashText, message);
             clashText.color = color;
-            clashText.characterSize = 0.075f;
+            clashText.characterSize = ClashTextCharacterSize;
         }
 
-        clashTextObject.transform.localPosition = new Vector3(0f, 1.92f, 0.22f);
+        clashTextObject.transform.localPosition = GetClashTextPosition();
         clashTextObject.transform.localRotation = Quaternion.identity;
-        clashTextObject.transform.localScale = Vector3.one * Mathf.Clamp(scaleMultiplier, 0.75f, 1.05f);
+        clashTextObject.transform.localScale = Vector3.one * Mathf.Clamp(scaleMultiplier, 0.65f, 0.9f);
         clashTextObject.SetActive(true);
     }
 
@@ -4014,6 +4016,24 @@ public class FightPresentationManager : MonoBehaviour
         {
             clashTextObject.SetActive(false);
         }
+    }
+
+    void ApplyRoundStatusBannerLayout(TextMesh banner)
+    {
+        if (banner == null || roundStatusBannerObject == null)
+        {
+            return;
+        }
+
+        banner.fontSize = 56;
+        banner.characterSize = RoundStatusCharacterSize;
+        banner.alignment = TextAlignment.Center;
+        banner.anchor = TextAnchor.MiddleCenter;
+        banner.lineSpacing = 0.8f;
+
+        roundStatusBannerObject.transform.localPosition = GetRoundStatusBannerPosition();
+        roundStatusBannerObject.transform.localRotation = Quaternion.identity;
+        roundStatusBannerObject.transform.localScale = Vector3.one;
     }
 
     TextMesh CreateOrUpdateLabel(GameObject rootObject, string objectName, string text, Vector3 localPosition, Color color, float characterSize)
@@ -4050,10 +4070,11 @@ public class FightPresentationManager : MonoBehaviour
 
         SetLabelText(label, text);
         label.color = color;
-        label.fontSize = 80;
+        label.fontSize = 64;
         label.characterSize = characterSize;
         label.alignment = TextAlignment.Center;
         label.anchor = TextAnchor.MiddleCenter;
+        label.lineSpacing = 0.78f;
 
         MeshRenderer labelRenderer = labelObject.GetComponent<MeshRenderer>();
 
@@ -4085,6 +4106,11 @@ public class FightPresentationManager : MonoBehaviour
         return targetTransform.localPosition + new Vector3(0f, 1.45f, 0f);
     }
 
+    Vector3 GetArenaTitleLabelPosition()
+    {
+        return new Vector3(0f, 3.34f, 0.58f);
+    }
+
     Vector3 GetArenaFighterLabelPosition(Transform targetTransform, Vector3 fallbackPosition)
     {
         if (targetTransform == null)
@@ -4092,7 +4118,33 @@ public class FightPresentationManager : MonoBehaviour
             return fallbackPosition;
         }
 
-        return targetTransform.localPosition + new Vector3(0f, 1.95f, 0.02f);
+        return targetTransform.localPosition + new Vector3(0f, 1.48f, 0.04f);
+    }
+
+    Vector3 GetArenaResultLabelPosition(Transform targetTransform, Vector3 fallbackPosition)
+    {
+        if (targetTransform == null)
+        {
+            return fallbackPosition;
+        }
+
+        return targetTransform.localPosition + new Vector3(0f, 2.02f, 0.04f);
+    }
+
+    Vector3 GetRoundStatusBannerPosition()
+    {
+        return new Vector3(0f, 1.58f, 1.38f);
+    }
+
+    Vector3 GetClashTextPosition()
+    {
+        return new Vector3(0f, 1.36f, 0.2f);
+    }
+
+    void HideArenaResultLabels()
+    {
+        SetArenaChildActive("FighterAResultLabel", false);
+        SetArenaChildActive("FighterBResultLabel", false);
     }
 
     string GetDogDisplayName(Dog dog, string fallbackName)
