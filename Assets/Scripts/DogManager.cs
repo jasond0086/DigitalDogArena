@@ -479,7 +479,8 @@ public class DogManager : MonoBehaviour
                 "Counter Plan",
                 "Wear Down",
                 "Defensive Shell",
-                "All In"
+                "All In",
+                "Second Wind"
             });
 
             fighter1StrategyDropdown.value = 0;
@@ -504,7 +505,8 @@ public class DogManager : MonoBehaviour
                 "Counter Plan",
                 "Wear Down",
                 "Defensive Shell",
-                "All In"
+                "All In",
+                "Second Wind"
             });
 
             fighter2StrategyDropdown.value = 0;
@@ -656,6 +658,26 @@ public class DogManager : MonoBehaviour
 
             case FightStrategy.AllIn:
                 score += 6;
+                break;
+
+            case FightStrategy.SecondWind:
+                score += 4;
+                score += dog.agility / 4;
+                score += dog.stamina / 5;
+
+                if (opponentStrategy == FightStrategy.WearDown || opponentStrategy == FightStrategy.CounterPlan)
+                {
+                    score += 6;
+                }
+                else if (opponentStrategy == FightStrategy.AllIn)
+                {
+                    score -= 8;
+                }
+                else if (opponentStrategy == FightStrategy.RushEarly)
+                {
+                    score -= 4;
+                }
+
                 break;
 
             case FightStrategy.Balanced:

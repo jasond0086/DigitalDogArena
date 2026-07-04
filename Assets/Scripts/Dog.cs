@@ -16,7 +16,8 @@ public enum FightStrategy
     CounterPlan,
     WearDown,
     DefensiveShell,
-    AllIn
+    AllIn,
+    SecondWind
 }
 
 public enum DogTrait

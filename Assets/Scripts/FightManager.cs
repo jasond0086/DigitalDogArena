@@ -25,6 +25,10 @@ public class FightManager : MonoBehaviour
     public int healthMultiplier = 2;
     public int damageVariance = 15;
 
+    private const float DecisionDrawThreshold = 0.03f;
+    private const float GlancingDodgeDamageMultiplier = 0.30f;
+    private const float SecondWindHealingCapPercent = 0.65f;
+
     [Header("Active Fight State")]
     public bool fightInProgress;
     public int currentRound;
@@ -239,6 +243,25 @@ public class FightManager : MonoBehaviour
         currentFighter2Health = Mathf.Max(0, currentFighter2Health - dmg1);
         currentFighter1Health = Mathf.Max(0, currentFighter1Health - dmg2);
 
+        int fighter1Healing = 0;
+        int fighter2Healing = 0;
+
+        currentFighter1Health = ApplySecondWindHealing(
+            activeFighter1,
+            strategy1,
+            currentFighter1Health,
+            startingFighter1Health,
+            out fighter1Healing
+        );
+
+        currentFighter2Health = ApplySecondWindHealing(
+            activeFighter2,
+            strategy2,
+            currentFighter2Health,
+            startingFighter2Health,
+            out fighter2Healing
+        );
+
         if (fightPresentationManager != null)
         {
             fightPresentationManager.PresentRoundAction(
@@ -279,6 +302,16 @@ public class FightManager : MonoBehaviour
         runningFightLog += $"<b>Round {currentRound}</b>: {roundFlavor}\n";
         runningFightLog += $"Strategies: {activeFighter1.dogName} {strategy1} | {activeFighter2.dogName} {strategy2}\n";
         runningFightLog += $"{activeFighter1.dogName} impact: {dmg1} | {activeFighter2.dogName} impact: {dmg2}\n";
+        if (fighter1Healing > 0)
+        {
+            runningFightLog += $"{activeFighter1.dogName} caught a second wind and recovered {fighter1Healing} HP.\n";
+        }
+
+        if (fighter2Healing > 0)
+        {
+            runningFightLog += $"{activeFighter2.dogName} caught a second wind and recovered {fighter2Healing} HP.\n";
+        }
+
         runningFightLog += $"{activeFighter1.dogName} HP: {currentFighter1Health} | {activeFighter2.dogName} HP: {currentFighter2Health}\n\n";
 
         SetLog(runningFightLog);
@@ -390,13 +423,17 @@ public class FightManager : MonoBehaviour
             ref runningFightLog
         );
 
+        int presentationHealth1;
+        int presentationHealth2;
+        GetResultPresentationHealth(out presentationHealth1, out presentationHealth2);
+
         if (fightPresentationManager != null)
         {
             fightPresentationManager.PresentFightResult(
                 activeFighter1,
                 activeFighter2,
-                currentFighter1Health,
-                currentFighter2Health
+                presentationHealth1,
+                presentationHealth2
             );
         }
 
@@ -441,6 +478,30 @@ public class FightManager : MonoBehaviour
         }
 
         return $"Fight complete - {activeFighter1.dogName} and {activeFighter2.dogName} fought to a draw.";
+    }
+
+    void GetResultPresentationHealth(out int presentationHealth1, out int presentationHealth2)
+    {
+        presentationHealth1 = currentFighter1Health;
+        presentationHealth2 = currentFighter2Health;
+
+        bool fighter1Won = activeFighter1.wins > fighter1WinsBeforeFight;
+        bool fighter2Won = activeFighter2.wins > fighter2WinsBeforeFight;
+
+        if (fighter1Won && presentationHealth1 <= presentationHealth2)
+        {
+            presentationHealth1 = presentationHealth2 + 1;
+        }
+        else if (fighter2Won && presentationHealth2 <= presentationHealth1)
+        {
+            presentationHealth2 = presentationHealth1 + 1;
+        }
+        else if (!fighter1Won && !fighter2Won)
+        {
+            int drawPresentationHealth = Mathf.Max(presentationHealth1, presentationHealth2);
+            presentationHealth1 = drawPresentationHealth;
+            presentationHealth2 = drawPresentationHealth;
+        }
     }
 
     void UpdateFightUIState(string statusOverride = "")
@@ -608,12 +669,67 @@ public class FightManager : MonoBehaviour
 
         damage = ApplyStyleModifier(attacker, defender, damage, round);
         damage = ApplyAttackerStrategy(attackerStrategy, defenderStrategy, damage, round);
-        damage = ApplyDefenderStrategy(defenderStrategy, damage, round);
+        damage = ApplyDefenderStrategy(attackerStrategy, defenderStrategy, damage, round);
         damage = ApplyDefenderAgilityMitigation(defender, damage);
         damage = ApplyTraitModifiers(attacker, defender, damage, round);
         damage = ApplyRandomDamageVariance(damage);
+        damage = TryApplyGlancingDodge(defender, defenderStrategy, damage);
 
         return ClampFinalDamage(baseDamage, damage);
+    }
+
+    float GetBaseDodgeChance(Dog defender)
+    {
+        if (defender == null)
+        {
+            return 0.05f;
+        }
+
+        return Mathf.Clamp(defender.agility * 0.01f, 0.05f, 0.30f);
+    }
+
+    float GetStrategyDodgeBonus(FightStrategy defenderStrategy)
+    {
+        switch (defenderStrategy)
+        {
+            case FightStrategy.RushEarly:
+                return -0.03f;
+
+            case FightStrategy.CounterPlan:
+                return 0.08f;
+
+            case FightStrategy.WearDown:
+                return 0.03f;
+
+            case FightStrategy.DefensiveShell:
+                return 0.05f;
+
+            case FightStrategy.AllIn:
+                return -0.08f;
+
+            case FightStrategy.SecondWind:
+                return 0.12f;
+
+            case FightStrategy.Balanced:
+            default:
+                return 0f;
+        }
+    }
+
+    float TryApplyGlancingDodge(Dog defender, FightStrategy defenderStrategy, float incomingDamage)
+    {
+        float dodgeChance = Mathf.Clamp(
+            GetBaseDodgeChance(defender) + GetStrategyDodgeBonus(defenderStrategy),
+            0.05f,
+            0.40f
+        );
+
+        if (Random.value <= dodgeChance)
+        {
+            return incomingDamage * GlancingDodgeDamageMultiplier;
+        }
+
+        return incomingDamage;
     }
 
     float ApplyTraitModifiers(Dog attacker, Dog defender, float damage, int round)
@@ -717,6 +833,25 @@ public class FightManager : MonoBehaviour
                 damage *= Random.Range(1.12f, 1.24f);
                 break;
 
+            case FightStrategy.SecondWind:
+                damage *= 0.75f;
+
+                if (defenderStrategy == FightStrategy.WearDown)
+                {
+                    damage *= 1.12f;
+                }
+                else if (defenderStrategy == FightStrategy.CounterPlan)
+                {
+                    damage *= 1.08f;
+                }
+                else if (defenderStrategy == FightStrategy.AllIn ||
+                         (defenderStrategy == FightStrategy.RushEarly && round <= 2))
+                {
+                    damage *= 0.88f;
+                }
+
+                break;
+
             case FightStrategy.Balanced:
             default:
                 break;
@@ -725,7 +860,12 @@ public class FightManager : MonoBehaviour
         return damage;
     }
 
-    float ApplyDefenderStrategy(FightStrategy defenderStrategy, float incomingDamage, int round)
+    float ApplyDefenderStrategy(
+        FightStrategy attackerStrategy,
+        FightStrategy defenderStrategy,
+        float incomingDamage,
+        int round
+    )
     {
         switch (defenderStrategy)
         {
@@ -742,6 +882,23 @@ public class FightManager : MonoBehaviour
 
             case FightStrategy.AllIn:
                 incomingDamage *= 1.10f;
+                break;
+
+            case FightStrategy.SecondWind:
+                if (attackerStrategy == FightStrategy.WearDown)
+                {
+                    incomingDamage *= 0.88f;
+                }
+                else if (attackerStrategy == FightStrategy.CounterPlan)
+                {
+                    incomingDamage *= 0.92f;
+                }
+                else if (attackerStrategy == FightStrategy.AllIn ||
+                         (attackerStrategy == FightStrategy.RushEarly && round <= 2))
+                {
+                    incomingDamage *= 1.12f;
+                }
+
                 break;
 
             case FightStrategy.RushEarly:
@@ -777,6 +934,35 @@ public class FightManager : MonoBehaviour
         return Mathf.Max(1, Mathf.RoundToInt(clampedDamage));
     }
 
+    int ApplySecondWindHealing(
+        Dog dog,
+        FightStrategy strategy,
+        int currentHealth,
+        int maxHealth,
+        out int healingApplied
+    )
+    {
+        healingApplied = 0;
+
+        if (dog == null || strategy != FightStrategy.SecondWind || currentHealth <= 0)
+        {
+            return currentHealth;
+        }
+
+        int healingCap = Mathf.Max(1, Mathf.RoundToInt(maxHealth * SecondWindHealingCapPercent));
+
+        if (currentHealth >= healingCap)
+        {
+            return currentHealth;
+        }
+
+        int healAmount = Mathf.Max(1, Mathf.RoundToInt(4f + (dog.stamina * 0.25f)));
+        int healedHealth = Mathf.Min(healingCap, currentHealth + healAmount);
+        healingApplied = healedHealth - currentHealth;
+
+        return healedHealth;
+    }
+
     string GetRoundFlavor(
         Dog d1,
         Dog d2,
@@ -804,6 +990,11 @@ public class FightManager : MonoBehaviour
                 return "Both fighters test distance while one side shells up early.";
             }
 
+            if (strategy1 == FightStrategy.SecondWind || strategy2 == FightStrategy.SecondWind)
+            {
+                return "One fighter opens carefully, looking to slip damage and recover rhythm.";
+            }
+
             return "Both fighters circle and feel out the opening rhythm.";
         }
 
@@ -825,6 +1016,16 @@ public class FightManager : MonoBehaviour
         if (strategy2 == FightStrategy.WearDown && round >= 4 && dmg2 > dmg1)
         {
             return $"{d2.dogName}'s patience starts breaking the fight open.";
+        }
+
+        if (strategy1 == FightStrategy.SecondWind && dmg2 <= dmg1)
+        {
+            return $"{d1.dogName} slips enough pressure to keep the recovery plan alive.";
+        }
+
+        if (strategy2 == FightStrategy.SecondWind && dmg1 <= dmg2)
+        {
+            return $"{d2.dogName} evades the worst of the exchange and steadies up.";
         }
 
         if (strategy1 == FightStrategy.AllIn && dmg1 > dmg2 + 8)
@@ -880,54 +1081,136 @@ public class FightManager : MonoBehaviour
         d1.totalFights++;
         d2.totalFights++;
 
-        if (health1 > health2)
-        {
-            d1.wins++;
-            d2.losses++;
+        int outcome = GetFightDecisionOutcome(health1, health2, startingHealth1, startingHealth2);
+        bool wentToDecision = health1 > 0 && health2 > 0;
 
-            string resultLabel = GetResultLabel(
+        if (outcome == 1)
+        {
+            AwardFightWinner(
                 d1,
                 d2,
                 health1,
                 health2,
                 startingHealth1,
-                d1WasBehind
+                d1WasBehind,
+                wentToDecision,
+                ref log
             );
-
-            AwardFightXP(d1, true, resultLabel, ref log);
-            AwardFightXP(d2, false, resultLabel, ref log);
-
-            log += $"<b>WINNER: {d1.dogName}</b>\n";
-            log += $"<b>Result Type: {resultLabel}</b>";
         }
-        else if (health2 > health1)
+        else if (outcome == 2)
         {
-            d2.wins++;
-            d1.losses++;
-
-            string resultLabel = GetResultLabel(
+            AwardFightWinner(
                 d2,
                 d1,
                 health2,
                 health1,
                 startingHealth2,
-                d2WasBehind
+                d2WasBehind,
+                wentToDecision,
+                ref log
             );
-
-            AwardFightXP(d2, true, resultLabel, ref log);
-            AwardFightXP(d1, false, resultLabel, ref log);
-
-            log += $"<b>WINNER: {d2.dogName}</b>\n";
-            log += $"<b>Result Type: {resultLabel}</b>";
         }
         else
         {
-            AwardFightXP(d1, false, "Draw", ref log);
-            AwardFightXP(d2, false, "Draw", ref log);
-
-            log += "<b>DRAW!</b>\n";
-            log += "<b>Result Type: Dead Even</b>";
+            AwardFightDraw(d1, d2, health1, health2, startingHealth1, startingHealth2, wentToDecision, ref log);
         }
+    }
+
+    int GetFightDecisionOutcome(int health1, int health2, int startingHealth1, int startingHealth2)
+    {
+        bool fighter1Out = health1 <= 0;
+        bool fighter2Out = health2 <= 0;
+
+        if (fighter1Out && fighter2Out)
+        {
+            return 0;
+        }
+
+        if (fighter2Out)
+        {
+            return 1;
+        }
+
+        if (fighter1Out)
+        {
+            return 2;
+        }
+
+        float fighter1HealthPercent = GetRemainingHealthPercent(health1, startingHealth1);
+        float fighter2HealthPercent = GetRemainingHealthPercent(health2, startingHealth2);
+        float decisionMargin = Mathf.Abs(fighter1HealthPercent - fighter2HealthPercent);
+
+        if (decisionMargin <= DecisionDrawThreshold)
+        {
+            return 0;
+        }
+
+        return fighter1HealthPercent > fighter2HealthPercent ? 1 : 2;
+    }
+
+    float GetRemainingHealthPercent(int health, int startingHealth)
+    {
+        return Mathf.Clamp01((float)Mathf.Max(0, health) / Mathf.Max(1, startingHealth));
+    }
+
+    void AwardFightWinner(
+        Dog winner,
+        Dog loser,
+        int winnerHealth,
+        int loserHealth,
+        int winnerStartingHealth,
+        bool winnerWasBehind,
+        bool wentToDecision,
+        ref string log
+    )
+    {
+        winner.wins++;
+        loser.losses++;
+
+        string resultLabel = GetResultLabel(
+            winner,
+            loser,
+            winnerHealth,
+            loserHealth,
+            winnerStartingHealth,
+            winnerWasBehind
+        );
+
+        AwardFightXP(winner, true, resultLabel, ref log);
+        AwardFightXP(loser, false, resultLabel, ref log);
+
+        if (wentToDecision)
+        {
+            log += $"Decision: {winner.dogName} had the stronger remaining health percentage.\n";
+        }
+
+        log += $"<b>WINNER: {winner.dogName}</b>\n";
+        log += $"<b>Result Type: {resultLabel}</b>";
+    }
+
+    void AwardFightDraw(
+        Dog d1,
+        Dog d2,
+        int health1,
+        int health2,
+        int startingHealth1,
+        int startingHealth2,
+        bool wentToDecision,
+        ref string log
+    )
+    {
+        AwardFightXP(d1, false, "Draw", ref log);
+        AwardFightXP(d2, false, "Draw", ref log);
+
+        if (wentToDecision)
+        {
+            float healthPercent1 = GetRemainingHealthPercent(health1, startingHealth1);
+            float healthPercent2 = GetRemainingHealthPercent(health2, startingHealth2);
+            log += $"Decision: remaining health was too close to call ({healthPercent1:P0} vs {healthPercent2:P0}).\n";
+        }
+
+        log += "<b>DRAW!</b>\n";
+        log += "<b>Result Type: Dead Even</b>";
     }
 
     string GetResultLabel(
