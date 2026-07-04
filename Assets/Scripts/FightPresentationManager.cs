@@ -2386,10 +2386,17 @@ public class FightPresentationManager : MonoBehaviour
 
         return separatorNormalizedBreed.Contains("pit bull") ||
                compactBreed.Contains("pitbull") ||
+               rawBreed.Contains("american staffordshire") ||
+               rawBreed.Contains("staffordshire") ||
+               separatorNormalizedBreed.Contains("bull terrier") ||
+               compactBreed.Contains("bullterrier") ||
+               rawBreed.Contains("bulldog") ||
+               compactBreed.Contains("bulldog") ||
                rawBreed.Contains("boxer") ||
                compactBreed.Contains("boxer") ||
                rawBreed.Contains("bully") ||
-               compactBreed.Contains("bully");
+               compactBreed.Contains("bully") ||
+               compactBreed.Contains("bull");
     }
 
     bool ContainsShepherdBreedText(string breedText)
@@ -2403,15 +2410,24 @@ public class FightPresentationManager : MonoBehaviour
         string separatorNormalizedBreed = GetSeparatorNormalizedBreedText(breedText);
         string compactBreed = GetCompactBreedText(breedText);
 
+        if (separatorNormalizedBreed.Contains("central asian shepherd") ||
+            compactBreed.Contains("centralasianshepherd"))
+        {
+            return false;
+        }
+
         return separatorNormalizedBreed.Contains("german shepherd") ||
                separatorNormalizedBreed.Contains("german shepard") ||
                separatorNormalizedBreed.Contains("belgian malinois") ||
+               separatorNormalizedBreed.Contains("belgian tervuren") ||
                rawBreed.Contains("shepherd") ||
                rawBreed.Contains("shepard") ||
                compactBreed.Contains("shepherd") ||
                compactBreed.Contains("shepard") ||
                rawBreed.Contains("malinois") ||
                compactBreed.Contains("malinois") ||
+               rawBreed.Contains("tervuren") ||
+               compactBreed.Contains("tervuren") ||
                compactBreed.Contains("german");
     }
 
@@ -4336,25 +4352,47 @@ public class FightPresentationManager : MonoBehaviour
             return BreedVisualArchetype.HybridVariant;
         }
 
+        if (rawBreed.Contains("wolfdog") ||
+            compactBreed.Contains("wolfdog"))
+        {
+            return BreedVisualArchetype.HybridVariant;
+        }
+
+        if (separatorNormalizedBreed.Contains("central asian shepherd") ||
+            compactBreed.Contains("centralasianshepherd"))
+        {
+            return BreedVisualArchetype.GuardMastiff;
+        }
+
         if (separatorNormalizedBreed.Contains("german shepherd") ||
             separatorNormalizedBreed.Contains("german shepard") ||
             separatorNormalizedBreed.Contains("belgian malinois") ||
+            separatorNormalizedBreed.Contains("belgian tervuren") ||
             rawBreed.Contains("shepherd") ||
             rawBreed.Contains("shepard") ||
             compactBreed.Contains("shepherd") ||
             compactBreed.Contains("shepard") ||
             rawBreed.Contains("malinois") ||
-            compactBreed.Contains("malinois"))
+            compactBreed.Contains("malinois") ||
+            rawBreed.Contains("tervuren") ||
+            compactBreed.Contains("tervuren"))
         {
             return BreedVisualArchetype.ShepherdSentinel;
         }
 
         if (separatorNormalizedBreed.Contains("pit bull") ||
             compactBreed.Contains("pitbull") ||
+            rawBreed.Contains("american staffordshire") ||
+            rawBreed.Contains("staffordshire") ||
+            separatorNormalizedBreed.Contains("bull terrier") ||
+            compactBreed.Contains("bullterrier") ||
+            rawBreed.Contains("bulldog") ||
+            compactBreed.Contains("bulldog") ||
             rawBreed.Contains("boxer") ||
             compactBreed.Contains("boxer") ||
             rawBreed.Contains("bully") ||
-            compactBreed.Contains("bully"))
+            compactBreed.Contains("bully") ||
+            compactBreed.Contains("bull"))
         {
             return BreedVisualArchetype.BullyStriker;
         }
@@ -4366,15 +4404,31 @@ public class FightPresentationManager : MonoBehaviour
             rawBreed.Contains("presa") ||
             compactBreed.Contains("presa") ||
             separatorNormalizedBreed.Contains("dogo argentino") ||
-            compactBreed.Contains("dogoargentino"))
+            compactBreed.Contains("dogoargentino") ||
+            rawBreed.Contains("boerboel") ||
+            compactBreed.Contains("boerboel") ||
+            separatorNormalizedBreed.Contains("great dane") ||
+            compactBreed.Contains("greatdane") ||
+            rawBreed.Contains("kangal") ||
+            compactBreed.Contains("kangal") ||
+            rawBreed.Contains("tosa") ||
+            compactBreed.Contains("tosa") ||
+            rawBreed.Contains("fila") ||
+            compactBreed.Contains("fila"))
         {
             return BreedVisualArchetype.GuardMastiff;
         }
 
         if (rawBreed.Contains("rottweiler") ||
             compactBreed.Contains("rottweiler") ||
+            rawBreed.Contains("rott") ||
+            compactBreed.Contains("rott") ||
             rawBreed.Contains("doberman") ||
-            compactBreed.Contains("doberman"))
+            compactBreed.Contains("doberman") ||
+            rawBreed.Contains("beauceron") ||
+            compactBreed.Contains("beauceron") ||
+            separatorNormalizedBreed.Contains("black russian terrier") ||
+            compactBreed.Contains("blackrussianterrier"))
         {
             return BreedVisualArchetype.IronRott;
         }
@@ -4384,13 +4438,31 @@ public class FightPresentationManager : MonoBehaviour
             rawBreed.Contains("spitz") ||
             compactBreed.Contains("spitz") ||
             rawBreed.Contains("husky") ||
-            compactBreed.Contains("husky"))
+            compactBreed.Contains("husky") ||
+            rawBreed.Contains("malamute") ||
+            compactBreed.Contains("malamute") ||
+            rawBreed.Contains("shiba") ||
+            compactBreed.Contains("shiba") ||
+            rawBreed.Contains("chow") ||
+            compactBreed.Contains("chow") ||
+            rawBreed.Contains("samoyed") ||
+            compactBreed.Contains("samoyed"))
         {
             return BreedVisualArchetype.SpitzWarden;
         }
 
         if (rawBreed.Contains("greyhound") ||
             compactBreed.Contains("greyhound") ||
+            rawBreed.Contains("whippet") ||
+            compactBreed.Contains("whippet") ||
+            rawBreed.Contains("saluki") ||
+            compactBreed.Contains("saluki") ||
+            rawBreed.Contains("ridgeback") ||
+            compactBreed.Contains("ridgeback") ||
+            rawBreed.Contains("pharaoh") ||
+            compactBreed.Contains("pharaoh") ||
+            rawBreed.Contains("catahoula") ||
+            compactBreed.Contains("catahoula") ||
             rawBreed.Contains("hound") ||
             compactBreed.Contains("hound"))
         {
