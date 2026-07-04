@@ -663,7 +663,7 @@ public class FightManager : MonoBehaviour
             return 1f;
         }
 
-        return 45f + (dog.stamina * 3f);
+        return 45f + (dog.stamina * 3f) + (dog.GetIntelligence() * 0.75f);
     }
 
     float CalculateBaseDamage(Dog attacker)
@@ -673,7 +673,10 @@ public class FightManager : MonoBehaviour
             return 1f;
         }
 
-        return 3f + (attacker.strength * 0.85f) + (attacker.agility * 0.35f);
+        return 3f +
+               (attacker.strength * 0.85f) +
+               (attacker.agility * 0.35f) +
+               (attacker.GetIntelligence() * 0.15f);
     }
 
     int CalculateFinalDamage(
@@ -707,7 +710,8 @@ public class FightManager : MonoBehaviour
             return 0.05f;
         }
 
-        return Mathf.Clamp(defender.agility * 0.01f, 0.05f, 0.30f);
+        float dodgeChance = (defender.agility * 0.01f) + (defender.GetIntelligence() * 0.0025f);
+        return Mathf.Clamp(dodgeChance, 0.05f, 0.30f);
     }
 
     float GetStrategyDodgeBonus(FightStrategy defenderStrategy)
@@ -980,7 +984,11 @@ public class FightManager : MonoBehaviour
             return currentHealth;
         }
 
-        int healAmount = Mathf.Max(1, Mathf.RoundToInt(4f + (dog.stamina * 0.25f)));
+        int healAmount = Mathf.Max(1, Mathf.RoundToInt(
+            4f +
+            (dog.stamina * 0.25f) +
+            (dog.GetIntelligence() * 0.10f)
+        ));
         int healedHealth = Mathf.Min(healingCap, currentHealth + healAmount);
         healingApplied = healedHealth - currentHealth;
 
@@ -1415,20 +1423,26 @@ public class FightManager : MonoBehaviour
             int strengthGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 4) * dog.growthRate));
             int agilityGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 4) * dog.growthRate));
             int staminaGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 4) * dog.growthRate));
+            int intelligenceGain = Mathf.Max(1, Mathf.RoundToInt(Random.Range(1, 3) * dog.growthRate));
 
             if (HasTrait(dog, DogTrait.LateBloomer) && dog.level >= 5)
             {
                 strengthGain++;
                 agilityGain++;
                 staminaGain++;
+                intelligenceGain++;
             }
 
             dog.strength = Mathf.Min(dog.strength + strengthGain, Mathf.Min(100, dog.strengthPotential));
             dog.agility = Mathf.Min(dog.agility + agilityGain, Mathf.Min(100, dog.agilityPotential));
             dog.stamina = Mathf.Min(dog.stamina + staminaGain, Mathf.Min(100, dog.staminaPotential));
+            dog.intelligence = Mathf.Min(
+                dog.GetIntelligence() + intelligenceGain,
+                Mathf.Min(100, dog.GetIntelligencePotential())
+            );
 
             log += $"<b>{dog.dogName} leveled up to Level {dog.level}!</b>\n";
-            log += $"{dog.dogName} gained +{strengthGain} STR, +{agilityGain} AGI, +{staminaGain} STA.\n";
+            log += $"{dog.dogName} gained +{strengthGain} STR, +{agilityGain} AGI, +{staminaGain} STA, +{intelligenceGain} INT.\n";
         }
     }
 

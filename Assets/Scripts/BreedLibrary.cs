@@ -9,6 +9,7 @@ public static class BreedLibrary
         public int strengthBias;
         public int agilityBias;
         public int staminaBias;
+        public int intelligenceBias;
         public FightStyle styleTendency;
         public string visualDescription;
 
@@ -17,6 +18,7 @@ public static class BreedLibrary
             int strengthBias,
             int agilityBias,
             int staminaBias,
+            int intelligenceBias,
             FightStyle styleTendency,
             string visualDescription)
         {
@@ -24,6 +26,7 @@ public static class BreedLibrary
             this.strengthBias = strengthBias;
             this.agilityBias = agilityBias;
             this.staminaBias = staminaBias;
+            this.intelligenceBias = intelligenceBias;
             this.styleTendency = styleTendency;
             this.visualDescription = visualDescription;
         }
@@ -32,18 +35,18 @@ public static class BreedLibrary
     private static readonly Dictionary<string, BreedInfo> baseBreeds =
         new Dictionary<string, BreedInfo>(StringComparer.OrdinalIgnoreCase)
         {
-            { "Pit Bull", new BreedInfo("Pit Bull", 3, 1, 2, FightStyle.Rushdown, "Compact, muscular, and explosive.") },
-            { "Rottweiler", new BreedInfo("Rottweiler", 3, 0, 3, FightStyle.Tank, "Heavy frame, broad chest, and steady pressure.") },
-            { "Cane Corso", new BreedInfo("Cane Corso", 3, 0, 2, FightStyle.Tank, "Powerful mastiff build with a hard guard-dog presence.") },
-            { "Presa Canario", new BreedInfo("Presa Canario", 3, 0, 2, FightStyle.Balanced, "Large, rugged, and imposing.") },
-            { "Dogo Argentino", new BreedInfo("Dogo Argentino", 2, 2, 2, FightStyle.Balanced, "Athletic white-coated hunter build.") },
-            { "Mastiff", new BreedInfo("Mastiff", 4, -1, 3, FightStyle.Tank, "Massive body, heavy bone, and crushing weight.") },
-            { "German Shepherd", new BreedInfo("German Shepherd", 1, 2, 2, FightStyle.Counter, "Lean working-dog shape with alert posture.") },
-            { "Belgian Malinois", new BreedInfo("Belgian Malinois", 0, 4, 2, FightStyle.Rushdown, "Light, fast, and sharply athletic.") },
-            { "Doberman", new BreedInfo("Doberman", 1, 3, 1, FightStyle.Counter, "Sleek, tall, and quick-footed.") },
-            { "Boxer", new BreedInfo("Boxer", 2, 2, 1, FightStyle.Wildcard, "Square, springy, and brawler-built.") },
-            { "Akita", new BreedInfo("Akita", 2, 1, 3, FightStyle.Balanced, "Thick-coated, sturdy, and stubborn.") },
-            { "Greyhound", new BreedInfo("Greyhound", -1, 5, 1, FightStyle.Rushdown, "Long-legged, narrow, and built for speed.") }
+            { "Pit Bull", new BreedInfo("Pit Bull", 3, 1, 2, 1, FightStyle.Rushdown, "Compact, muscular, and explosive.") },
+            { "Rottweiler", new BreedInfo("Rottweiler", 3, 0, 3, 1, FightStyle.Tank, "Heavy frame, broad chest, and steady pressure.") },
+            { "Cane Corso", new BreedInfo("Cane Corso", 3, 0, 2, 0, FightStyle.Tank, "Powerful mastiff build with a hard guard-dog presence.") },
+            { "Presa Canario", new BreedInfo("Presa Canario", 3, 0, 2, 0, FightStyle.Balanced, "Large, rugged, and imposing.") },
+            { "Dogo Argentino", new BreedInfo("Dogo Argentino", 2, 2, 2, 1, FightStyle.Balanced, "Athletic white-coated hunter build.") },
+            { "Mastiff", new BreedInfo("Mastiff", 4, -1, 3, -1, FightStyle.Tank, "Massive body, heavy bone, and crushing weight.") },
+            { "German Shepherd", new BreedInfo("German Shepherd", 1, 2, 2, 4, FightStyle.Counter, "Lean working-dog shape with alert posture.") },
+            { "Belgian Malinois", new BreedInfo("Belgian Malinois", 0, 4, 2, 4, FightStyle.Rushdown, "Light, fast, and sharply athletic.") },
+            { "Doberman", new BreedInfo("Doberman", 1, 3, 1, 3, FightStyle.Counter, "Sleek, tall, and quick-footed.") },
+            { "Boxer", new BreedInfo("Boxer", 2, 2, 1, 1, FightStyle.Wildcard, "Square, springy, and brawler-built.") },
+            { "Akita", new BreedInfo("Akita", 2, 1, 3, 2, FightStyle.Balanced, "Thick-coated, sturdy, and stubborn.") },
+            { "Greyhound", new BreedInfo("Greyhound", -1, 5, 1, 1, FightStyle.Rushdown, "Long-legged, narrow, and built for speed.") }
         };
 
     private static readonly Dictionary<string, string> hybridNames = BuildHybridNames();

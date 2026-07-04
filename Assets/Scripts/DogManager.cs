@@ -103,6 +103,7 @@ public class DogManager : MonoBehaviour
             dogInstance.dogId = fallbackId;
         }
 
+        dogInstance.NormalizeLegacyStats();
         ApplyStartingGenderFallback(dogInstance, fallbackId);
 
         ownedDogs.Add(dogInstance);
@@ -583,6 +584,7 @@ public class DogManager : MonoBehaviour
         score += dog.strength * 2;
         score += dog.agility * 2;
         score += dog.stamina * 2;
+        score += dog.GetIntelligence();
         score += dog.level * 5;
         score += dog.wins * 3;
         score -= dog.losses * 2;
@@ -664,6 +666,7 @@ public class DogManager : MonoBehaviour
                 score += 4;
                 score += dog.agility / 4;
                 score += dog.stamina / 5;
+                score += dog.GetIntelligence() / 2;
 
                 if (opponentStrategy == FightStrategy.WearDown || opponentStrategy == FightStrategy.CounterPlan)
                 {
@@ -771,6 +774,7 @@ public class DogManager : MonoBehaviour
             return;
         }
 
+        newDog.NormalizeLegacyStats();
         ownedDogs.Add(newDog);
 
         DisplayDogs();
@@ -819,10 +823,12 @@ public class DogManager : MonoBehaviour
                 strength = dog.strength,
                 agility = dog.agility,
                 stamina = dog.stamina,
+                intelligence = dog.GetIntelligence(),
 
                 strengthPotential = dog.strengthPotential,
                 agilityPotential = dog.agilityPotential,
                 staminaPotential = dog.staminaPotential,
+                intelligencePotential = dog.GetIntelligencePotential(),
 
                 growthRate = dog.growthRate,
                 fightStyle = dog.fightStyle,
@@ -914,10 +920,15 @@ public class DogManager : MonoBehaviour
         dog.strength = savedDog.strength;
         dog.agility = savedDog.agility;
         dog.stamina = savedDog.stamina;
+        dog.intelligence = savedDog.intelligence <= 0 ? Dog.DefaultIntelligence : savedDog.intelligence;
 
         dog.strengthPotential = savedDog.strengthPotential;
         dog.agilityPotential = savedDog.agilityPotential;
         dog.staminaPotential = savedDog.staminaPotential;
+        dog.intelligencePotential = savedDog.intelligencePotential <= 0
+            ? Dog.DefaultIntelligencePotential
+            : savedDog.intelligencePotential;
+        dog.NormalizeLegacyStats();
 
         dog.growthRate = savedDog.growthRate;
         dog.fightStyle = savedDog.fightStyle;
@@ -1051,10 +1062,12 @@ public class DogSaveData
     public int strength;
     public int agility;
     public int stamina;
+    public int intelligence;
 
     public int strengthPotential;
     public int agilityPotential;
     public int staminaPotential;
+    public int intelligencePotential;
 
     public float growthRate;
 

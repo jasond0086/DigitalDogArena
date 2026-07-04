@@ -40,6 +40,9 @@ public enum DogGender
 [CreateAssetMenu(fileName = "NewDog", menuName = "Dogs/Dog")]
 public class Dog : ScriptableObject
 {
+    public const int DefaultIntelligence = 12;
+    public const int DefaultIntelligencePotential = 100;
+
     [Header("Identity")]
     public string dogId = "dog_id";
     public string dogName = "New Dog";
@@ -122,11 +125,13 @@ public class Dog : ScriptableObject
     [Range(1, 100)] public int strength = 70;
     [Range(1, 100)] public int agility = 65;
     [Range(1, 100)] public int stamina = 75;
+    [Range(1, 100)] public int intelligence = DefaultIntelligence;
 
     [Header("Potential Ceilings")]
     [Range(1, 120)] public int strengthPotential = 100;
     [Range(1, 120)] public int agilityPotential = 100;
     [Range(1, 120)] public int staminaPotential = 100;
+    [Range(1, 120)] public int intelligencePotential = DefaultIntelligencePotential;
 
     [Header("Growth")]
     [Range(0.5f, 2.0f)] public float growthRate = 1.0f;
@@ -153,7 +158,7 @@ public class Dog : ScriptableObject
 
     public int GetPotentialScore()
     {
-        return Mathf.RoundToInt((strengthPotential + agilityPotential + staminaPotential) / 3f);
+        return Mathf.RoundToInt((strengthPotential + agilityPotential + staminaPotential + GetIntelligencePotential()) / 4f);
     }
 
     public string GetPotentialTier()
@@ -192,28 +197,35 @@ public class Dog : ScriptableObject
     {
         string tier = GetPotentialTier();
 
-        int highestPotential = Mathf.Max(strengthPotential, agilityPotential, staminaPotential);
+        int safeIntelligencePotential = GetIntelligencePotential();
+        int highestPotential = Mathf.Max(strengthPotential, agilityPotential, staminaPotential, safeIntelligencePotential);
 
         bool strengthDominant = strengthPotential == highestPotential;
         bool agilityDominant = agilityPotential == highestPotential;
         bool staminaDominant = staminaPotential == highestPotential;
+        bool intelligenceDominant = safeIntelligencePotential == highestPotential;
 
-        if (strengthDominant && !agilityDominant && !staminaDominant)
+        if (strengthDominant && !agilityDominant && !staminaDominant && !intelligenceDominant)
         {
             return $"{tier} Crusher";
         }
 
-        if (agilityDominant && !strengthDominant && !staminaDominant)
+        if (agilityDominant && !strengthDominant && !staminaDominant && !intelligenceDominant)
         {
             return $"{tier} Phantom";
         }
 
-        if (staminaDominant && !strengthDominant && !agilityDominant)
+        if (staminaDominant && !strengthDominant && !agilityDominant && !intelligenceDominant)
         {
             return $"{tier} Ironhide";
         }
 
-        if (strengthDominant && agilityDominant && staminaDominant)
+        if (intelligenceDominant && !strengthDominant && !agilityDominant && !staminaDominant)
+        {
+            return $"{tier} Tactician";
+        }
+
+        if (strengthDominant && agilityDominant && staminaDominant && intelligenceDominant)
         {
             return $"{tier} Perfect Prospect";
         }
@@ -252,5 +264,28 @@ public class Dog : ScriptableObject
         }
 
         return primaryTrait == trait || secondaryTrait == trait;
+    }
+
+    public int GetIntelligence()
+    {
+        return Mathf.Clamp(intelligence <= 0 ? DefaultIntelligence : intelligence, 1, 100);
+    }
+
+    public int GetIntelligencePotential()
+    {
+        return Mathf.Clamp(intelligencePotential <= 0 ? DefaultIntelligencePotential : intelligencePotential, 1, 120);
+    }
+
+    public void NormalizeLegacyStats()
+    {
+        if (intelligence <= 0)
+        {
+            intelligence = DefaultIntelligence;
+        }
+
+        if (intelligencePotential <= 0)
+        {
+            intelligencePotential = DefaultIntelligencePotential;
+        }
     }
 }

@@ -10,6 +10,7 @@ public class DogCardUI : MonoBehaviour
     public TextMeshProUGUI strengthValueText;
     public TextMeshProUGUI agilityValueText;
     public TextMeshProUGUI staminaValueText;
+    public TextMeshProUGUI intelligenceValueText;
     public TextMeshProUGUI winsLossesValueText;
     public TextMeshProUGUI levelValueText;
     public TextMeshProUGUI bloodlineText;
@@ -54,6 +55,15 @@ public class DogCardUI : MonoBehaviour
         SetText(strengthValueText, $"STR {dog.strength}/{dog.strengthPotential}");
         SetText(agilityValueText, $"AGI {dog.agility}/{dog.agilityPotential}");
         SetText(staminaValueText, $"STA {dog.stamina}/{dog.staminaPotential}");
+        if (intelligenceValueText != null)
+        {
+            SetText(intelligenceValueText, $"INT {dog.GetIntelligence()}/{dog.GetIntelligencePotential()}");
+        }
+        else
+        {
+            SetText(staminaValueText, $"STA {dog.stamina}/{dog.staminaPotential}  INT {dog.GetIntelligence()}/{dog.GetIntelligencePotential()}");
+        }
+
         SetText(winsLossesValueText, $"Record {dog.wins}W - {dog.losses}L");
         SetText(levelValueText, $"Level {dog.level}");
         SetText(bloodlineText, GetBloodlineText());

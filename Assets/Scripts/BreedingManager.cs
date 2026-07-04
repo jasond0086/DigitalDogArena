@@ -187,7 +187,8 @@ public class BreedingManager : MonoBehaviour
             "STATS\n" +
             $"Strength: {newborn.strength} / {newborn.strengthPotential} potential\n" +
             $"Agility: {newborn.agility} / {newborn.agilityPotential} potential\n" +
-            $"Stamina: {newborn.stamina} / {newborn.staminaPotential} potential\n\n" +
+            $"Stamina: {newborn.stamina} / {newborn.staminaPotential} potential\n" +
+            $"Intelligence: {newborn.GetIntelligence()} / {newborn.GetIntelligencePotential()} potential\n\n" +
             $"Potential: {newborn.GetPotentialTitle()}\n" +
             $"Growth: x{newborn.growthRate:F2}\n" +
             $"Fight Style: {newborn.fightStyle}\n" +
@@ -370,10 +371,12 @@ public class BreedingManager : MonoBehaviour
         newborn.strengthPotential = BreedPotential(parent1.strengthPotential, parent2.strengthPotential);
         newborn.agilityPotential = BreedPotential(parent1.agilityPotential, parent2.agilityPotential);
         newborn.staminaPotential = BreedPotential(parent1.staminaPotential, parent2.staminaPotential);
+        newborn.intelligencePotential = BreedPotential(parent1.GetIntelligencePotential(), parent2.GetIntelligencePotential());
 
         newborn.strength = BreedStartingStat(parent1.strength, parent2.strength, newborn.strengthPotential);
         newborn.agility = BreedStartingStat(parent1.agility, parent2.agility, newborn.agilityPotential);
         newborn.stamina = BreedStartingStat(parent1.stamina, parent2.stamina, newborn.staminaPotential);
+        newborn.intelligence = BreedStartingStat(parent1.GetIntelligence(), parent2.GetIntelligence(), newborn.intelligencePotential);
 
         newborn.growthRate = BreedGrowthRate(parent1.growthRate, parent2.growthRate);
 
@@ -526,6 +529,7 @@ public class BreedingManager : MonoBehaviour
             dog.strengthPotential = Mathf.Clamp(dog.strengthPotential + 3, 1, 120);
             dog.agilityPotential = Mathf.Clamp(dog.agilityPotential + 3, 1, 120);
             dog.staminaPotential = Mathf.Clamp(dog.staminaPotential + 3, 1, 120);
+            dog.intelligencePotential = Mathf.Clamp(dog.GetIntelligencePotential() + 3, 1, 120);
         }
     }
 
