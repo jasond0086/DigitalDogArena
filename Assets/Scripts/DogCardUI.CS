@@ -70,7 +70,7 @@ public class DogCardUI : MonoBehaviour
 
         if (dogImage != null)
         {
-            dogImage.sprite = dog.dogSprite != null ? dog.dogSprite : defaultDogSprite;
+            dogImage.sprite = DogPortraitLibrary.ChooseStableCardPortrait(dog, dog.dogSprite, defaultDogSprite);
             dogImage.color = Color.white;
             dogImage.enabled = dogImage.sprite != null;
         }
