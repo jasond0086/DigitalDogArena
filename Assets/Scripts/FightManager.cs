@@ -133,6 +133,7 @@ public class FightManager : MonoBehaviour
         }
 
         InitializeFight(dog1, dog2, false, null);
+        PlayNextRound();
     }
 
     public void StartRivalFight()
@@ -178,6 +179,7 @@ public class FightManager : MonoBehaviour
         }
 
         InitializeFight(playerDog, rival.rivalDog, true, rival);
+        PlayNextRound();
     }
 
     void InitializeFight(Dog fighter1, Dog fighter2, bool isRivalFight, RivalHandlerData rival)
