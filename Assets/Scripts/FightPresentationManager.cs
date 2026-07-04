@@ -93,6 +93,10 @@ public class FightPresentationManager : MonoBehaviour
     private GameObject defensiveShellB;
     private GameObject styleEffectA;
     private GameObject styleEffectB;
+    private GameObject traitAuraA;
+    private GameObject traitAuraB;
+    private GameObject traitSlashA;
+    private GameObject traitSlashB;
     private GameObject clashTextObject;
     private GameObject[] imprintCorruptionNodesA;
     private GameObject[] imprintCorruptionNodesB;
@@ -2012,7 +2016,7 @@ public class FightPresentationManager : MonoBehaviour
 
         contactShadowMaterial.name = "RuntimeContactShadowMaterial";
         contactShadowMaterial.hideFlags = HideFlags.DontSave;
-        Color shadowColor = new Color(0.06f, 0.18f, 0.22f, 0.5f);
+        Color shadowColor = new Color(0.08f, 0.22f, 0.26f, 0.58f);
 
         contactShadowMaterial.color = shadowColor;
 
@@ -2130,29 +2134,29 @@ public class FightPresentationManager : MonoBehaviour
         switch (archetype)
         {
             case BreedVisualArchetype.GuardMastiff:
-                return new Vector3(1.46f, 1f, 0.66f);
+                return new Vector3(1.56f, 1f, 0.7f);
 
             case BreedVisualArchetype.IronRott:
-                return new Vector3(1.34f, 1f, 0.58f);
+                return new Vector3(1.42f, 1f, 0.62f);
 
             case BreedVisualArchetype.VelocityHound:
-                return new Vector3(1.42f, 1f, 0.42f);
+                return new Vector3(1.52f, 1f, 0.44f);
 
             case BreedVisualArchetype.BullyStriker:
-                return new Vector3(1.28f, 1f, 0.54f);
+                return new Vector3(1.36f, 1f, 0.58f);
 
             case BreedVisualArchetype.SpitzWarden:
-                return new Vector3(1.12f, 1f, 0.5f);
+                return new Vector3(1.2f, 1f, 0.52f);
 
             case BreedVisualArchetype.HybridVariant:
-                return new Vector3(1.24f, 1f, 0.52f);
+                return new Vector3(1.32f, 1f, 0.56f);
 
             case BreedVisualArchetype.ShepherdSentinel:
-                return new Vector3(1.2f, 1f, 0.52f);
+                return new Vector3(1.28f, 1f, 0.56f);
 
             case BreedVisualArchetype.Unknown:
             default:
-                return new Vector3(1.15f, 1f, 0.5f);
+                return new Vector3(1.22f, 1f, 0.52f);
         }
     }
 
@@ -5245,6 +5249,36 @@ public class FightPresentationManager : MonoBehaviour
         {
             styleEffectB = CreateArenaImpactEffectObject("StyleEffectB", PrimitiveType.Cube, new Vector3(0.32f, 0.32f, 0.32f), Color.magenta);
         }
+
+        CreateTraitEffectsIfNeeded();
+    }
+
+    void CreateTraitEffectsIfNeeded()
+    {
+        if (arenaRoot == null)
+        {
+            return;
+        }
+
+        if (traitAuraA == null)
+        {
+            traitAuraA = CreateArenaImpactEffectObject("TraitAuraA", PrimitiveType.Cylinder, new Vector3(1f, 0.035f, 0.68f), new Color(0.5f, 1f, 0.9f));
+        }
+
+        if (traitAuraB == null)
+        {
+            traitAuraB = CreateArenaImpactEffectObject("TraitAuraB", PrimitiveType.Cylinder, new Vector3(1f, 0.035f, 0.68f), new Color(1f, 0.45f, 0.95f));
+        }
+
+        if (traitSlashA == null)
+        {
+            traitSlashA = CreateArenaImpactEffectObject("TraitSlashA", PrimitiveType.Cube, new Vector3(0.09f, 0.48f, 0.18f), new Color(1f, 0.2f, 0.24f));
+        }
+
+        if (traitSlashB == null)
+        {
+            traitSlashB = CreateArenaImpactEffectObject("TraitSlashB", PrimitiveType.Cube, new Vector3(0.09f, 0.48f, 0.18f), new Color(1f, 0.2f, 0.78f));
+        }
     }
 
     void ShowStrategyEffect(Transform fighterTransform, FightStrategy strategy, string effectName, int roundNumber)
@@ -5306,6 +5340,15 @@ public class FightPresentationManager : MonoBehaviour
         SetImpactEffectActive(defensiveShellB, false);
         SetImpactEffectActive(styleEffectA, false);
         SetImpactEffectActive(styleEffectB, false);
+        HideTraitEffects();
+    }
+
+    void HideTraitEffects()
+    {
+        SetImpactEffectActive(traitAuraA, false);
+        SetImpactEffectActive(traitAuraB, false);
+        SetImpactEffectActive(traitSlashA, false);
+        SetImpactEffectActive(traitSlashB, false);
     }
 
     void UpdateStrategyEffectPositions()
@@ -5316,6 +5359,15 @@ public class FightPresentationManager : MonoBehaviour
         UpdateSingleStrategyEffectPosition(defensiveShellB, fighterBTransform, new Vector3(0f, 0.48f, 0f));
         UpdateSingleStrategyEffectPosition(styleEffectA, fighterATransform, new Vector3(0f, 1.18f, -0.14f));
         UpdateSingleStrategyEffectPosition(styleEffectB, fighterBTransform, new Vector3(0f, 1.18f, -0.14f));
+        UpdateTraitEffectPositions();
+    }
+
+    void UpdateTraitEffectPositions()
+    {
+        UpdateSingleStrategyEffectPosition(traitAuraA, fighterATransform, new Vector3(0f, 0.36f, -0.05f));
+        UpdateSingleStrategyEffectPosition(traitAuraB, fighterBTransform, new Vector3(0f, 0.36f, -0.05f));
+        UpdateSingleStrategyEffectPosition(traitSlashA, fighterATransform, new Vector3(0.16f, 1.04f, -0.18f));
+        UpdateSingleStrategyEffectPosition(traitSlashB, fighterBTransform, new Vector3(-0.16f, 1.04f, -0.18f));
     }
 
     void UpdateSingleStrategyEffectPosition(GameObject effectObject, Transform fighterTransform, Vector3 offset)
@@ -5346,6 +5398,141 @@ public class FightPresentationManager : MonoBehaviour
         effectObject.transform.localPosition += new Vector3(jitter, 0f, -jitter * 0.5f);
         effectObject.transform.localScale = Vector3.Lerp(new Vector3(0.26f, 0.26f, 0.26f), new Vector3(0.46f, 0.46f, 0.46f), flicker);
         SetObjectUnlitColor(effectObject, Color.Lerp(new Color(0.2f, 0.8f, 1f), GetStyleAccentColor(FightStyle.Wildcard), flicker));
+    }
+
+    void ShowTraitVisualAccents(
+        Dog dog,
+        Transform fighterTransform,
+        int roundNumber,
+        int currentHealth,
+        int maxLikelyHealth,
+        int outgoingImpact,
+        int incomingImpact,
+        bool isFighterA
+    )
+    {
+        if (dog == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        CreateTraitEffectsIfNeeded();
+
+        GameObject auraObject = isFighterA ? traitAuraA : traitAuraB;
+        GameObject slashObject = isFighterA ? traitSlashA : traitSlashB;
+        float healthPercent = GetVisualHealthPercent(currentHealth, maxLikelyHealth);
+        float pulse = Mathf.PingPong(Time.time * 3.2f, 1f);
+
+        bool hasAura = false;
+        Color auraColor = Color.white;
+        float auraScale = 1f;
+
+        if (dog.HasTrait(DogTrait.Durable) && incomingImpact > 0)
+        {
+            BlendTraitAura(ref hasAura, ref auraColor, ref auraScale, new Color(0.28f, 1f, 0.84f), 1.08f);
+        }
+
+        if (dog.HasTrait(DogTrait.Clutch) && (healthPercent <= 0.35f || roundNumber >= 5))
+        {
+            float clutchStrength = healthPercent <= 0.35f ? 1.28f : 1.12f;
+            BlendTraitAura(ref hasAura, ref auraColor, ref auraScale, Color.Lerp(new Color(1f, 0.72f, 0.12f), Color.white, pulse * 0.35f), clutchStrength);
+        }
+
+        if (dog.HasTrait(DogTrait.LateBloomer) && roundNumber >= 3)
+        {
+            float growth = Mathf.InverseLerp(3f, 6f, roundNumber);
+            BlendTraitAura(ref hasAura, ref auraColor, ref auraScale, new Color(0.3f, 0.95f, 0.7f), Mathf.Lerp(1.05f, 1.28f, growth));
+        }
+
+        if (dog.HasTrait(DogTrait.Prodigy) && ShouldShowProdigyGlow(roundNumber, outgoingImpact, incomingImpact))
+        {
+            BlendTraitAura(ref hasAura, ref auraColor, ref auraScale, new Color(0.86f, 1f, 1f), 1.18f);
+        }
+
+        if (hasAura)
+        {
+            ShowTraitAuraEffect(auraObject, fighterTransform, auraColor, auraScale, isFighterA);
+        }
+
+        if (dog.HasTrait(DogTrait.Aggressive) && outgoingImpact > 0)
+        {
+            float intensity = Mathf.InverseLerp(1f, 30f, outgoingImpact);
+            ShowTraitSlashEffect(
+                slashObject,
+                fighterTransform,
+                Color.Lerp(new Color(1f, 0.22f, 0.16f), new Color(1f, 0.28f, 0.78f), intensity * 0.35f),
+                Mathf.Lerp(0.9f, 1.35f, intensity),
+                isFighterA,
+                25f
+            );
+            return;
+        }
+
+        if (dog.HasTrait(DogTrait.GlassCannon) && ShouldShowGlassCannonFlicker(roundNumber, outgoingImpact, incomingImpact))
+        {
+            float flicker = Mathf.PingPong((Time.time * 5.7f) + roundNumber, 1f);
+            ShowTraitSlashEffect(
+                slashObject,
+                fighterTransform,
+                Color.Lerp(new Color(0.95f, 1f, 1f), new Color(0.95f, 0.12f, 1f), flicker),
+                Mathf.Lerp(0.78f, 1.12f, flicker),
+                isFighterA,
+                -18f
+            );
+        }
+    }
+
+    void BlendTraitAura(ref bool hasAura, ref Color auraColor, ref float auraScale, Color addedColor, float addedScale)
+    {
+        if (!hasAura)
+        {
+            hasAura = true;
+            auraColor = addedColor;
+            auraScale = addedScale;
+            return;
+        }
+
+        auraColor = Color.Lerp(auraColor, addedColor, 0.5f);
+        auraScale = Mathf.Max(auraScale, addedScale);
+    }
+
+    bool ShouldShowProdigyGlow(int roundNumber, int outgoingImpact, int incomingImpact)
+    {
+        return roundNumber == 1 || ((roundNumber % 3) == 0 && (outgoingImpact > 0 || incomingImpact > 0));
+    }
+
+    bool ShouldShowGlassCannonFlicker(int roundNumber, int outgoingImpact, int incomingImpact)
+    {
+        return outgoingImpact >= 8 || incomingImpact >= 8 || (roundNumber % 2) == 1;
+    }
+
+    void ShowTraitAuraEffect(GameObject auraObject, Transform fighterTransform, Color color, float scale, bool isFighterA)
+    {
+        if (auraObject == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        auraObject.SetActive(true);
+        auraObject.transform.localPosition = fighterTransform.localPosition + new Vector3(0f, 0.36f, -0.05f);
+        auraObject.transform.localRotation = Quaternion.identity;
+        auraObject.transform.localScale = new Vector3(1.05f * scale, 0.035f, 0.72f * scale);
+        SetObjectUnlitColor(auraObject, color);
+    }
+
+    void ShowTraitSlashEffect(GameObject slashObject, Transform fighterTransform, Color color, float scale, bool isFighterA, float angleOffset)
+    {
+        if (slashObject == null || fighterTransform == null)
+        {
+            return;
+        }
+
+        float side = isFighterA ? 1f : -1f;
+        slashObject.SetActive(true);
+        slashObject.transform.localPosition = fighterTransform.localPosition + new Vector3(0.16f * side, 1.04f, -0.18f);
+        slashObject.transform.localRotation = Quaternion.Euler(0f, 52f * side, (32f + angleOffset) * side);
+        slashObject.transform.localScale = new Vector3(0.075f, 0.48f * scale, 0.17f);
+        SetObjectUnlitColor(slashObject, color);
     }
 
     Color GetStrategyEffectColor(FightStrategy strategy)
@@ -5667,10 +5854,7 @@ public class FightPresentationManager : MonoBehaviour
         Color accentColor = GetDominantStyleAccentColor(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
         string clashMessage = GetClashMessage(dogAImpact, dogBImpact, severity);
 
-        if (severity >= 2)
-        {
-            PulseArena(severity, accentColor);
-        }
+        PulseArena(severity, accentColor);
 
         if (severity >= 3)
         {
@@ -5809,6 +5993,8 @@ public class FightPresentationManager : MonoBehaviour
         ShowStrategyEffect(fighterBTransform, dogBStrategy, "B", roundNumber);
         ApplyStyleVisualModifier(fighterATransform, dogAStyle, "A", roundNumber, dogAImpact);
         ApplyStyleVisualModifier(fighterBTransform, dogBStyle, "B", roundNumber, dogBImpact);
+        ShowTraitVisualAccents(dogA, fighterATransform, roundNumber, dogAHealth, visualMaxHealthA, dogAImpact, dogBImpact, true);
+        ShowTraitVisualAccents(dogB, fighterBTransform, roundNumber, dogBHealth, visualMaxHealthB, dogBImpact, dogAImpact, false);
         ShowRoundImpactEffects(dogAImpact, dogBImpact, dogAStrategy, dogBStrategy, dogAStyle, dogBStyle, roundNumber);
         yield return PlayCinematicHitBeat(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
         yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, Mathf.Max(0.05f, resetDuration), dogAStyle, dogBStyle, roundNumber);
