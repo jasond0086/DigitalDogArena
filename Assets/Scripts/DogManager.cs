@@ -14,6 +14,7 @@ public class DogManager : MonoBehaviour
     private const int StarterStatMax = 22;
     private const int StarterPotentialMin = 60;
     private const int StarterPotentialMax = 105;
+    private const string StableFilterAllDogs = "All Dogs";
 
     private static readonly string[] generatedStarterNamePool =
     {
@@ -45,6 +46,27 @@ public class DogManager : MonoBehaviour
         "Blitz"
     };
 
+    private static readonly string[] stableBreedFilterOptions =
+    {
+        StableFilterAllDogs,
+        "Bully Striker / Pit Types",
+        "Iron Rott / Rott Types",
+        "Guard Mastiff / Mastiff Types",
+        "Shepherd Sentinel / Shepherd Types",
+        "Spitz Warden / Spitz Types",
+        "Velocity Hound / Hound Types",
+        "Hybrids",
+        "Pit Bull",
+        "Rottweiler",
+        "German Shepherd",
+        "Mastiff",
+        "Cane Corso",
+        "Doberman",
+        "Belgian Malinois",
+        "Akita",
+        "Greyhound"
+    };
+
     [Header("Owned Dogs")]
     public List<Dog> ownedDogs = new List<Dog>();
 
@@ -56,6 +78,7 @@ public class DogManager : MonoBehaviour
     public GameObject dogCardPrefab;
     public TextMeshProUGUI selectedFightersText;
     public TextMeshProUGUI matchupPreviewText;
+    public TMP_Dropdown stableBreedFilterDropdown;
 
     [Header("Economy")]
     public EconomyManager economyManager;
@@ -86,6 +109,7 @@ public class DogManager : MonoBehaviour
     private List<Dog> selectableFighterDogs = new List<Dog>();
     private List<Dog> selectableParentDogs = new List<Dog>();
     private bool isRefreshingDogDropdowns = false;
+    private int selectedStableBreedFilterIndex = 0;
 
     void Start()
     {
@@ -114,6 +138,7 @@ public class DogManager : MonoBehaviour
 
         SetupStrategyDropdowns();
         RefreshDogSelectionDropdowns();
+        SetupStableBreedFilterDropdown();
 
         DisplayDogs();
         UpdateSelectedFightersText();
@@ -472,6 +497,7 @@ public class DogManager : MonoBehaviour
         foreach (Dog dog in ownedDogs)
         {
             if (dog == null) continue;
+            if (!DogMatchesStableFilter(dog, GetSelectedStableBreedFilter())) continue;
 
             GameObject card = Instantiate(dogCardPrefab, dogContainer);
             DogCardUI cardUI = card.GetComponent<DogCardUI>();
@@ -484,6 +510,592 @@ public class DogManager : MonoBehaviour
 
             cardUI.Setup(dog, this);
         }
+    }
+
+    void SetupStableBreedFilterDropdown()
+    {
+        if (stableBreedFilterDropdown == null)
+        {
+            stableBreedFilterDropdown = FindExistingStableBreedFilterDropdown();
+        }
+
+        if (stableBreedFilterDropdown == null)
+        {
+            stableBreedFilterDropdown = CreateStableBreedFilterDropdown();
+        }
+
+        if (stableBreedFilterDropdown == null)
+        {
+            Debug.LogWarning("Stable breed filter dropdown could not be created.");
+            return;
+        }
+
+        selectedStableBreedFilterIndex = Mathf.Clamp(
+            selectedStableBreedFilterIndex,
+            0,
+            stableBreedFilterOptions.Length - 1);
+
+        stableBreedFilterDropdown.ClearOptions();
+        stableBreedFilterDropdown.AddOptions(new List<string>(stableBreedFilterOptions));
+        stableBreedFilterDropdown.SetValueWithoutNotify(selectedStableBreedFilterIndex);
+        stableBreedFilterDropdown.RefreshShownValue();
+        stableBreedFilterDropdown.onValueChanged.RemoveListener(OnStableBreedFilterChanged);
+        stableBreedFilterDropdown.onValueChanged.AddListener(OnStableBreedFilterChanged);
+    }
+
+    TMP_Dropdown FindExistingStableBreedFilterDropdown()
+    {
+        Transform stablePage = FindStablePageTransform();
+
+        if (stablePage == null)
+        {
+            return null;
+        }
+
+        Transform dropdownTransform = FindChildByName(stablePage, "StableBreedFilterDropdown");
+        return dropdownTransform != null
+            ? dropdownTransform.GetComponent<TMP_Dropdown>()
+            : null;
+    }
+
+    TMP_Dropdown CreateStableBreedFilterDropdown()
+    {
+        Transform stablePage = FindStablePageTransform();
+        TMP_Dropdown sourceDropdown = GetStableFilterDropdownTemplateSource();
+
+        if (stablePage == null || sourceDropdown == null)
+        {
+            return null;
+        }
+
+        Transform filterArea = CreateOrFindStableFilterArea(stablePage);
+        CreateOrUpdateStableFilterLabel(filterArea);
+
+        GameObject dropdownObject = Instantiate(sourceDropdown.gameObject, filterArea);
+        dropdownObject.name = "StableBreedFilterDropdown";
+        dropdownObject.SetActive(true);
+
+        RectTransform dropdownRect = dropdownObject.GetComponent<RectTransform>();
+        if (dropdownRect != null)
+        {
+            dropdownRect.anchorMin = new Vector2(0f, 1f);
+            dropdownRect.anchorMax = new Vector2(0f, 1f);
+            dropdownRect.pivot = new Vector2(0f, 1f);
+            dropdownRect.anchoredPosition = new Vector2(92f, -4f);
+            dropdownRect.sizeDelta = new Vector2(360f, 38f);
+        }
+
+        TMP_Dropdown dropdown = dropdownObject.GetComponent<TMP_Dropdown>();
+
+        if (dropdown != null)
+        {
+            dropdown.interactable = true;
+            dropdown.onValueChanged.RemoveAllListeners();
+        }
+
+        return dropdown;
+    }
+
+    Transform CreateOrFindStableFilterArea(Transform stablePage)
+    {
+        Transform existingArea = FindChildByName(stablePage, "StableFilterArea");
+
+        if (existingArea != null)
+        {
+            return existingArea;
+        }
+
+        GameObject areaObject = new GameObject("StableFilterArea", typeof(RectTransform));
+        areaObject.transform.SetParent(stablePage, false);
+
+        RectTransform areaRect = areaObject.GetComponent<RectTransform>();
+        areaRect.anchorMin = new Vector2(0f, 1f);
+        areaRect.anchorMax = new Vector2(0f, 1f);
+        areaRect.pivot = new Vector2(0f, 1f);
+        areaRect.anchoredPosition = new Vector2(70f, -150f);
+        areaRect.sizeDelta = new Vector2(470f, 46f);
+
+        return areaObject.transform;
+    }
+
+    void CreateOrUpdateStableFilterLabel(Transform filterArea)
+    {
+        Transform existingLabel = FindChildByName(filterArea, "StableBreedFilterLabel");
+        TextMeshProUGUI labelText;
+
+        if (existingLabel != null)
+        {
+            labelText = existingLabel.GetComponent<TextMeshProUGUI>();
+        }
+        else
+        {
+            GameObject labelObject = new GameObject("StableBreedFilterLabel", typeof(RectTransform));
+            labelObject.transform.SetParent(filterArea, false);
+            labelText = labelObject.AddComponent<TextMeshProUGUI>();
+        }
+
+        if (labelText == null)
+        {
+            return;
+        }
+
+        labelText.text = "Filter";
+        labelText.fontSize = 24f;
+        labelText.color = Color.white;
+        labelText.alignment = TextAlignmentOptions.MidlineRight;
+        labelText.raycastTarget = false;
+
+        TextMeshProUGUI stableTitleText = FindStableTitleText();
+        if (stableTitleText != null)
+        {
+            labelText.font = stableTitleText.font;
+            labelText.fontSharedMaterial = stableTitleText.fontSharedMaterial;
+        }
+
+        RectTransform labelRect = labelText.GetComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0f, 1f);
+        labelRect.anchorMax = new Vector2(0f, 1f);
+        labelRect.pivot = new Vector2(0f, 1f);
+        labelRect.anchoredPosition = new Vector2(0f, -4f);
+        labelRect.sizeDelta = new Vector2(82f, 38f);
+    }
+
+    TMP_Dropdown GetStableFilterDropdownTemplateSource()
+    {
+        if (fighter1DogDropdown != null) return fighter1DogDropdown;
+        if (fighter2DogDropdown != null) return fighter2DogDropdown;
+        if (parent1DogDropdown != null) return parent1DogDropdown;
+        if (parent2DogDropdown != null) return parent2DogDropdown;
+        if (fighter1StrategyDropdown != null) return fighter1StrategyDropdown;
+        if (fighter2StrategyDropdown != null) return fighter2StrategyDropdown;
+
+        return null;
+    }
+
+    Transform FindStablePageTransform()
+    {
+        GameObject stablePageObject = GameObject.Find("StablePage");
+        return stablePageObject != null ? stablePageObject.transform : null;
+    }
+
+    TextMeshProUGUI FindStableTitleText()
+    {
+        Transform stablePage = FindStablePageTransform();
+
+        if (stablePage == null)
+        {
+            return null;
+        }
+
+        Transform stableTitle = FindChildByName(stablePage, "StableTitle");
+        return stableTitle != null ? stableTitle.GetComponent<TextMeshProUGUI>() : null;
+    }
+
+    Transform FindChildByName(Transform root, string childName)
+    {
+        if (root == null || string.IsNullOrEmpty(childName))
+        {
+            return null;
+        }
+
+        Transform[] children = root.GetComponentsInChildren<Transform>(true);
+
+        for (int i = 0; i < children.Length; i++)
+        {
+            if (children[i] != null && children[i].name == childName)
+            {
+                return children[i];
+            }
+        }
+
+        return null;
+    }
+
+    void OnStableBreedFilterChanged(int optionIndex)
+    {
+        selectedStableBreedFilterIndex = Mathf.Clamp(optionIndex, 0, stableBreedFilterOptions.Length - 1);
+        DisplayDogs();
+    }
+
+    string GetSelectedStableBreedFilter()
+    {
+        if (stableBreedFilterDropdown != null &&
+            stableBreedFilterDropdown.options != null &&
+            stableBreedFilterDropdown.options.Count > 0)
+        {
+            int optionIndex = Mathf.Clamp(stableBreedFilterDropdown.value, 0, stableBreedFilterDropdown.options.Count - 1);
+            return stableBreedFilterDropdown.options[optionIndex].text;
+        }
+
+        return stableBreedFilterOptions[Mathf.Clamp(selectedStableBreedFilterIndex, 0, stableBreedFilterOptions.Length - 1)];
+    }
+
+    private bool DogMatchesStableFilter(Dog dog, string selectedFilter)
+    {
+        if (dog == null)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedFilter) || selectedFilter == StableFilterAllDogs)
+        {
+            return true;
+        }
+
+        string breed = dog.breed;
+
+        switch (selectedFilter)
+        {
+            case "Bully Striker / Pit Types":
+                return IsBullyStableBreed(breed);
+
+            case "Iron Rott / Rott Types":
+                return IsIronRottStableBreed(breed);
+
+            case "Guard Mastiff / Mastiff Types":
+                return IsGuardMastiffStableBreed(breed);
+
+            case "Shepherd Sentinel / Shepherd Types":
+                return IsShepherdStableBreed(breed);
+
+            case "Spitz Warden / Spitz Types":
+                return IsSpitzStableBreed(breed);
+
+            case "Velocity Hound / Hound Types":
+                return IsVelocityHoundStableBreed(breed);
+
+            case "Hybrids":
+                return IsHybridStableBreed(breed);
+
+            case "Pit Bull":
+                return BreedHasAnyText(breed, "pit bull", "pitbull");
+
+            case "Rottweiler":
+                return BreedHasAnyText(breed, "rottweiler");
+
+            case "German Shepherd":
+                return BreedHasAnyText(breed, "german shepherd", "german shepard");
+
+            case "Mastiff":
+                return BreedHasAnyText(breed, "mastiff");
+
+            case "Cane Corso":
+                return BreedHasAnyText(breed, "cane corso", "canecorso");
+
+            case "Doberman":
+                return BreedHasAnyText(breed, "doberman");
+
+            case "Belgian Malinois":
+                return BreedHasAnyText(breed, "belgian malinois", "malinois");
+
+            case "Akita":
+                return BreedHasAnyText(breed, "akita");
+
+            case "Greyhound":
+                return BreedHasAnyText(breed, "greyhound");
+        }
+
+        return true;
+    }
+
+    bool IsBullyStableBreed(string breed)
+    {
+        return BreedHasAnyText(
+            breed,
+            "pit bull",
+            "pitbull",
+            "american bully",
+            "american staffordshire",
+            "staffordshire terrier",
+            "staffordshire",
+            "bull terrier",
+            "bullterrier",
+            "boxer",
+            "bulldog",
+            "bully",
+            "bull",
+            "german bull",
+            "shepherd bull",
+            "pit german",
+            "pit shepherd",
+            "bull shepherd",
+            "bullhound",
+            "presabull",
+            "bullentino",
+            "bullakita",
+            "corso bull");
+    }
+
+    bool IsIronRottStableBreed(string breed)
+    {
+        return BreedHasAnyText(
+            breed,
+            "rottweiler",
+            "rott",
+            "rotterman",
+            "doberrott",
+            "doberman",
+            "beauceron",
+            "black russian terrier",
+            "rott mastiff",
+            "rottmastiff",
+            "mastweiler",
+            "boxweiler",
+            "corso rott",
+            "shepherd rott");
+    }
+
+    bool IsGuardMastiffStableBreed(string breed)
+    {
+        return BreedHasAnyText(
+            breed,
+            "mastiff",
+            "cane corso",
+            "canecorso",
+            "presa canario",
+            "presa",
+            "dogo argentino",
+            "dogo",
+            "boerboel",
+            "great dane",
+            "greatdane",
+            "kangal",
+            "tosa inu",
+            "tosa",
+            "fila brasileiro",
+            "fila",
+            "central asian shepherd",
+            "rott mastiff",
+            "rottmastiff",
+            "mastweiler",
+            "boxiff",
+            "presacorso",
+            "akicorso",
+            "dobocorso",
+            "shepiff",
+            "corso bull",
+            "corso rott");
+    }
+
+    bool IsShepherdStableBreed(string breed)
+    {
+        return BreedHasAnyText(
+            breed,
+            "german shepherd",
+            "german shepard",
+            "belgian malinois",
+            "malinois",
+            "dutch shepherd",
+            "anatolian shepherd",
+            "australian shepherd",
+            "belgian tervuren",
+            "tervuren",
+            "shepherd",
+            "shepard",
+            "german bull",
+            "pit german",
+            "pit shepherd",
+            "bull shepherd",
+            "shepherd bull",
+            "malishep",
+            "shepdogo",
+            "shepiff",
+            "wolf shepherd",
+            "shepherd rott",
+            "maliberman");
+    }
+
+    bool IsSpitzStableBreed(string breed)
+    {
+        return BreedHasAnyText(
+            breed,
+            "akita",
+            "husky",
+            "alaskan malamute",
+            "malamute",
+            "shiba inu",
+            "shiba",
+            "chow chow",
+            "chow",
+            "samoyed",
+            "spitz",
+            "akita husky",
+            "wolf husky",
+            "bullakita",
+            "akicorso");
+    }
+
+    bool IsVelocityHoundStableBreed(string breed)
+    {
+        return BreedHasAnyText(
+            breed,
+            "greyhound",
+            "whippet",
+            "saluki",
+            "rhodesian ridgeback",
+            "thai ridgeback",
+            "ridgeback",
+            "pharaoh hound",
+            "pharaoh",
+            "catahoula leopard dog",
+            "catahoula",
+            "hound",
+            "greyberman",
+            "bullhound");
+    }
+
+    bool IsHybridStableBreed(string breed)
+    {
+        return BreedHasAnyText(
+            breed,
+            "hybrid",
+            "mix",
+            "mixed",
+            "cross",
+            " x ",
+            "germanbull",
+            "germanbully",
+            "shepherdbull",
+            "shepherdbully",
+            "pitgerman",
+            "pitshepherd",
+            "bullshepherd",
+            "bullyshepherd",
+            "rottmastiff",
+            "rottie bull",
+            "shepherd rott",
+            "corso bull",
+            "doberrott",
+            "malishep",
+            "boxiff",
+            "bullentino",
+            "presacorso",
+            "akicorso",
+            "greyberman",
+            "shepdogo",
+            "bullakita",
+            "mastweiler",
+            "presabull",
+            "dobocorso",
+            "boxweiler",
+            "shepiff",
+            "maliberman",
+            "bullhound",
+            "wolf shepherd",
+            "wolf husky");
+    }
+
+    bool BreedHasAnyText(string breed, params string[] searchTexts)
+    {
+        if (string.IsNullOrWhiteSpace(breed) || searchTexts == null)
+        {
+            return false;
+        }
+
+        string rawBreed = GetRawStableBreedText(breed);
+        string separatedBreed = GetSeparatedStableBreedText(breed);
+        string compactBreed = GetCompactStableBreedText(breed);
+
+        for (int i = 0; i < searchTexts.Length; i++)
+        {
+            string searchText = searchTexts[i];
+
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                continue;
+            }
+
+            string rawSearch = GetRawStableBreedText(searchText);
+            string separatedSearch = GetSeparatedStableBreedText(searchText);
+            string compactSearch = GetCompactStableBreedText(searchText);
+
+            if ((!string.IsNullOrEmpty(rawSearch) && rawBreed.Contains(rawSearch)) ||
+                (!string.IsNullOrEmpty(separatedSearch) && separatedBreed.Contains(separatedSearch)) ||
+                (!string.IsNullOrEmpty(compactSearch) && compactBreed.Contains(compactSearch)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    string GetRawStableBreedText(string breed)
+    {
+        return string.IsNullOrWhiteSpace(breed)
+            ? string.Empty
+            : breed.Trim().ToLowerInvariant();
+    }
+
+    string GetSeparatedStableBreedText(string breed)
+    {
+        string rawBreed = GetRawStableBreedText(breed);
+
+        if (string.IsNullOrEmpty(rawBreed))
+        {
+            return string.Empty;
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder(rawBreed.Length);
+        bool previousWasSpace = false;
+
+        for (int i = 0; i < rawBreed.Length; i++)
+        {
+            char breedCharacter = rawBreed[i];
+            bool isSeparator = char.IsWhiteSpace(breedCharacter) ||
+                               breedCharacter == '_' ||
+                               breedCharacter == '-' ||
+                               breedCharacter == '/' ||
+                               breedCharacter == '\\' ||
+                               breedCharacter == '\'';
+
+            if (isSeparator)
+            {
+                if (!previousWasSpace && builder.Length > 0)
+                {
+                    builder.Append(' ');
+                    previousWasSpace = true;
+                }
+
+                continue;
+            }
+
+            builder.Append(breedCharacter);
+            previousWasSpace = false;
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    string GetCompactStableBreedText(string breed)
+    {
+        string rawBreed = GetRawStableBreedText(breed);
+
+        if (string.IsNullOrEmpty(rawBreed))
+        {
+            return string.Empty;
+        }
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder(rawBreed.Length);
+
+        for (int i = 0; i < rawBreed.Length; i++)
+        {
+            char breedCharacter = rawBreed[i];
+
+            if (char.IsWhiteSpace(breedCharacter) ||
+                breedCharacter == '_' ||
+                breedCharacter == '-' ||
+                breedCharacter == '/' ||
+                breedCharacter == '\\' ||
+                breedCharacter == '\'')
+            {
+                continue;
+            }
+
+            builder.Append(breedCharacter);
+        }
+
+        return builder.ToString();
     }
 
     public void SelectParent1(Dog dog)
