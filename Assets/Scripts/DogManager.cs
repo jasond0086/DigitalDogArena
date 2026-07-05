@@ -6,6 +6,44 @@ using UnityEngine.Events;
 public class DogManager : MonoBehaviour
 {
     private const string SaveKey = "DOG_STABLE_SAVE";
+    private const string StarterStableSeedKey = "DOG_STARTER_STABLE_SEEDED";
+    private const int TargetStarterStableSize = 14;
+    private const int MinimumStarterMales = 5;
+    private const int MinimumStarterFemales = 5;
+    private const int StarterStatMin = 8;
+    private const int StarterStatMax = 22;
+    private const int StarterPotentialMin = 60;
+    private const int StarterPotentialMax = 105;
+
+    private static readonly string[] generatedStarterNamePool =
+    {
+        "Titan",
+        "Nova",
+        "Diesel",
+        "Sable",
+        "Knox",
+        "Vexa",
+        "Ghost",
+        "Rocco",
+        "Kira",
+        "Atlas",
+        "Nyx",
+        "Juno",
+        "Kane",
+        "Rogue",
+        "Vega",
+        "Blitz"
+    };
+
+    private static readonly string[] generatedStarterNameSuffixPool =
+    {
+        "Fang",
+        "Storm",
+        "Ghost",
+        "Bolt",
+        "Rogue",
+        "Blitz"
+    };
 
     [Header("Owned Dogs")]
     public List<Dog> ownedDogs = new List<Dog>();
@@ -61,8 +99,18 @@ public class DogManager : MonoBehaviour
             narratorManager = GetComponent<NarratorManager>();
         }
 
-        LoadStartingDogs();
-        LoadStable();
+        if (HasStableSave())
+        {
+            LoadStable();
+            SeedStarterStableIfNeeded();
+        }
+        else
+        {
+            LoadStartingDogs();
+            TopUpStarterStable();
+            SaveStable();
+            MarkStarterStableSeeded();
+        }
 
         SetupStrategyDropdowns();
         RefreshDogSelectionDropdowns();
@@ -86,6 +134,42 @@ public class DogManager : MonoBehaviour
         }
     }
 
+    bool HasStableSave()
+    {
+        return PlayerPrefs.HasKey(SaveKey);
+    }
+
+    bool HasStarterStableSeed()
+    {
+        return PlayerPrefs.GetInt(StarterStableSeedKey, 0) == 1;
+    }
+
+    void MarkStarterStableSeeded()
+    {
+        PlayerPrefs.SetInt(StarterStableSeedKey, 1);
+        PlayerPrefs.Save();
+    }
+
+    void SeedStarterStableIfNeeded()
+    {
+        if (HasStarterStableSeed())
+        {
+            return;
+        }
+
+        bool needsMoreDogs = ownedDogs.Count < TargetStarterStableSize;
+        bool needsMoreMales = CountGender(DogGender.Male) < MinimumStarterMales;
+        bool needsMoreFemales = CountGender(DogGender.Female) < MinimumStarterFemales;
+
+        if (needsMoreDogs || needsMoreMales || needsMoreFemales)
+        {
+            TopUpStarterStable();
+            SaveStable();
+        }
+
+        MarkStarterStableSeeded();
+    }
+
     void AddDogFromResources(string dogResourceName, string fallbackId)
     {
         Dog dogTemplate = Resources.Load<Dog>(dogResourceName);
@@ -107,6 +191,246 @@ public class DogManager : MonoBehaviour
         ApplyStartingGenderFallback(dogInstance, fallbackId);
 
         ownedDogs.Add(dogInstance);
+    }
+
+    void TopUpStarterStable()
+    {
+        int generatedCount = 0;
+
+        while (CountGender(DogGender.Male) < MinimumStarterMales)
+        {
+            AddGeneratedStarterDog(DogGender.Male, generatedCount);
+            generatedCount++;
+        }
+
+        while (CountGender(DogGender.Female) < MinimumStarterFemales)
+        {
+            AddGeneratedStarterDog(DogGender.Female, generatedCount);
+            generatedCount++;
+        }
+
+        while (ownedDogs.Count < TargetStarterStableSize)
+        {
+            DogGender gender = CountGender(DogGender.Male) <= CountGender(DogGender.Female)
+                ? DogGender.Male
+                : DogGender.Female;
+
+            AddGeneratedStarterDog(gender, generatedCount);
+            generatedCount++;
+        }
+
+        if (generatedCount > 0)
+        {
+            Debug.Log($"Generated {generatedCount} starter dogs. Stable now has {ownedDogs.Count} dogs.");
+        }
+    }
+
+    void AddGeneratedStarterDog(DogGender gender, int generatedIndex)
+    {
+        Dog generatedDog = CreateGeneratedStarterDog(gender, generatedIndex);
+
+        if (generatedDog != null)
+        {
+            ownedDogs.Add(generatedDog);
+        }
+    }
+
+    Dog CreateGeneratedStarterDog(DogGender gender, int generatedIndex)
+    {
+        Dog dog = ScriptableObject.CreateInstance<Dog>();
+        string breedName = ChooseStarterBreedName(generatedIndex);
+        BreedLibrary.BreedInfo breedInfo = GetBreedInfoOrDefault(breedName);
+
+        dog.dogId = $"starter_generated_{System.Guid.NewGuid().ToString("N")}";
+        dog.dogName = GetUniqueStarterDogName(generatedIndex);
+        dog.breed = breedName;
+        dog.gender = gender;
+        dog.age = 0;
+        dog.isDead = false;
+        dog.isRetired = false;
+        dog.lastBredWeek = -999;
+
+        dog.strength = GenerateStarterStat(breedInfo.strengthBias);
+        dog.agility = GenerateStarterStat(breedInfo.agilityBias);
+        dog.stamina = GenerateStarterStat(breedInfo.staminaBias);
+        dog.intelligence = GenerateStarterStat(breedInfo.intelligenceBias);
+
+        dog.strengthPotential = GenerateStarterPotential(dog.strength, breedInfo.strengthBias);
+        dog.agilityPotential = GenerateStarterPotential(dog.agility, breedInfo.agilityBias);
+        dog.staminaPotential = GenerateStarterPotential(dog.stamina, breedInfo.staminaBias);
+        dog.intelligencePotential = GenerateStarterPotential(dog.intelligence, breedInfo.intelligenceBias);
+
+        dog.growthRate = Random.Range(0.9f, 1.11f);
+        dog.fightStyle = ChooseStarterFightStyle(breedInfo.styleTendency);
+        AssignStarterTraits(dog);
+
+        dog.level = 1;
+        dog.xp = 0;
+        dog.xpToNextLevel = 100;
+        dog.wins = 0;
+        dog.losses = 0;
+        dog.totalFights = 0;
+
+        dog.NormalizeLegacyStats();
+        return dog;
+    }
+
+    string ChooseStarterBreedName(int generatedIndex)
+    {
+        List<string> breedNames = BreedLibrary.GetBaseBreedNames();
+
+        if (breedNames == null || breedNames.Count == 0)
+        {
+            return "Pit Bull";
+        }
+
+        int breedIndex = Mathf.Abs((generatedIndex * 7) + Random.Range(0, breedNames.Count)) % breedNames.Count;
+        return breedNames[breedIndex];
+    }
+
+    BreedLibrary.BreedInfo GetBreedInfoOrDefault(string breedName)
+    {
+        if (BreedLibrary.TryGetBaseBreed(breedName, out BreedLibrary.BreedInfo breedInfo))
+        {
+            return breedInfo;
+        }
+
+        return new BreedLibrary.BreedInfo(
+            "Pit Bull",
+            3,
+            1,
+            2,
+            1,
+            FightStyle.Rushdown,
+            "Compact, muscular, and explosive.");
+    }
+
+    int GenerateStarterStat(int breedBias)
+    {
+        int baseStat = Random.Range(11, 17);
+        int variance = Random.Range(-2, 3);
+        return Mathf.Clamp(baseStat + breedBias + variance, StarterStatMin, StarterStatMax);
+    }
+
+    int GenerateStarterPotential(int currentStat, int breedBias)
+    {
+        int potential = currentStat + Random.Range(55, 78) + Mathf.Max(0, breedBias * 2);
+        return Mathf.Clamp(potential, StarterPotentialMin, StarterPotentialMax);
+    }
+
+    FightStyle ChooseStarterFightStyle(FightStyle breedStyle)
+    {
+        if (Random.value < 0.75f)
+        {
+            return breedStyle;
+        }
+
+        int styleCount = System.Enum.GetValues(typeof(FightStyle)).Length;
+        return (FightStyle)Random.Range(0, styleCount);
+    }
+
+    void AssignStarterTraits(Dog dog)
+    {
+        if (dog == null)
+        {
+            return;
+        }
+
+        dog.primaryTrait = DogTrait.None;
+        dog.secondaryTrait = DogTrait.None;
+
+        float traitRoll = Random.value;
+
+        if (traitRoll < 0.62f)
+        {
+            return;
+        }
+
+        dog.primaryTrait = GetRandomStarterTrait();
+
+        if (traitRoll > 0.92f)
+        {
+            DogTrait secondTrait = GetRandomStarterTrait();
+
+            if (secondTrait != dog.primaryTrait)
+            {
+                dog.secondaryTrait = secondTrait;
+            }
+        }
+    }
+
+    DogTrait GetRandomStarterTrait()
+    {
+        DogTrait[] traits =
+        {
+            DogTrait.Aggressive,
+            DogTrait.Durable,
+            DogTrait.GlassCannon,
+            DogTrait.Clutch,
+            DogTrait.LateBloomer,
+            DogTrait.Prodigy
+        };
+
+        return traits[Random.Range(0, traits.Length)];
+    }
+
+    string GetUniqueStarterDogName(int generatedIndex)
+    {
+        for (int i = 0; i < generatedStarterNamePool.Length; i++)
+        {
+            string candidate = generatedStarterNamePool[(generatedIndex + i) % generatedStarterNamePool.Length];
+
+            if (!HasDogName(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        for (int i = 0; i < generatedStarterNamePool.Length; i++)
+        {
+            string candidate =
+                generatedStarterNamePool[(generatedIndex + i) % generatedStarterNamePool.Length] +
+                generatedStarterNameSuffixPool[(generatedIndex + i) % generatedStarterNameSuffixPool.Length];
+
+            if (!HasDogName(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return "Rogue";
+    }
+
+    bool HasDogName(string dogName)
+    {
+        for (int i = 0; i < ownedDogs.Count; i++)
+        {
+            Dog dog = ownedDogs[i];
+
+            if (dog != null && string.Equals(dog.dogName, dogName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    int CountGender(DogGender gender)
+    {
+        int count = 0;
+
+        for (int i = 0; i < ownedDogs.Count; i++)
+        {
+            Dog dog = ownedDogs[i];
+
+            if (dog != null && dog.gender == gender)
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     void ApplyStartingGenderFallback(Dog dog, string fallbackId)
@@ -907,6 +1231,8 @@ public class DogManager : MonoBehaviour
             currentWeek = saveData.currentWeek;
         }
 
+        ownedDogs.Clear();
+
         foreach (DogSaveData savedDog in saveData.dogs)
         {
             Dog dog = ownedDogs.Find(d => d != null && d.dogId == savedDog.dogId);
@@ -990,6 +1316,7 @@ public class DogManager : MonoBehaviour
     public void ClearStableSave()
     {
         PlayerPrefs.DeleteKey(SaveKey);
+        PlayerPrefs.DeleteKey(StarterStableSeedKey);
         PlayerPrefs.Save();
 
         selectedFighter1 = null;
@@ -1002,6 +1329,9 @@ public class DogManager : MonoBehaviour
         currentWeek = 1;
 
         LoadStartingDogs();
+        TopUpStarterStable();
+        SaveStable();
+        MarkStarterStableSeeded();
 
         SetupStrategyDropdowns();
         RefreshDogSelectionDropdowns();

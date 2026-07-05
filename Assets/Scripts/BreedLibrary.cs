@@ -87,6 +87,11 @@ public static class BreedLibrary
         return baseBreeds.TryGetValue(CleanBreedName(breedName), out breedInfo);
     }
 
+    public static List<string> GetBaseBreedNames()
+    {
+        return new List<string>(baseBreeds.Keys);
+    }
+
     public static string GetHybridBreedName(string parentBreed1, string parentBreed2)
     {
         string breed1 = CleanBreedName(parentBreed1);
