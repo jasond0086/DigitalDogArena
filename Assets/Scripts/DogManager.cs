@@ -144,6 +144,8 @@ public class DogManager : MonoBehaviour
 
     private List<Dog> selectableFighterDogs = new List<Dog>();
     private List<Dog> selectableParentDogs = new List<Dog>();
+    private List<Dog> selectableParent1Dogs = new List<Dog>();
+    private List<Dog> selectableParent2Dogs = new List<Dog>();
     private bool isRefreshingDogDropdowns = false;
     private int selectedStableBreedFilterIndex = 0;
 
@@ -1389,18 +1391,67 @@ public class DogManager : MonoBehaviour
         ClearInvalidSelections();
 
         List<string> fighterOptions = BuildDogDropdownOptions(selectableFighterDogs);
-        List<string> parentOptions = BuildParentDogDropdownOptions(selectableParentDogs);
+        BuildCompatibleParentDogLists();
+        List<string> parent1Options = BuildParentDogDropdownOptions(selectableParent1Dogs);
+        List<string> parent2Options = BuildParentDogDropdownOptions(selectableParent2Dogs);
 
         ConfigureDogDropdown(fighter1DogDropdown, fighterOptions, selectableFighterDogs, selectedFighter1, SetFighter1FromDropdown);
         ConfigureDogDropdown(fighter2DogDropdown, fighterOptions, selectableFighterDogs, selectedFighter2, SetFighter2FromDropdown);
 
-        ConfigureDogDropdown(parent1DogDropdown, parentOptions, selectableParentDogs, selectedParent1, SetParent1FromDropdown);
-        ConfigureDogDropdown(parent2DogDropdown, parentOptions, selectableParentDogs, selectedParent2, SetParent2FromDropdown);
+        ConfigureDogDropdown(parent1DogDropdown, parent1Options, selectableParent1Dogs, selectedParent1, SetParent1FromDropdown);
+        ConfigureDogDropdown(parent2DogDropdown, parent2Options, selectableParent2Dogs, selectedParent2, SetParent2FromDropdown);
 
         isRefreshingDogDropdowns = false;
 
         UpdateSelectedFightersText();
         UpdateMatchupPreview();
+    }
+
+    void BuildCompatibleParentDogLists()
+    {
+        selectableParent1Dogs.Clear();
+        selectableParent2Dogs.Clear();
+
+        AddCompatibleParentDogs(selectableParent1Dogs, selectedParent2);
+        AddCompatibleParentDogs(selectableParent2Dogs, selectedParent1);
+    }
+
+    void AddCompatibleParentDogs(List<Dog> targetList, Dog selectedOtherParent)
+    {
+        if (targetList == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < selectableParentDogs.Count; i++)
+        {
+            Dog dog = selectableParentDogs[i];
+
+            if (IsCompatibleParentOption(dog, selectedOtherParent))
+            {
+                targetList.Add(dog);
+            }
+        }
+    }
+
+    bool IsCompatibleParentOption(Dog dog, Dog selectedOtherParent)
+    {
+        if (dog == null)
+        {
+            return false;
+        }
+
+        if (selectedOtherParent == null)
+        {
+            return true;
+        }
+
+        if (dog == selectedOtherParent)
+        {
+            return false;
+        }
+
+        return dog.gender != selectedOtherParent.gender;
     }
 
     List<string> BuildDogDropdownOptions(List<Dog> dogs)
@@ -1467,7 +1518,7 @@ public class DogManager : MonoBehaviour
     {
         if (isRefreshingDogDropdowns) return;
 
-        Dog dog = GetDogFromDropdownIndex(index, selectableParentDogs);
+        Dog dog = GetDogFromDropdownIndex(index, selectableParent1Dogs);
         SelectParent1(dog);
     }
 
@@ -1475,7 +1526,7 @@ public class DogManager : MonoBehaviour
     {
         if (isRefreshingDogDropdowns) return;
 
-        Dog dog = GetDogFromDropdownIndex(index, selectableParentDogs);
+        Dog dog = GetDogFromDropdownIndex(index, selectableParent2Dogs);
         SelectParent2(dog);
     }
     void ConfigureDogDropdown(
