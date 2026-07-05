@@ -6,6 +6,7 @@ public static class DogPortraitLibrary
 {
     private const string PortraitResourceRoot = "DogPortraits";
     private const string BreedArchetypeResourceRoot = "FightPresentation/BreedArchetypes";
+    private const int MaxBreedArchetypeVariantNumber = 10;
 
     private enum BreedPortraitArchetype
     {
@@ -110,12 +111,13 @@ public static class DogPortraitLibrary
     static List<string> GetBreedArchetypeResourceNames(string dogIdOrName, string breed)
     {
         List<string> resourceNames = new List<string>();
+        string identityKey = GetSafeDogIdentityKey(dogIdOrName);
 
         if (IsShepherdBullyHybridText(breed))
         {
-            AddResourceName(resourceNames, "dog_imprint_shepherd_hybrid_variant_01");
-            AddResourceName(resourceNames, "dog_imprint_bully_hybrid_variant_01");
-            AddResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+            AddAvailableVariantResourceNames(resourceNames, "dog_imprint_shepherd_hybrid_variant", identityKey, breed);
+            AddAvailableVariantResourceNames(resourceNames, "dog_imprint_bully_hybrid_variant", identityKey, breed);
+            AddAvailableVariantResourceNames(resourceNames, "dog_imprint_hybrid_variant", identityKey, breed);
             return resourceNames;
         }
 
@@ -123,23 +125,32 @@ public static class DogPortraitLibrary
 
         if (isHybrid)
         {
+            if (ContainsIronRottBreedText(breed) && ContainsGuardMastiffBreedText(breed))
+            {
+                AddAvailableVariantResourceNames(resourceNames, "dog_imprint_rott_mastiff_hybrid", identityKey, breed);
+                AddVariantResourceNames(resourceNames, BreedPortraitArchetype.IronRott, identityKey, breed);
+                AddVariantResourceNames(resourceNames, BreedPortraitArchetype.GuardMastiff, identityKey, breed);
+                AddAvailableVariantResourceNames(resourceNames, "dog_imprint_hybrid_variant", identityKey, breed);
+                return resourceNames;
+            }
+
             if (ContainsBullyBreedText(breed))
             {
-                AddResourceName(resourceNames, "dog_imprint_bully_hybrid_variant_01");
-                AddVariantResourceNames(resourceNames, BreedPortraitArchetype.BullyStriker, dogIdOrName, breed);
-                AddResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+                AddAvailableVariantResourceNames(resourceNames, "dog_imprint_bully_hybrid_variant", identityKey, breed);
+                AddVariantResourceNames(resourceNames, BreedPortraitArchetype.BullyStriker, identityKey, breed);
+                AddAvailableVariantResourceNames(resourceNames, "dog_imprint_hybrid_variant", identityKey, breed);
                 return resourceNames;
             }
 
             if (ContainsShepherdBreedText(breed))
             {
-                AddResourceName(resourceNames, "dog_imprint_shepherd_hybrid_variant_01");
-                AddVariantResourceNames(resourceNames, BreedPortraitArchetype.ShepherdSentinel, dogIdOrName, breed);
-                AddResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+                AddAvailableVariantResourceNames(resourceNames, "dog_imprint_shepherd_hybrid_variant", identityKey, breed);
+                AddVariantResourceNames(resourceNames, BreedPortraitArchetype.ShepherdSentinel, identityKey, breed);
+                AddAvailableVariantResourceNames(resourceNames, "dog_imprint_hybrid_variant", identityKey, breed);
                 return resourceNames;
             }
 
-            AddResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+            AddAvailableVariantResourceNames(resourceNames, "dog_imprint_hybrid_variant", identityKey, breed);
             return resourceNames;
         }
 
@@ -147,11 +158,11 @@ public static class DogPortraitLibrary
 
         if (archetype == BreedPortraitArchetype.HybridVariant)
         {
-            AddResourceName(resourceNames, "dog_imprint_hybrid_variant_01");
+            AddAvailableVariantResourceNames(resourceNames, "dog_imprint_hybrid_variant", identityKey, breed);
             return resourceNames;
         }
 
-        AddVariantResourceNames(resourceNames, archetype, dogIdOrName, breed);
+        AddVariantResourceNames(resourceNames, archetype, identityKey, breed);
         return resourceNames;
     }
 
@@ -168,11 +179,62 @@ public static class DogPortraitLibrary
             return;
         }
 
-        int firstVariant = GetDeterministicIndex($"{dogIdOrName}|{breed}|{baseName}", 2) + 1;
-        int secondVariant = firstVariant == 1 ? 2 : 1;
+        AddAvailableVariantResourceNames(resourceNames, baseName, dogIdOrName, breed);
+    }
 
-        AddResourceName(resourceNames, $"{baseName}_{firstVariant:00}");
-        AddResourceName(resourceNames, $"{baseName}_{secondVariant:00}");
+    static void AddAvailableVariantResourceNames(
+        List<string> resourceNames,
+        string baseResourceName,
+        string dogIdOrName,
+        string breed)
+    {
+        List<string> availableResources = GetAvailableVariantResources(baseResourceName, MaxBreedArchetypeVariantNumber);
+
+        if (availableResources.Count == 0)
+        {
+            return;
+        }
+
+        string selectedResource = PickDeterministicVariant(availableResources, $"{dogIdOrName}|{breed}|{baseResourceName}");
+        AddResourceName(resourceNames, selectedResource);
+
+        for (int i = 0; i < availableResources.Count; i++)
+        {
+            AddResourceName(resourceNames, availableResources[i]);
+        }
+    }
+
+    static List<string> GetAvailableVariantResources(string baseResourceName, int maxVariants)
+    {
+        List<string> availableResources = new List<string>();
+
+        if (string.IsNullOrEmpty(baseResourceName))
+        {
+            return availableResources;
+        }
+
+        for (int variantNumber = 1; variantNumber <= maxVariants; variantNumber++)
+        {
+            string resourceName = $"{baseResourceName}_{variantNumber:00}";
+
+            if (LoadBreedArchetypeSprite(resourceName) != null)
+            {
+                availableResources.Add(resourceName);
+            }
+        }
+
+        return availableResources;
+    }
+
+    static string PickDeterministicVariant(List<string> availableResources, string seed)
+    {
+        if (availableResources == null || availableResources.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        int selectedIndex = GetDeterministicIndex(seed, availableResources.Count);
+        return availableResources[selectedIndex];
     }
 
     static void AddResourceName(List<string> resourceNames, string resourceName)
@@ -427,6 +489,59 @@ public static class DogPortraitLibrary
                compactBreed.Contains("german");
     }
 
+    static bool ContainsGuardMastiffBreedText(string breed)
+    {
+        if (string.IsNullOrWhiteSpace(breed))
+        {
+            return false;
+        }
+
+        string rawBreed = GetRawNormalizedBreedText(breed);
+        string separatorNormalizedBreed = GetSeparatorNormalizedBreedText(breed);
+        string compactBreed = GetCompactBreedText(breed);
+
+        return rawBreed.Contains("mastiff") ||
+               compactBreed.Contains("mastiff") ||
+               separatorNormalizedBreed.Contains("cane corso") ||
+               compactBreed.Contains("canecorso") ||
+               rawBreed.Contains("presa") ||
+               compactBreed.Contains("presa") ||
+               separatorNormalizedBreed.Contains("dogo argentino") ||
+               compactBreed.Contains("dogoargentino") ||
+               rawBreed.Contains("boerboel") ||
+               compactBreed.Contains("boerboel") ||
+               rawBreed.Contains("kangal") ||
+               compactBreed.Contains("kangal") ||
+               rawBreed.Contains("tosa") ||
+               compactBreed.Contains("tosa") ||
+               rawBreed.Contains("fila") ||
+               compactBreed.Contains("fila") ||
+               separatorNormalizedBreed.Contains("great dane") ||
+               compactBreed.Contains("greatdane") ||
+               separatorNormalizedBreed.Contains("central asian shepherd") ||
+               compactBreed.Contains("centralasianshepherd");
+    }
+
+    static bool ContainsIronRottBreedText(string breed)
+    {
+        if (string.IsNullOrWhiteSpace(breed))
+        {
+            return false;
+        }
+
+        string rawBreed = GetRawNormalizedBreedText(breed);
+        string compactBreed = GetCompactBreedText(breed);
+
+        return rawBreed.Contains("rottweiler") ||
+               compactBreed.Contains("rottweiler") ||
+               rawBreed.Contains("doberman") ||
+               compactBreed.Contains("doberman") ||
+               rawBreed.Contains("beauceron") ||
+               compactBreed.Contains("beauceron") ||
+               rawBreed.Contains("black russian terrier") ||
+               compactBreed.Contains("blackrussianterrier");
+    }
+
     static bool IsShepherdBullyHybridText(string breed)
     {
         if (string.IsNullOrWhiteSpace(breed))
@@ -486,6 +601,13 @@ public static class DogPortraitLibrary
         }
 
         return "dog";
+    }
+
+    static string GetSafeDogIdentityKey(string dogIdOrName)
+    {
+        return string.IsNullOrWhiteSpace(dogIdOrName)
+            ? "dog"
+            : dogIdOrName.Trim();
     }
 
     static string NormalizeBreedName(string breedName)
