@@ -16,24 +16,60 @@ public class DogManager : MonoBehaviour
     private const int StarterPotentialMax = 105;
     private const string StableFilterAllDogs = "All Dogs";
 
-    private static readonly string[] generatedStarterNamePool =
+    private static readonly string[] generatedStarterMaleNamePool =
     {
         "Titan",
-        "Nova",
         "Diesel",
-        "Sable",
         "Knox",
-        "Vexa",
         "Ghost",
         "Rocco",
-        "Kira",
         "Atlas",
-        "Nyx",
-        "Juno",
         "Kane",
+        "Blitz",
+        "Rex",
+        "Duke",
+        "Thor",
+        "Apollo",
+        "Odin",
+        "Jax",
+        "Axel",
+        "Drake"
+    };
+
+    private static readonly string[] generatedStarterFemaleNamePool =
+    {
+        "Luna",
+        "Nova",
+        "Sable",
+        "Kira",
+        "Juno",
+        "Vexa",
+        "Nyx",
         "Rogue",
-        "Vega",
-        "Blitz"
+        "Raven",
+        "Xena",
+        "Athena",
+        "Roxy",
+        "Bella",
+        "Nala",
+        "Ruby",
+        "Jade",
+        "Hera"
+    };
+
+    private static readonly string[] generatedStarterNeutralNamePool =
+    {
+        "Shadow",
+        "Storm",
+        "Viper",
+        "Phoenix",
+        "Onyx",
+        "Echo",
+        "Scout",
+        "Ember",
+        "Frost",
+        "Havoc",
+        "Phantom"
     };
 
     private static readonly string[] generatedStarterNameSuffixPool =
@@ -267,7 +303,7 @@ public class DogManager : MonoBehaviour
         BreedLibrary.BreedInfo breedInfo = GetBreedInfoOrDefault(breedName);
 
         dog.dogId = $"starter_generated_{System.Guid.NewGuid().ToString("N")}";
-        dog.dogName = GetUniqueStarterDogName(generatedIndex);
+        dog.dogName = GetUniqueStarterDogName(gender, generatedIndex);
         dog.breed = breedName;
         dog.gender = gender;
         dog.age = 0;
@@ -399,11 +435,53 @@ public class DogManager : MonoBehaviour
         return traits[Random.Range(0, traits.Length)];
     }
 
-    string GetUniqueStarterDogName(int generatedIndex)
+    string GetUniqueStarterDogName(DogGender gender, int generatedIndex)
     {
-        for (int i = 0; i < generatedStarterNamePool.Length; i++)
+        string[] primaryPool = gender == DogGender.Female
+            ? generatedStarterFemaleNamePool
+            : generatedStarterMaleNamePool;
+
+        string candidate = GetUniqueNameFromPool(primaryPool, generatedIndex);
+
+        if (!string.IsNullOrEmpty(candidate))
         {
-            string candidate = generatedStarterNamePool[(generatedIndex + i) % generatedStarterNamePool.Length];
+            return candidate;
+        }
+
+        candidate = GetUniqueNameFromPool(generatedStarterNeutralNamePool, generatedIndex);
+
+        if (!string.IsNullOrEmpty(candidate))
+        {
+            return candidate;
+        }
+
+        candidate = GetUniqueSuffixedNameFromPool(primaryPool, generatedIndex);
+
+        if (!string.IsNullOrEmpty(candidate))
+        {
+            return candidate;
+        }
+
+        candidate = GetUniqueSuffixedNameFromPool(generatedStarterNeutralNamePool, generatedIndex);
+
+        if (!string.IsNullOrEmpty(candidate))
+        {
+            return candidate;
+        }
+
+        return gender == DogGender.Female ? "Nova" : "Titan";
+    }
+
+    string GetUniqueNameFromPool(string[] namePool, int generatedIndex)
+    {
+        if (namePool == null || namePool.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        for (int i = 0; i < namePool.Length; i++)
+        {
+            string candidate = namePool[(generatedIndex + i) % namePool.Length];
 
             if (!HasDogName(candidate))
             {
@@ -411,10 +489,20 @@ public class DogManager : MonoBehaviour
             }
         }
 
-        for (int i = 0; i < generatedStarterNamePool.Length; i++)
+        return string.Empty;
+    }
+
+    string GetUniqueSuffixedNameFromPool(string[] namePool, int generatedIndex)
+    {
+        if (namePool == null || namePool.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        for (int i = 0; i < namePool.Length; i++)
         {
             string candidate =
-                generatedStarterNamePool[(generatedIndex + i) % generatedStarterNamePool.Length] +
+                namePool[(generatedIndex + i) % namePool.Length] +
                 generatedStarterNameSuffixPool[(generatedIndex + i) % generatedStarterNameSuffixPool.Length];
 
             if (!HasDogName(candidate))
@@ -423,7 +511,7 @@ public class DogManager : MonoBehaviour
             }
         }
 
-        return "Rogue";
+        return string.Empty;
     }
 
     bool HasDogName(string dogName)
@@ -1098,6 +1186,41 @@ public class DogManager : MonoBehaviour
         return builder.ToString();
     }
 
+    string GetDisplayBreedNameForDropdown(string breedName)
+    {
+        string compactBreed = GetCompactStableBreedText(breedName);
+
+        switch (compactBreed)
+        {
+            case "germanbull":
+                return "German Bull Hybrid";
+
+            case "germanbully":
+                return "German Bully Hybrid";
+
+            case "shepherdbull":
+                return "Shepherd Bull Hybrid";
+
+            case "shepherdbully":
+                return "Shepherd Bully Hybrid";
+
+            case "pitgerman":
+                return "Pit German Hybrid";
+
+            case "pitshepherd":
+                return "Pit Shepherd Hybrid";
+
+            case "bullshepherd":
+                return "Bull Shepherd Hybrid";
+
+            case "bullyshepherd":
+                return "Bully Shepherd Hybrid";
+
+            default:
+                return string.IsNullOrWhiteSpace(breedName) ? "Unknown Breed" : breedName.Trim();
+        }
+    }
+
     public void SelectParent1(Dog dog)
     {
         if (dog == null)
@@ -1266,7 +1389,7 @@ public class DogManager : MonoBehaviour
         ClearInvalidSelections();
 
         List<string> fighterOptions = BuildDogDropdownOptions(selectableFighterDogs);
-        List<string> parentOptions = BuildDogDropdownOptions(selectableParentDogs);
+        List<string> parentOptions = BuildParentDogDropdownOptions(selectableParentDogs);
 
         ConfigureDogDropdown(fighter1DogDropdown, fighterOptions, selectableFighterDogs, selectedFighter1, SetFighter1FromDropdown);
         ConfigureDogDropdown(fighter2DogDropdown, fighterOptions, selectableFighterDogs, selectedFighter2, SetFighter2FromDropdown);
@@ -1288,6 +1411,26 @@ public class DogManager : MonoBehaviour
         foreach (Dog dog in dogs)
         {
             options.Add($"{dog.dogName} ({dog.gender})");
+        }
+
+        return options;
+    }
+
+    List<string> BuildParentDogDropdownOptions(List<Dog> dogs)
+    {
+        List<string> options = new List<string>();
+        options.Add("None");
+
+        foreach (Dog dog in dogs)
+        {
+            if (dog == null)
+            {
+                continue;
+            }
+
+            string dogName = string.IsNullOrWhiteSpace(dog.dogName) ? "Unnamed" : dog.dogName.Trim();
+            string breedName = GetDisplayBreedNameForDropdown(dog.breed);
+            options.Add($"{dogName} — {dog.gender} — {breedName}");
         }
 
         return options;

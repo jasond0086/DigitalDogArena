@@ -15,6 +15,10 @@ public class BreedingManager : MonoBehaviour
     public Image parent2PortraitImage;
     public Sprite defaultDogPortraitSprite;
 
+    [Header("Puppy Preview")]
+    public Image puppyPreviewImage;
+    public TextMeshProUGUI puppyPreviewText;
+
     [Header("Breeding Settings")]
     [Range(0, 20)] public int statVariance = 8;
     [Range(0, 20)] public int potentialVariance = 6;
@@ -49,8 +53,11 @@ public class BreedingManager : MonoBehaviour
             narratorManager = GetComponent<NarratorManager>();
         }
 
+        FindBreedingPreviewReferences();
         ConfigurePortraitImage(parent1PortraitImage);
         ConfigurePortraitImage(parent2PortraitImage);
+        ConfigurePortraitImage(puppyPreviewImage);
+        ConfigurePuppyPreviewText();
     }
 
     void Start()
@@ -1009,16 +1016,25 @@ public class BreedingManager : MonoBehaviour
             return;
         }
 
+        bool selectionChanged = forceRefresh;
+
         if (forceRefresh || dogManager.selectedParent1 != lastDisplayedParent1)
         {
             lastDisplayedParent1 = dogManager.selectedParent1;
             SetParentPortrait(parent1PortraitImage, lastDisplayedParent1);
+            selectionChanged = true;
         }
 
         if (forceRefresh || dogManager.selectedParent2 != lastDisplayedParent2)
         {
             lastDisplayedParent2 = dogManager.selectedParent2;
             SetParentPortrait(parent2PortraitImage, lastDisplayedParent2);
+            selectionChanged = true;
+        }
+
+        if (selectionChanged)
+        {
+            UpdatePuppyPreview(lastDisplayedParent1, lastDisplayedParent2);
         }
     }
 
@@ -1031,16 +1047,15 @@ public class BreedingManager : MonoBehaviour
 
         Sprite portraitSprite = defaultDogPortraitSprite;
 
-        if (selectedDog != null && selectedDog.dogSprite != null)
+        if (selectedDog != null)
         {
-            portraitSprite = selectedDog.dogSprite;
+            portraitSprite = DogPortraitLibrary.ChooseStableCardPortrait(
+                selectedDog,
+                selectedDog.dogSprite,
+                defaultDogPortraitSprite);
         }
 
-        portraitImage.sprite = portraitSprite;
-        portraitImage.color = Color.white;
-        portraitImage.enabled = portraitSprite != null;
-        portraitImage.raycastTarget = false;
-        portraitImage.preserveAspect = true;
+        SetPreviewImage(portraitImage, portraitSprite);
     }
 
     void ConfigurePortraitImage(Image portraitImage)
@@ -1052,6 +1067,431 @@ public class BreedingManager : MonoBehaviour
 
         portraitImage.raycastTarget = false;
         portraitImage.preserveAspect = true;
+    }
+
+    void FindBreedingPreviewReferences()
+    {
+        if (parent1PortraitImage == null)
+        {
+            parent1PortraitImage = FindSceneComponentByName<Image>("Parent1PortraitImage");
+        }
+
+        if (parent2PortraitImage == null)
+        {
+            parent2PortraitImage = FindSceneComponentByName<Image>("Parent2PortraitImage");
+        }
+
+        if (puppyPreviewText == null)
+        {
+            puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("BreedCenterText");
+        }
+
+        if (puppyPreviewImage == null)
+        {
+            puppyPreviewImage = FindSceneComponentByName<Image>("PuppyPreviewImage");
+        }
+
+        if (puppyPreviewImage == null)
+        {
+            puppyPreviewImage = CreatePuppyPreviewImage();
+        }
+    }
+
+    T FindSceneComponentByName<T>(string objectName) where T : Component
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+        {
+            return null;
+        }
+
+        T[] components = Resources.FindObjectsOfTypeAll<T>();
+
+        for (int i = 0; i < components.Length; i++)
+        {
+            T component = components[i];
+
+            if (component == null ||
+                component.gameObject == null ||
+                !component.gameObject.scene.IsValid())
+            {
+                continue;
+            }
+
+            if (component.gameObject.name == objectName)
+            {
+                return component;
+            }
+        }
+
+        return null;
+    }
+
+    Image CreatePuppyPreviewImage()
+    {
+        Transform previewParent = null;
+
+        if (puppyPreviewText != null)
+        {
+            previewParent = puppyPreviewText.transform.parent;
+        }
+
+        if (previewParent == null)
+        {
+            RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
+            previewParent = centerPanel != null ? centerPanel.transform : transform;
+        }
+
+        GameObject imageObject = new GameObject("PuppyPreviewImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        imageObject.transform.SetParent(previewParent, false);
+        imageObject.transform.SetAsFirstSibling();
+
+        RectTransform rectTransform = imageObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(0f, -62f);
+        rectTransform.sizeDelta = new Vector2(110f, 110f);
+        rectTransform.localScale = Vector3.one;
+
+        Image image = imageObject.GetComponent<Image>();
+        image.raycastTarget = false;
+        image.preserveAspect = true;
+        image.enabled = false;
+
+        return image;
+    }
+
+    void ConfigurePuppyPreviewText()
+    {
+        if (puppyPreviewText == null)
+        {
+            return;
+        }
+
+        puppyPreviewText.raycastTarget = false;
+        puppyPreviewText.alignment = TextAlignmentOptions.Center;
+        puppyPreviewText.enableWordWrapping = true;
+        puppyPreviewText.fontSize = Mathf.Min(puppyPreviewText.fontSize, 16f);
+
+        RectTransform rectTransform = puppyPreviewText.rectTransform;
+        rectTransform.anchoredPosition = new Vector2(0f, 66f);
+        rectTransform.sizeDelta = new Vector2(330f, 112f);
+    }
+
+    void UpdatePuppyPreview(Dog parent1, Dog parent2)
+    {
+        string previewText = BuildPuppyPreviewText(parent1, parent2, out string predictedBreed);
+        SetPuppyPreviewText(previewText);
+
+        Sprite previewSprite = ChoosePuppyPreviewSprite(parent1, parent2, predictedBreed);
+        SetPreviewImage(puppyPreviewImage, previewSprite);
+    }
+
+    string BuildPuppyPreviewText(Dog parent1, Dog parent2, out string predictedBreed)
+    {
+        predictedBreed = string.Empty;
+
+        if (parent1 == null || parent2 == null)
+        {
+            return "Puppy Preview\nSelect Parent 1 and Parent 2.";
+        }
+
+        predictedBreed = GetDisplayBreedName(BreedLibrary.GetHybridBreedName(parent1.breed, parent2.breed));
+
+        string warning = GetPuppyPreviewWarning(parent1, parent2);
+
+        if (!string.IsNullOrEmpty(warning))
+        {
+            return
+                "Puppy Preview\n" +
+                $"Breed: {predictedBreed}\n" +
+                warning;
+        }
+
+        return
+            "Puppy Preview\n" +
+            $"Breed: {predictedBreed}\n" +
+            "Sex: Male or Female\n" +
+            $"Family: {GetBreedFamilyLabel(predictedBreed, parent1, parent2)}\n" +
+            BuildPotentialPreviewLine(parent1, parent2);
+    }
+
+    string GetPuppyPreviewWarning(Dog parent1, Dog parent2)
+    {
+        if (parent1 == parent2)
+        {
+            return "Warning: choose two different dogs.";
+        }
+
+        if (parent1.isDead || parent2.isDead)
+        {
+            return "Warning: deceased dogs cannot breed.";
+        }
+
+        if (parent1.isRetired || parent2.isRetired)
+        {
+            return "Warning: retired dogs cannot breed.";
+        }
+
+        if (parent1.gender == parent2.gender)
+        {
+            return "Warning: needs one male and one female.";
+        }
+
+        if (dogManager != null &&
+            (!parent1.CanBreedInWeek(dogManager.currentWeek) ||
+             !parent2.CanBreedInWeek(dogManager.currentWeek)))
+        {
+            return "Warning: breeding cooldown active.";
+        }
+
+        return string.Empty;
+    }
+
+    string BuildPotentialPreviewLine(Dog parent1, Dog parent2)
+    {
+        return
+            $"Pot: STR {BuildPotentialRange(parent1.strengthPotential, parent2.strengthPotential)}  " +
+            $"AGI {BuildPotentialRange(parent1.agilityPotential, parent2.agilityPotential)}\n" +
+            $"STA {BuildPotentialRange(parent1.staminaPotential, parent2.staminaPotential)}  " +
+            $"INT {BuildPotentialRange(parent1.GetIntelligencePotential(), parent2.GetIntelligencePotential())}";
+    }
+
+    string BuildPotentialRange(int parentPotential1, int parentPotential2)
+    {
+        int bestParentPotential = Mathf.Max(parentPotential1, parentPotential2);
+        int average = Mathf.RoundToInt((parentPotential1 + parentPotential2) / 2f);
+        int inheritanceFloor = Mathf.RoundToInt(bestParentPotential * 0.85f);
+        int inheritedPotential = Mathf.Max(average, inheritanceFloor);
+        int low = Mathf.Clamp(inheritedPotential - potentialVariance, 40, 120);
+        int high = Mathf.Clamp(inheritedPotential + potentialVariance, 40, 120);
+
+        return $"{low}-{high}";
+    }
+
+    Sprite ChoosePuppyPreviewSprite(Dog parent1, Dog parent2, string predictedBreed)
+    {
+        if (string.IsNullOrWhiteSpace(predictedBreed))
+        {
+            return defaultDogPortraitSprite;
+        }
+
+        string previewIdentity = $"{GetDogIdentityKey(parent1)}|{GetDogIdentityKey(parent2)}|preview";
+        Sprite archetypeSprite = DogPortraitLibrary.ChooseBreedArchetypePortrait(previewIdentity, predictedBreed);
+
+        if (archetypeSprite != null)
+        {
+            return archetypeSprite;
+        }
+
+        Sprite parentFallback1 = parent1 != null ? parent1.dogSprite : null;
+        Sprite parentFallback2 = parent2 != null ? parent2.dogSprite : null;
+        Sprite puppySprite = DogPortraitLibrary.ChoosePuppyPortrait(
+            previewIdentity,
+            predictedBreed,
+            parentFallback1,
+            parentFallback2);
+
+        return puppySprite != null ? puppySprite : defaultDogPortraitSprite;
+    }
+
+    string GetDogIdentityKey(Dog dog)
+    {
+        if (dog == null)
+        {
+            return "dog";
+        }
+
+        if (!string.IsNullOrWhiteSpace(dog.dogId))
+        {
+            return dog.dogId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(dog.dogName))
+        {
+            return dog.dogName;
+        }
+
+        return "dog";
+    }
+
+    void SetPuppyPreviewText(string message)
+    {
+        if (puppyPreviewText != null)
+        {
+            puppyPreviewText.text = message;
+        }
+    }
+
+    void SetPreviewImage(Image image, Sprite sprite)
+    {
+        if (image == null)
+        {
+            return;
+        }
+
+        image.sprite = sprite;
+        image.color = Color.white;
+        image.enabled = sprite != null;
+        image.raycastTarget = false;
+        image.preserveAspect = true;
+    }
+
+    string GetBreedFamilyLabel(string breedName, Dog parent1, Dog parent2)
+    {
+        bool parentHybrid = IsHybridBreed(parent1, parent2);
+
+        if ((parentHybrid || IsHybridBreedText(breedName)) &&
+            ContainsShepherdBreedText(breedName) &&
+            ContainsBullyBreedText(breedName))
+        {
+            return "Shepherd/Bully Hybrid";
+        }
+
+        if (parentHybrid || IsHybridBreedText(breedName))
+        {
+            return "Hybrid Variant";
+        }
+
+        if (ContainsBullyBreedText(breedName))
+        {
+            return "Bully Striker";
+        }
+
+        if (ContainsShepherdBreedText(breedName))
+        {
+            return "Shepherd Sentinel";
+        }
+
+        if (ContainsGuardMastiffBreedText(breedName))
+        {
+            return "Guard Mastiff";
+        }
+
+        if (ContainsIronRottBreedText(breedName))
+        {
+            return "Iron Rott";
+        }
+
+        if (ContainsSpitzBreedText(breedName))
+        {
+            return "Spitz Warden";
+        }
+
+        if (ContainsHoundBreedText(breedName))
+        {
+            return "Velocity Hound";
+        }
+
+        return "Unknown Archetype";
+    }
+
+    bool IsHybridBreedText(string breedName)
+    {
+        string rawBreed = GetRawBreedText(breedName);
+        string compactBreed = GetCompactBreedName(breedName);
+
+        return rawBreed.Contains("hybrid") ||
+               rawBreed.Contains("mix") ||
+               rawBreed.Contains("cross") ||
+               rawBreed.Contains(" x ") ||
+               compactBreed.Contains("hybrid") ||
+               compactBreed.Contains("mixed") ||
+               compactBreed.Contains("cross");
+    }
+
+    bool ContainsBullyBreedText(string breedName)
+    {
+        string rawBreed = GetRawBreedText(breedName);
+        string compactBreed = GetCompactBreedName(breedName);
+
+        return rawBreed.Contains("pit bull") ||
+               compactBreed.Contains("pitbull") ||
+               rawBreed.Contains("bully") ||
+               compactBreed.Contains("bully") ||
+               rawBreed.Contains("boxer") ||
+               compactBreed.Contains("boxer") ||
+               rawBreed.Contains("bulldog") ||
+               compactBreed.Contains("bulldog") ||
+               compactBreed.Contains("bull");
+    }
+
+    bool ContainsShepherdBreedText(string breedName)
+    {
+        string rawBreed = GetRawBreedText(breedName);
+        string compactBreed = GetCompactBreedName(breedName);
+
+        return rawBreed.Contains("german shepherd") ||
+               rawBreed.Contains("german shepard") ||
+               rawBreed.Contains("shepherd") ||
+               rawBreed.Contains("shepard") ||
+               rawBreed.Contains("malinois") ||
+               rawBreed.Contains("tervuren") ||
+               compactBreed.Contains("german");
+    }
+
+    bool ContainsGuardMastiffBreedText(string breedName)
+    {
+        string rawBreed = GetRawBreedText(breedName);
+        string compactBreed = GetCompactBreedName(breedName);
+
+        return rawBreed.Contains("mastiff") ||
+               compactBreed.Contains("mastiff") ||
+               rawBreed.Contains("cane corso") ||
+               compactBreed.Contains("canecorso") ||
+               rawBreed.Contains("presa") ||
+               rawBreed.Contains("dogo") ||
+               rawBreed.Contains("boerboel") ||
+               rawBreed.Contains("kangal") ||
+               rawBreed.Contains("tosa") ||
+               rawBreed.Contains("fila") ||
+               rawBreed.Contains("great dane") ||
+               compactBreed.Contains("centralasianshepherd");
+    }
+
+    bool ContainsIronRottBreedText(string breedName)
+    {
+        string rawBreed = GetRawBreedText(breedName);
+        string compactBreed = GetCompactBreedName(breedName);
+
+        return rawBreed.Contains("rottweiler") ||
+               rawBreed.Contains("rott") ||
+               rawBreed.Contains("doberman") ||
+               rawBreed.Contains("beauceron") ||
+               compactBreed.Contains("blackrussianterrier");
+    }
+
+    bool ContainsSpitzBreedText(string breedName)
+    {
+        string rawBreed = GetRawBreedText(breedName);
+
+        return rawBreed.Contains("akita") ||
+               rawBreed.Contains("spitz") ||
+               rawBreed.Contains("husky") ||
+               rawBreed.Contains("malamute") ||
+               rawBreed.Contains("shiba") ||
+               rawBreed.Contains("chow") ||
+               rawBreed.Contains("samoyed");
+    }
+
+    bool ContainsHoundBreedText(string breedName)
+    {
+        string rawBreed = GetRawBreedText(breedName);
+
+        return rawBreed.Contains("greyhound") ||
+               rawBreed.Contains("whippet") ||
+               rawBreed.Contains("saluki") ||
+               rawBreed.Contains("ridgeback") ||
+               rawBreed.Contains("pharaoh") ||
+               rawBreed.Contains("catahoula") ||
+               rawBreed.Contains("hound");
+    }
+
+    string GetRawBreedText(string breedName)
+    {
+        return string.IsNullOrWhiteSpace(breedName)
+            ? string.Empty
+            : breedName.Trim().ToLowerInvariant();
     }
 
     class ListTraitPool
