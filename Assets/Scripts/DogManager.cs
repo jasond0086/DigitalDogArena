@@ -786,6 +786,37 @@ public class DogManager : MonoBehaviour
         Debug.Log($"New dog added to stable: {newDog.dogName}");
     }
 
+    public bool TryRenameDog(Dog dog, string requestedName, out string cleanedName, out string message)
+    {
+        cleanedName = dog != null ? dog.dogName : string.Empty;
+        message = DogNameValidator.RealDogNameMessage;
+
+        if (dog == null)
+        {
+            return false;
+        }
+
+        if (DogNameValidator.IsSameVisibleName(requestedName, dog.dogName))
+        {
+            message = string.Empty;
+            return true;
+        }
+
+        if (!DogNameValidator.TryValidateName(requestedName, out cleanedName, out message))
+        {
+            return false;
+        }
+
+        dog.dogName = cleanedName;
+        RefreshDogSelectionDropdowns();
+        UpdateSelectedFightersText();
+        UpdateMatchupPreview();
+        DisplayDogs();
+        SaveStable();
+
+        return true;
+    }
+
     public void SaveStable()
     {
         StableSaveData saveData = new StableSaveData();
