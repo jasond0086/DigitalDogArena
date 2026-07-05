@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 3fd223e263572fa429808cc3cc59127a
+guid: d3e4d9de76d63924f8033821f2c15a65
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4073572362111722415
-    second: dog_imprint_bully_hybrid_variant_01_0
+      213: -1492993086956295453
+    second: Dog_imprint_Bull_Variant_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,7 +126,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: dog_imprint_bully_hybrid_variant_01_0
+      name: Dog_imprint_Bull_Variant_0
       rect:
         serializedVersion: 2
         x: 0
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: fa3a48a0b7c388830800000000000000
-      internalID: 4073572362111722415
+      spriteID: 3ea2bd792b2d74be0800000000000000
+      internalID: -1492993086956295453
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      dog_imprint_bully_hybrid_variant_01_0: 4073572362111722415
+      Dog_imprint_Bull_Variant_0: -1492993086956295453
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

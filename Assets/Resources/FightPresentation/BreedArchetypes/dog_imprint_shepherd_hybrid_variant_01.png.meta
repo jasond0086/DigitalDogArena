@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: ba03cb27c2783814498b7ec3cf18f160
+guid: d11457f3e645cb64c97d3fafe9f4ff7b
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 6013902509369532087
-    second: dog_imprint_shepherd_hybrid_variant_01_0
+      213: -4299705795355072430
+    second: Dog_imprint_Shepard_Variant_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,7 +126,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: dog_imprint_shepherd_hybrid_variant_01_0
+      name: Dog_imprint_Shepard_Variant_0
       rect:
         serializedVersion: 2
         x: 0
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 7be1dc0287ca57350800000000000000
-      internalID: 6013902509369532087
+      spriteID: 2582c252c506454c0800000000000000
+      internalID: -4299705795355072430
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      dog_imprint_shepherd_hybrid_variant_01_0: 6013902509369532087
+      Dog_imprint_Shepard_Variant_0: -4299705795355072430
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
