@@ -9,7 +9,8 @@ public class DogDetailPanelUI : MonoBehaviour
     TextMeshProUGUI titleText;
     TextMeshProUGUI mainInfoText;
     TextMeshProUGUI statsText;
-    TextMeshProUGUI familyText;
+    TextMeshProUGUI familyHeaderText;
+    TMP_Text familyTreeText;
     Button closeButton;
 
     Dog currentDog;
@@ -103,8 +104,13 @@ public class DogDetailPanelUI : MonoBehaviour
         statsText = CreateText(panel.transform, "DogDetailStats", 16f, TextAlignmentOptions.TopLeft);
         ConfigureRect(statsText.rectTransform, new Vector2(0f, 0f), new Vector2(0.48f, 1f), new Vector2(34f, 32f), new Vector2(-20f, -338f));
 
-        familyText = CreateText(panel.transform, "DogDetailFamilyTree", 15f, TextAlignmentOptions.TopLeft);
-        ConfigureRect(familyText.rectTransform, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 32f), new Vector2(-32f, -338f));
+        familyHeaderText = CreateText(panel.transform, "DogDetailFamilyTreeHeader", 18f, TextAlignmentOptions.Left);
+        familyHeaderText.text = "Family Tree";
+        ConfigureRect(familyHeaderText.rectTransform, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 282f), new Vector2(-32f, -338f));
+
+        familyTreeText = CreateText(panel.transform, "DogDetailFamilyTreeBody", 14f, TextAlignmentOptions.TopLeft);
+        familyTreeText.overflowMode = TextOverflowModes.Overflow;
+        ConfigureRect(familyTreeText.rectTransform, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 32f), new Vector2(-32f, -374f));
     }
 
     Button CreateCloseButton(Transform parent)
@@ -176,7 +182,8 @@ public class DogDetailPanelUI : MonoBehaviour
         titleText.text = currentDog.dogName;
         mainInfoText.text = BuildMainInfoText();
         statsText.text = BuildStatsText();
-        familyText.text = BuildFamilyText();
+        familyHeaderText.text = "Family Tree";
+        familyTreeText.text = BuildFamilyTreeBodyText();
         RefreshPortrait();
     }
 
@@ -240,22 +247,21 @@ public class DogDetailPanelUI : MonoBehaviour
         return builder.ToString();
     }
 
-    string BuildFamilyText()
+    string BuildFamilyTreeBodyText()
     {
         StringBuilder builder = new StringBuilder();
-        builder.AppendLine("Family Tree");
 
         if (IsFoundationDog(currentDog))
         {
-            builder.AppendLine("Foundation Dog");
+            builder.AppendLine("Generation: Foundation");
             builder.AppendLine("Parents: Unknown");
             return builder.ToString();
         }
 
         builder.AppendLine($"Generation: {GetGenerationText(currentDog)}");
-        builder.AppendLine(BuildParentLine("Parent A", currentDog.parent1Id, currentDog.parentAName, currentDog.parentABreed, currentDog.parentASex));
-        builder.AppendLine(BuildParentLine("Parent B", currentDog.parent2Id, currentDog.parentBName, currentDog.parentBBreed, currentDog.parentBSex));
-        builder.AppendLine($"Lineage: {GetParentBreedForLineage(currentDog.parent1Id, currentDog.parentABreed)} x {GetParentBreedForLineage(currentDog.parent2Id, currentDog.parentBBreed)}");
+        builder.AppendLine(BuildParentLine("Parent A", GetParentAId(currentDog), currentDog.parentAName, currentDog.parentABreed, currentDog.parentASex));
+        builder.AppendLine(BuildParentLine("Parent B", GetParentBId(currentDog), currentDog.parentBName, currentDog.parentBBreed, currentDog.parentBSex));
+        builder.AppendLine($"Lineage: {GetParentBreedForLineage(GetParentAId(currentDog), currentDog.parentABreed)} x {GetParentBreedForLineage(GetParentBId(currentDog), currentDog.parentBBreed)}");
 
         string grandparents = BuildGrandparentText();
 
@@ -274,9 +280,10 @@ public class DogDetailPanelUI : MonoBehaviour
         string name = parent != null ? parent.dogName : storedName;
         string breed = parent != null ? parent.breed : storedBreed;
         string sex = parent != null ? parent.gender.ToString() : storedSex;
-        string role = GetParentRole(sex);
+        string role = GetParentRole(sex, label);
+        string generation = parent != null ? $" - {GetShortGenerationText(parent)}" : "";
 
-        return $"{label} / {role}: {GetSafeText(name, "Unknown")} - {GetSafeText(sex, "Unknown")} - {GetDisplayBreedName(breed)}";
+        return $"{role}: {GetSafeText(name, "Unknown")} - {GetSafeText(sex, "Unknown")} - {GetDisplayBreedName(breed)}{generation}";
     }
 
     string GetParentBreedForLineage(string parentId, string storedBreed)
@@ -286,7 +293,7 @@ public class DogDetailPanelUI : MonoBehaviour
         return GetDisplayBreedName(breed);
     }
 
-    string GetParentRole(string sex)
+    string GetParentRole(string sex, string fallbackLabel)
     {
         if (string.Equals(sex, DogGender.Male.ToString(), System.StringComparison.OrdinalIgnoreCase))
         {
@@ -298,14 +305,14 @@ public class DogDetailPanelUI : MonoBehaviour
             return "Dam";
         }
 
-        return "Parent";
+        return fallbackLabel;
     }
 
     string BuildGrandparentText()
     {
         StringBuilder builder = new StringBuilder();
-        AppendGrandparentLine(builder, "Parent A Parents", dogManager != null ? dogManager.FindOwnedDogById(currentDog.parent1Id) : null);
-        AppendGrandparentLine(builder, "Parent B Parents", dogManager != null ? dogManager.FindOwnedDogById(currentDog.parent2Id) : null);
+        AppendGrandparentLine(builder, "Sire side", dogManager != null ? dogManager.FindOwnedDogById(GetParentAId(currentDog)) : null);
+        AppendGrandparentLine(builder, "Dam side", dogManager != null ? dogManager.FindOwnedDogById(GetParentBId(currentDog)) : null);
         return builder.ToString();
     }
 
@@ -328,9 +335,29 @@ public class DogDetailPanelUI : MonoBehaviour
             return true;
         }
 
-        bool hasParentIds = !string.IsNullOrWhiteSpace(dog.parent1Id) || !string.IsNullOrWhiteSpace(dog.parent2Id);
+        bool hasParentIds = !string.IsNullOrWhiteSpace(GetParentAId(dog)) || !string.IsNullOrWhiteSpace(GetParentBId(dog));
         bool hasParentSnapshots = !string.IsNullOrWhiteSpace(dog.parentAName) || !string.IsNullOrWhiteSpace(dog.parentBName);
-        return dog.generation <= 0 && !hasParentIds && !hasParentSnapshots;
+        return !hasParentIds && !hasParentSnapshots;
+    }
+
+    string GetParentAId(Dog dog)
+    {
+        if (dog == null)
+        {
+            return string.Empty;
+        }
+
+        return !string.IsNullOrWhiteSpace(dog.parentAId) ? dog.parentAId : dog.parent1Id;
+    }
+
+    string GetParentBId(Dog dog)
+    {
+        if (dog == null)
+        {
+            return string.Empty;
+        }
+
+        return !string.IsNullOrWhiteSpace(dog.parentBId) ? dog.parentBId : dog.parent2Id;
     }
 
     string GetGenerationText(Dog dog)
@@ -338,6 +365,16 @@ public class DogDetailPanelUI : MonoBehaviour
         if (dog == null || dog.generation <= 0)
         {
             return "Foundation (G1)";
+        }
+
+        return $"G{dog.generation + 1}";
+    }
+
+    string GetShortGenerationText(Dog dog)
+    {
+        if (dog == null || dog.generation <= 0)
+        {
+            return "G1";
         }
 
         return $"G{dog.generation + 1}";

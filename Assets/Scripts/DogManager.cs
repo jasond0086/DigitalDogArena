@@ -2067,6 +2067,8 @@ public class DogManager : MonoBehaviour
                 gender = dog.gender,
 
                 generation = dog.generation,
+                parentAId = string.IsNullOrWhiteSpace(dog.parentAId) ? dog.parent1Id : dog.parentAId,
+                parentBId = string.IsNullOrWhiteSpace(dog.parentBId) ? dog.parent2Id : dog.parentBId,
                 parent1Id = dog.parent1Id,
                 parent2Id = dog.parent2Id,
                 fatherId = dog.fatherId,
@@ -2173,8 +2175,29 @@ public class DogManager : MonoBehaviour
         dog.gender = GetSavedGenderWithFallback(savedDog);
 
         dog.generation = savedDog.generation;
+        dog.parentAId = savedDog.parentAId;
+        dog.parentBId = savedDog.parentBId;
         dog.parent1Id = savedDog.parent1Id;
         dog.parent2Id = savedDog.parent2Id;
+        if (string.IsNullOrWhiteSpace(dog.parentAId))
+        {
+            dog.parentAId = dog.parent1Id;
+        }
+
+        if (string.IsNullOrWhiteSpace(dog.parentBId))
+        {
+            dog.parentBId = dog.parent2Id;
+        }
+
+        if (string.IsNullOrWhiteSpace(dog.parent1Id))
+        {
+            dog.parent1Id = dog.parentAId;
+        }
+
+        if (string.IsNullOrWhiteSpace(dog.parent2Id))
+        {
+            dog.parent2Id = dog.parentBId;
+        }
         dog.fatherId = savedDog.fatherId;
         dog.motherId = savedDog.motherId;
         dog.parentAName = savedDog.parentAName;
@@ -2325,6 +2348,8 @@ public class DogSaveData
     public DogGender gender;
 
     public int generation;
+    public string parentAId;
+    public string parentBId;
     public string parent1Id;
     public string parent2Id;
     public string fatherId;

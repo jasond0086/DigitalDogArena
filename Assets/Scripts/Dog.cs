@@ -107,6 +107,8 @@ public class Dog : ScriptableObject
 
     [Header("Genetics")]
     public int generation = 0;
+    public string parentAId = "";
+    public string parentBId = "";
     public string parent1Id = "";
     public string parent2Id = "";
     public string fatherId = "";

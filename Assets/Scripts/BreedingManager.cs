@@ -372,6 +372,8 @@ public class BreedingManager : MonoBehaviour
         newborn.gender = GetRandomGender();
         newborn.lastBredWeek = -999;
 
+        newborn.parentAId = parent1.dogId;
+        newborn.parentBId = parent2.dogId;
         newborn.parent1Id = parent1.dogId;
         newborn.parent2Id = parent2.dogId;
         newborn.fatherId = parent1.gender == DogGender.Male ? parent1.dogId : parent2.dogId;
