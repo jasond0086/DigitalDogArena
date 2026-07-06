@@ -80,50 +80,8 @@ public static class BreedLibrary
             { "Wolfdog", new BreedInfo("Wolfdog", 2, 3, 4, 3, FightStyle.Wildcard, "Rare wildline frame with endurance and unpredictable movement.") }
         };
 
-    private enum BreedFamily
-    {
-        Unknown = 0,
-        BullyStriker = 1,
-        IronRott = 2,
-        GuardMastiff = 3,
-        ShepherdSentinel = 4,
-        SpitzWarden = 5,
-        VelocityHound = 6
-    }
-
-    private static readonly BreedFamily[] familyOrder =
-    {
-        BreedFamily.BullyStriker,
-        BreedFamily.IronRott,
-        BreedFamily.GuardMastiff,
-        BreedFamily.ShepherdSentinel,
-        BreedFamily.SpitzWarden,
-        BreedFamily.VelocityHound
-    };
-
     private static readonly Dictionary<string, string> hybridNames = BuildHybridNames();
-    private static readonly Dictionary<BreedFamily, string[]> sameFamilyNames = BuildSameFamilyNames();
-    private static readonly Dictionary<string, string[]> familyPairNames = BuildFamilyPairNames();
-
-    private static readonly string[] deepHybridNames =
-    {
-        "Obsidian Warden Prime",
-        "Northjaw Iron Warden",
-        "Blackfang Stone Guard",
-        "Cinder Wolf Sentinel",
-        "Steeljaw Frost Runner",
-        "Ashguard Rott Line",
-        "Apex Hybrid",
-        "Old Blood"
-    };
-
-    private static readonly string[] safeFallbackNames =
-    {
-        "Mixed Line",
-        "Old Blood",
-        "Apex Hybrid",
-        "Warline Hybrid"
-    };
+    private static readonly List<BreedRootDefinition> breedRootDefinitions = BuildBreedRootDefinitions();
 
     public static bool TryGetBaseBreed(string breedName, out BreedInfo breedInfo)
     {
@@ -141,20 +99,21 @@ public static class BreedLibrary
         string breed2 = CleanBreedName(parentBreed2);
 
         if (string.Equals(breed1, breed2, StringComparison.OrdinalIgnoreCase) &&
-            !LooksHybridLikeBreedName(breed1) &&
-            GetBreedWords(breed1).Length <= 3)
+            !LooksHybridLikeBreedName(breed1))
         {
-            return FinalizeHybridBreedName(breed1);
+            return GetBreedWords(breed1).Length <= 3
+                ? CollapseSpaces(breed1)
+                : FinalizeBreedNameFromRoots(ExtractBreedRoots(breed1));
         }
 
         string pairKey = MakePairKey(breed1, breed2);
 
         if (hybridNames.TryGetValue(pairKey, out string hybridName))
         {
-            return FinalizeHybridBreedName(hybridName);
+            return CollapseSpaces(hybridName);
         }
 
-        return BuildControlledHybridName(breed1, breed2, pairKey);
+        return BuildRootHybridBreedName(breed1, breed2);
     }
 
     public static string CleanBreedName(string breedName)
@@ -205,37 +164,38 @@ public static class BreedLibrary
     {
         Dictionary<string, string> names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        AddHybridName(names, "Pit Bull", "Rottweiler", "Rottie Bull Hybrid");
-        AddHybridName(names, "German Shepherd", "Rottweiler", "Shepherd Rott Hybrid");
-        AddHybridName(names, "Cane Corso", "Pit Bull", "Corso Bull Hybrid");
-        AddHybridName(names, "Belgian Malinois", "German Shepherd", "Malishep");
-        AddHybridName(names, "Rottweiler", "Doberman", "Doberrott Hybrid");
-        AddHybridName(names, "Boxer", "Mastiff", "Boxiff");
-        AddHybridName(names, "Pit Bull", "Dogo Argentino", "Bullentino");
-        AddHybridName(names, "Presa Canario", "Cane Corso", "Presacorso");
-        AddHybridName(names, "Akita", "Cane Corso", "Akicorso");
-        AddHybridName(names, "Greyhound", "Doberman", "Greyberman");
-        AddHybridName(names, "German Shepherd", "Dogo Argentino", "Shepdogo");
-        AddHybridName(names, "Pit Bull", "Akita", "Bullakita");
-        AddHybridName(names, "Cane Corso", "Rottweiler", "Corso Rott Hybrid");
-        AddHybridName(names, "Mastiff", "Rottweiler", "Mastweiler");
-        AddHybridName(names, "Presa Canario", "Pit Bull", "Presabull");
-        AddHybridName(names, "Doberman", "Cane Corso", "Dobocorso");
-        AddHybridName(names, "Boxer", "Rottweiler", "Boxweiler");
-        AddHybridName(names, "German Shepherd", "Mastiff", "Shepiff");
-        AddHybridName(names, "Belgian Malinois", "Doberman", "Maliberman");
-        AddHybridName(names, "German Shepherd", "Pit Bull", "German Bull Hybrid");
-        AddHybridName(names, "German Shepherd", "American Bully", "Shepherd Bully Hybrid");
-        AddHybridName(names, "Belgian Malinois", "Pit Bull", "Malinois Bull Hybrid");
-        AddHybridName(names, "Akita", "Husky", "Frost Warden");
-        AddHybridName(names, "Greyhound", "Pit Bull", "Bullhound Hybrid");
-        AddHybridName(names, "Wolfdog", "German Shepherd", "Wolf Shepherd Hybrid");
-        AddHybridName(names, "Wolfdog", "Husky", "Wolf Husky Hybrid");
-        AddHybridName(names, "Alaskan Mastiff", "Rottweiler", "Iron Guard");
-        AddHybridName(names, "AlaskanMastiffRottweiler", "Black Inu", "Northjaw Guard");
-        AddHybridName(names, "Rott Mastiff Hybrid", "Black Inu", "Northjaw Guard");
-        AddHybridName(names, "Pit Bull", "Boxer", "Bull Striker");
-        AddHybridName(names, "Greyhound", "Husky", "Frost Runner");
+        AddHybridName(names, "Pit Bull", "Rottweiler", "Pit Rott");
+        AddHybridName(names, "German Shepherd", "Rottweiler", "Shepherd Rott");
+        AddHybridName(names, "Cane Corso", "Pit Bull", "Corso Pit");
+        AddHybridName(names, "Belgian Malinois", "German Shepherd", "Malinois Shepherd");
+        AddHybridName(names, "Rottweiler", "Doberman", "Doberman Rott");
+        AddHybridName(names, "Boxer", "Mastiff", "Boxer Mastiff");
+        AddHybridName(names, "Pit Bull", "Dogo Argentino", "Pit Dogo");
+        AddHybridName(names, "Presa Canario", "Cane Corso", "Corso Presa");
+        AddHybridName(names, "Akita", "Cane Corso", "Corso Akita");
+        AddHybridName(names, "Greyhound", "Doberman", "Doberman Greyhound");
+        AddHybridName(names, "German Shepherd", "Dogo Argentino", "Dogo Shepherd");
+        AddHybridName(names, "Pit Bull", "Akita", "Pit Akita");
+        AddHybridName(names, "Cane Corso", "Rottweiler", "Corso Rott");
+        AddHybridName(names, "Mastiff", "Rottweiler", "Rott Mastiff");
+        AddHybridName(names, "Presa Canario", "Pit Bull", "Pit Presa");
+        AddHybridName(names, "Doberman", "Cane Corso", "Corso Doberman");
+        AddHybridName(names, "Boxer", "Rottweiler", "Boxer Rott");
+        AddHybridName(names, "German Shepherd", "Mastiff", "Mastiff Shepherd");
+        AddHybridName(names, "Belgian Malinois", "Doberman", "Doberman Malinois");
+        AddHybridName(names, "German Shepherd", "Pit Bull", "Pit Shepherd");
+        AddHybridName(names, "German Shepherd", "American Bully", "Bully Shepherd");
+        AddHybridName(names, "Belgian Malinois", "Pit Bull", "Pit Malinois");
+        AddHybridName(names, "Akita", "Husky", "Husky Akita");
+        AddHybridName(names, "Greyhound", "Pit Bull", "Pit Greyhound");
+        AddHybridName(names, "Wolfdog", "German Shepherd", "Wolfdog Shepherd");
+        AddHybridName(names, "Wolfdog", "Husky", "Wolfdog Husky");
+        AddHybridName(names, "Alaskan Mastiff", "Rottweiler", "Alaskan Rott Mastiff");
+        AddHybridName(names, "AlaskanMastiffRottweiler", "Black Inu", "Alaskan Rott Inu");
+        AddHybridName(names, "Rott Mastiff Hybrid", "Black Inu", "Rott Mastiff Inu");
+        AddHybridName(names, "Pit Bull", "Boxer", "Pit Boxer");
+        AddHybridName(names, "Greyhound", "Husky", "Husky Greyhound");
+        AddHybridName(names, "German Shepherd", "Husky", "Shepherd Husky");
 
         return names;
     }
@@ -246,395 +206,106 @@ public static class BreedLibrary
         string breed2,
         string hybridName)
     {
-        names[MakePairKey(breed1, breed2)] = FinalizeHybridBreedName(hybridName);
+        names[MakePairKey(breed1, breed2)] = CollapseSpaces(hybridName);
     }
 
-    private static Dictionary<BreedFamily, string[]> BuildSameFamilyNames()
+    private static List<BreedRootDefinition> BuildBreedRootDefinitions()
     {
-        return new Dictionary<BreedFamily, string[]>
-        {
-            {
-                BreedFamily.BullyStriker,
-                new[]
-                {
-                    "Bull Striker",
-                    "Apex Bull",
-                    "Bully Striker",
-                    "Ironjaw"
-                }
-            },
-            {
-                BreedFamily.IronRott,
-                new[]
-                {
-                    "Iron Rott",
-                    "Blackguard",
-                    "Steel Rott",
-                    "Obsidian Guard"
-                }
-            },
-            {
-                BreedFamily.GuardMastiff,
-                new[]
-                {
-                    "Stone Guard",
-                    "War Mastiff",
-                    "Guard Prime",
-                    "Apex Mastiff"
-                }
-            },
-            {
-                BreedFamily.ShepherdSentinel,
-                new[]
-                {
-                    "Shepherd Sentinel",
-                    "Scout Sentinel",
-                    "Ghost Shepherd",
-                    "Ranger Line"
-                }
-            },
-            {
-                BreedFamily.SpitzWarden,
-                new[]
-                {
-                    "Frost Warden",
-                    "Northwolf",
-                    "Spitz Warden",
-                    "Whitefang"
-                }
-            },
-            {
-                BreedFamily.VelocityHound,
-                new[]
-                {
-                    "Swift Hound",
-                    "Ghost Runner",
-                    "Velocity Hound",
-                    "Runner Prime"
-                }
-            }
-        };
+        List<BreedRootDefinition> roots = new List<BreedRootDefinition>();
+
+        roots.Add(new BreedRootDefinition("Black Inu", 1, "black inu", "blackinu"));
+        roots.Add(new BreedRootDefinition("Shiba Inu", 2, "shiba inu", "shibainu"));
+        roots.Add(new BreedRootDefinition("Alaskan", 3, "alaskan mastiff", "alaskanmastiff", "alaskan malamute", "alaskanmalamute", "alaskan"));
+
+        roots.Add(new BreedRootDefinition("Rott", 10, "rottweiler", "rott"));
+        roots.Add(new BreedRootDefinition("Mastiff", 11, "mastiff", "english mastiff", "tibetan mastiff"));
+        roots.Add(new BreedRootDefinition("Corso", 12, "cane corso", "canecorso", "corso"));
+        roots.Add(new BreedRootDefinition("Pit", 13, "pit bull", "pitbull"));
+        roots.Add(new BreedRootDefinition("Bully", 14, "american bully", "americanbully", "bully"));
+        roots.Add(new BreedRootDefinition("Staffy", 15, "american staffordshire terrier", "americanstaffordshireterrier", "staffordshire bull terrier", "staffordshirebullterrier", "staffordshire"));
+        roots.Add(new BreedRootDefinition("Presa", 16, "presa canario", "presacanario", "presa"));
+        roots.Add(new BreedRootDefinition("Dogo", 17, "dogo argentino", "dogoargentino", "dogo"));
+        roots.Add(new BreedRootDefinition("Boerboel", 18, "boerboel"));
+        roots.Add(new BreedRootDefinition("Dane", 19, "great dane", "greatdane", "dane"));
+        roots.Add(new BreedRootDefinition("Doberman", 20, "doberman"));
+        roots.Add(new BreedRootDefinition("Boxer", 21, "boxer"));
+        roots.Add(new BreedRootDefinition("Bulldog", 22, "bulldog"));
+        roots.Add(new BreedRootDefinition("Bull", 23, "bull terrier", "bullterrier", "bull"));
+        roots.Add(new BreedRootDefinition("Akita", 24, "akita"));
+        roots.Add(new BreedRootDefinition("Kangal", 25, "kangal"));
+        roots.Add(new BreedRootDefinition("Tosa", 26, "tosa inu", "tosainu", "tosa"));
+        roots.Add(new BreedRootDefinition("Fila", 27, "fila brasileiro", "filabrasileiro", "fila"));
+
+        roots.Add(new BreedRootDefinition("Shepherd", 40, "german shepherd", "germanshepherd", "german shepard", "germanshepard", "shepherd", "shepard"));
+        roots.Add(new BreedRootDefinition("Malinois", 41, "belgian malinois", "belgianmalinois", "malinois"));
+        roots.Add(new BreedRootDefinition("Dutch", 42, "dutch shepherd", "dutchshepherd", "dutch"));
+        roots.Add(new BreedRootDefinition("Anatolian", 43, "anatolian shepherd", "anatolianshepherd", "anatolian"));
+        roots.Add(new BreedRootDefinition("Australian", 44, "australian shepherd", "australianshepherd", "australian"));
+        roots.Add(new BreedRootDefinition("Husky", 45, "siberian husky", "siberianhusky", "husky"));
+        roots.Add(new BreedRootDefinition("Malamute", 46, "alaskan malamute", "alaskanmalamute", "malamute"));
+        roots.Add(new BreedRootDefinition("Inu", 47, "inu"));
+        roots.Add(new BreedRootDefinition("Chow", 48, "chow chow", "chowchow", "chow"));
+        roots.Add(new BreedRootDefinition("Samoyed", 49, "samoyed"));
+        roots.Add(new BreedRootDefinition("Wolfdog", 50, "wolfdog"));
+
+        roots.Add(new BreedRootDefinition("Greyhound", 70, "greyhound"));
+        roots.Add(new BreedRootDefinition("Whippet", 71, "whippet"));
+        roots.Add(new BreedRootDefinition("Saluki", 72, "saluki"));
+        roots.Add(new BreedRootDefinition("Ridgeback", 73, "rhodesian ridgeback", "rhodesianridgeback", "thai ridgeback", "thairidgeback", "ridgeback"));
+        roots.Add(new BreedRootDefinition("Pharaoh", 74, "pharaoh hound", "pharaohhound", "pharaoh"));
+        roots.Add(new BreedRootDefinition("Catahoula", 75, "catahoula leopard dog", "catahoulaleoparddog", "catahoula"));
+        roots.Add(new BreedRootDefinition("Hound", 76, "hound"));
+
+        return roots;
     }
 
-    private static Dictionary<string, string[]> BuildFamilyPairNames()
+    private static string BuildRootHybridBreedName(string breed1, string breed2)
     {
-        Dictionary<string, string[]> names = new Dictionary<string, string[]>();
+        List<string> parent1Roots = ExtractBreedRoots(breed1);
+        List<string> parent2Roots = ExtractBreedRoots(breed2);
+        List<string> combinedRoots = MergeBreedRoots(parent1Roots, parent2Roots);
+        List<string> cappedRoots = CapBreedRoots(parent1Roots, parent2Roots, combinedRoots);
 
-        AddFamilyPairNames(names, BreedFamily.BullyStriker, BreedFamily.IronRott,
-            "Iron Bull", "Blackjaw Bull", "Steel Striker", "Grim Bull");
-
-        AddFamilyPairNames(names, BreedFamily.BullyStriker, BreedFamily.GuardMastiff,
-            "Bullguard", "War Bull", "Stone Bull", "Apex Guard");
-
-        AddFamilyPairNames(names, BreedFamily.BullyStriker, BreedFamily.ShepherdSentinel,
-            "Bull Sentinel", "Strike Sentinel", "Apex Shepherd", "Guard Striker");
-
-        AddFamilyPairNames(names, BreedFamily.BullyStriker, BreedFamily.SpitzWarden,
-            "Bull Warden", "Frost Bull", "North Striker", "Wolf Bull");
-
-        AddFamilyPairNames(names, BreedFamily.BullyStriker, BreedFamily.VelocityHound,
-            "Strike Hound", "Bull Runner", "Apex Runner", "Jaw Hound");
-
-        AddFamilyPairNames(names, BreedFamily.IronRott, BreedFamily.GuardMastiff,
-            "Iron Guard", "Blackjaw Mastiff", "Stone Rott", "Warjaw Rott",
-            "Obsidian Guard", "Cinder Mastiff", "Fortress Rott", "Grimjaw Guard");
-
-        AddFamilyPairNames(names, BreedFamily.IronRott, BreedFamily.ShepherdSentinel,
-            "Iron Sentinel", "Blackwatch Rott", "Steel Shepherd", "Grim Sentinel",
-            "Ranger Rott", "Obsidian Sentinel");
-
-        AddFamilyPairNames(names, BreedFamily.IronRott, BreedFamily.SpitzWarden,
-            "Iron Warden", "Blackfang Warden", "Northjaw Guard", "Obsidian Warden",
-            "Cinder Inu", "Ironwolf", "Frostguard Rott");
-
-        AddFamilyPairNames(names, BreedFamily.IronRott, BreedFamily.VelocityHound,
-            "Iron Runner", "Black Hound", "Ghost Rott", "Steel Runner");
-
-        AddFamilyPairNames(names, BreedFamily.GuardMastiff, BreedFamily.ShepherdSentinel,
-            "Guard Sentinel", "Stone Sentinel", "War Shepherd", "Shield Mastiff",
-            "Garrison Sentinel");
-
-        AddFamilyPairNames(names, BreedFamily.GuardMastiff, BreedFamily.SpitzWarden,
-            "Frost Guard", "North Guard", "Wolf Mastiff", "Stone Warden",
-            "War Warden", "Timber Guard");
-
-        AddFamilyPairNames(names, BreedFamily.GuardMastiff, BreedFamily.VelocityHound,
-            "War Runner", "Stone Runner", "Titan Hound", "Guard Runner",
-            "Fortress Hound");
-
-        AddFamilyPairNames(names, BreedFamily.ShepherdSentinel, BreedFamily.SpitzWarden,
-            "Frost Sentinel", "North Sentinel", "Timber Shepherd", "Wolf Sentinel",
-            "Snow Shepherd");
-
-        AddFamilyPairNames(names, BreedFamily.ShepherdSentinel, BreedFamily.VelocityHound,
-            "Scout Runner", "Ghost Sentinel", "Ranger Hound", "Swift Shepherd");
-
-        AddFamilyPairNames(names, BreedFamily.SpitzWarden, BreedFamily.VelocityHound,
-            "Frost Runner", "Ghost Hound", "North Runner", "Snowdash",
-            "Timber Hound", "Whitefang Runner");
-
-        return names;
+        return FinalizeBreedNameFromRoots(cappedRoots);
     }
 
-    private static void AddFamilyPairNames(
-        Dictionary<string, string[]> names,
-        BreedFamily family1,
-        BreedFamily family2,
-        params string[] breedNames)
+    private static List<string> ExtractBreedRoots(string breedName)
     {
-        names[MakeFamilyPairKey(family1, family2)] = breedNames;
-    }
-
-    private static string BuildControlledHybridName(string breed1, string breed2, string seed)
-    {
-        List<BreedFamily> parent1Families = DetectBreedFamilies(breed1);
-        List<BreedFamily> parent2Families = DetectBreedFamilies(breed2);
-        List<BreedFamily> combinedFamilies = MergeFamilies(parent1Families, parent2Families);
-
-        if (combinedFamilies.Count == 0)
-        {
-            return PickSafeFallbackName(seed);
-        }
-
-        bool deepHybrid = LooksHybridLikeBreedName(breed1) ||
-                          LooksHybridLikeBreedName(breed2) ||
-                          parent1Families.Count + parent2Families.Count > 2;
-
-        if (combinedFamilies.Count >= 3)
-        {
-            return FinalizeHybridBreedName(BuildDeepHybridName(combinedFamilies, seed));
-        }
-
-        if (combinedFamilies.Count == 1)
-        {
-            BreedFamily family = combinedFamilies[0];
-
-            if (sameFamilyNames.TryGetValue(family, out string[] names))
-            {
-                return FinalizeHybridBreedName(PickDeterministicName(names, seed));
-            }
-
-            return PickSafeFallbackName(seed);
-        }
-
-        string familyPairKey = MakeFamilyPairKey(combinedFamilies[0], combinedFamilies[1]);
-
-        if (familyPairNames.TryGetValue(familyPairKey, out string[] pairNames))
-        {
-            string breedName = PickDeterministicName(pairNames, seed);
-
-            if (deepHybrid && GetBreedWords(breedName).Length < 3)
-            {
-                breedName = MaybeAddDeepHybridSuffix(breedName, seed);
-            }
-
-            return FinalizeHybridBreedName(breedName);
-        }
-
-        return PickSafeFallbackName(seed);
-    }
-
-    private static string BuildDeepHybridName(List<BreedFamily> families, string seed)
-    {
-        if (ContainsFamily(families, BreedFamily.IronRott) &&
-            ContainsFamily(families, BreedFamily.GuardMastiff) &&
-            ContainsFamily(families, BreedFamily.SpitzWarden))
-        {
-            string[] ironGuardSpitzNames =
-            {
-                "Northjaw Guard",
-                "Blackfang Warden",
-                "Obsidian Warden"
-            };
-
-            return PickDeterministicName(ironGuardSpitzNames, seed);
-        }
-
-        if (ContainsFamily(families, BreedFamily.BullyStriker) &&
-            ContainsFamily(families, BreedFamily.ShepherdSentinel) &&
-            ContainsFamily(families, BreedFamily.SpitzWarden))
-        {
-            string[] names =
-            {
-                "Apex Wolf Sentinel",
-                "Bull Warden Prime",
-                "Cinder Shepherd Legacy"
-            };
-
-            return PickDeterministicName(names, seed);
-        }
-
-        return PickDeterministicName(deepHybridNames, seed);
-    }
-
-    private static string MaybeAddDeepHybridSuffix(string breedName, string seed)
-    {
-        string[] suffixes =
-        {
-            "Line",
-            "Strain",
-            "Legacy",
-            "Prime",
-            "Variant",
-            "Blood"
-        };
-
-        string suffix = PickDeterministicName(suffixes, $"{seed}|suffix");
-        return $"{breedName} {suffix}";
-    }
-
-    private static string PickSafeFallbackName(string seed)
-    {
-        return FinalizeHybridBreedName(PickDeterministicName(safeFallbackNames, seed));
-    }
-
-    private static List<BreedFamily> DetectBreedFamilies(string breedName)
-    {
-        List<BreedFamily> families = new List<BreedFamily>();
         string rawBreed = GetRawBreedText(breedName);
         string separatedBreed = GetSeparatedBreedText(breedName);
         string compactBreed = GetCompactBreedText(breedName);
+        List<string> roots = new List<string>();
 
-        AddFamilyIfMatches(families, BreedFamily.BullyStriker,
-            ContainsAny(rawBreed, separatedBreed, compactBreed,
-                "pit bull", "pitbull", "american bully", "bully",
-                "staffordshire", "boxer", "bulldog", "bull", "striker", "strike"));
-
-        AddFamilyIfMatches(families, BreedFamily.IronRott,
-            ContainsAny(rawBreed, separatedBreed, compactBreed,
-                "rottweiler", "rott", "doberman", "beauceron",
-                "black russian terrier", "blackrussianterrier",
-                "iron", "black", "obsidian", "steel", "cinder"));
-
-        AddFamilyIfMatches(families, BreedFamily.GuardMastiff,
-            ContainsAny(rawBreed, separatedBreed, compactBreed,
-                "mastiff", "cane corso", "canecorso", "presa", "dogo",
-                "boerboel", "english mastiff", "tibetan mastiff",
-                "great dane", "greatdane", "kangal", "tosa", "fila",
-                "central asian shepherd", "centralasianshepherd",
-                "alaskan mastiff", "alaskanmastiff",
-                "guard", "war", "stone", "fortress", "garrison", "shield"));
-
-        AddFamilyIfMatches(families, BreedFamily.ShepherdSentinel,
-            ContainsAny(rawBreed, separatedBreed, compactBreed,
-                "german shepherd", "germanshepherd", "german shepard", "germanshepard",
-                "belgian malinois", "belgianmalinois", "dutch shepherd",
-                "dutchshepherd", "anatolian shepherd", "anatolianshepherd",
-                "australian shepherd", "australianshepherd",
-                "shepherd", "shepard", "malinois", "sentinel", "ranger", "scout"));
-
-        AddFamilyIfMatches(families, BreedFamily.SpitzWarden,
-            ContainsAny(rawBreed, separatedBreed, compactBreed,
-                "akita", "husky", "alaskan malamute", "alaskanmalamute",
-                "malamute", "shiba inu", "shibainu", "black inu", "blackinu",
-                "inu", "chow chow", "chowchow", "samoyed", "spitz",
-                "warden", "north", "frost", "wolf", "timber", "snow", "whitefang"));
-
-        AddFamilyIfMatches(families, BreedFamily.VelocityHound,
-            ContainsAny(rawBreed, separatedBreed, compactBreed,
-                "greyhound", "whippet", "saluki", "rhodesian ridgeback",
-                "rhodesianridgeback", "pharaoh hound", "pharaohhound",
-                "thai ridgeback", "thairidgeback", "catahoula leopard dog",
-                "catahoulaleoparddog", "catahoula", "hound", "runner", "swift", "dash"));
-
-        return OrderFamilies(families);
-    }
-
-    private static void AddFamilyIfMatches(List<BreedFamily> families, BreedFamily family, bool matches)
-    {
-        if (matches && !families.Contains(family))
+        for (int i = 0; i < breedRootDefinitions.Count; i++)
         {
-            families.Add(family);
-        }
-    }
+            BreedRootDefinition rootDefinition = breedRootDefinitions[i];
 
-    private static List<BreedFamily> MergeFamilies(List<BreedFamily> familySet1, List<BreedFamily> familySet2)
-    {
-        List<BreedFamily> merged = new List<BreedFamily>();
-
-        AddFamilies(merged, familySet1);
-        AddFamilies(merged, familySet2);
-
-        return OrderFamilies(merged);
-    }
-
-    private static void AddFamilies(List<BreedFamily> target, List<BreedFamily> source)
-    {
-        if (source == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < source.Count; i++)
-        {
-            BreedFamily family = source[i];
-
-            if (family != BreedFamily.Unknown && !target.Contains(family))
+            if (RootMatches(rootDefinition, rawBreed, separatedBreed, compactBreed))
             {
-                target.Add(family);
-            }
-        }
-    }
-
-    private static List<BreedFamily> OrderFamilies(List<BreedFamily> families)
-    {
-        List<BreedFamily> ordered = new List<BreedFamily>();
-
-        for (int i = 0; i < familyOrder.Length; i++)
-        {
-            BreedFamily family = familyOrder[i];
-
-            if (families != null && families.Contains(family))
-            {
-                ordered.Add(family);
+                AddRootIfMissing(roots, rootDefinition.root);
             }
         }
 
-        return ordered;
+        NormalizeRootConflicts(roots);
+        return SortBreedRoots(roots);
     }
 
-    private static bool ContainsFamily(List<BreedFamily> families, BreedFamily family)
-    {
-        return families != null && families.Contains(family);
-    }
-
-    private static string MakeFamilyPairKey(BreedFamily family1, BreedFamily family2)
-    {
-        if ((int)family1 <= (int)family2)
-        {
-            return $"{family1}|{family2}";
-        }
-
-        return $"{family2}|{family1}";
-    }
-
-    private static bool ContainsAny(
+    private static bool RootMatches(
+        BreedRootDefinition rootDefinition,
         string rawBreed,
         string separatedBreed,
-        string compactBreed,
-        params string[] searchTexts)
+        string compactBreed)
     {
-        if (searchTexts == null)
+        for (int i = 0; i < rootDefinition.patterns.Length; i++)
         {
-            return false;
-        }
+            string pattern = rootDefinition.patterns[i];
+            string rawPattern = GetRawBreedText(pattern);
+            string separatedPattern = GetSeparatedBreedText(pattern);
+            string compactPattern = GetCompactBreedText(pattern);
 
-        for (int i = 0; i < searchTexts.Length; i++)
-        {
-            string searchText = searchTexts[i];
-
-            if (string.IsNullOrWhiteSpace(searchText))
-            {
-                continue;
-            }
-
-            string rawSearch = searchText.Trim().ToLowerInvariant();
-            string separatedSearch = GetSeparatedBreedText(searchText);
-            string compactSearch = GetCompactBreedText(searchText);
-
-            if ((!string.IsNullOrEmpty(rawSearch) && rawBreed.Contains(rawSearch)) ||
-                (!string.IsNullOrEmpty(separatedSearch) && separatedBreed.Contains(separatedSearch)) ||
-                (!string.IsNullOrEmpty(compactSearch) && compactBreed.Contains(compactSearch)))
+            if ((!string.IsNullOrEmpty(rawPattern) && rawBreed.Contains(rawPattern)) ||
+                (!string.IsNullOrEmpty(separatedPattern) && separatedBreed.Contains(separatedPattern)) ||
+                (!string.IsNullOrEmpty(compactPattern) && compactBreed.Contains(compactPattern)))
             {
                 return true;
             }
@@ -643,124 +314,246 @@ public static class BreedLibrary
         return false;
     }
 
+    private static List<string> MergeBreedRoots(List<string> parent1Roots, List<string> parent2Roots)
+    {
+        List<string> mergedRoots = new List<string>();
+
+        AddRootsIfMissing(mergedRoots, parent1Roots);
+        AddRootsIfMissing(mergedRoots, parent2Roots);
+
+        return SortBreedRoots(mergedRoots);
+    }
+
+    private static List<string> CapBreedRoots(
+        List<string> parent1Roots,
+        List<string> parent2Roots,
+        List<string> combinedRoots)
+    {
+        if (combinedRoots.Count <= 3)
+        {
+            return SortBreedRoots(combinedRoots);
+        }
+
+        List<string> cappedRoots = new List<string>();
+        AddRootIfMissing(cappedRoots, GetPreferredRootForCap(parent1Roots));
+        AddRootIfMissing(cappedRoots, GetPreferredRootForCap(parent2Roots));
+
+        List<string> simplifiedCombinedRoots = SimplifyRootsForOverflow(combinedRoots);
+
+        for (int i = 0; i < simplifiedCombinedRoots.Count && cappedRoots.Count < 3; i++)
+        {
+            AddRootIfMissing(cappedRoots, simplifiedCombinedRoots[i]);
+        }
+
+        return SortBreedRoots(cappedRoots);
+    }
+
+    private static string GetPreferredRootForCap(List<string> roots)
+    {
+        List<string> simplifiedRoots = SimplifyRootsForOverflow(roots);
+
+        if (simplifiedRoots.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return SortBreedRoots(simplifiedRoots)[0];
+    }
+
+    private static List<string> SimplifyRootsForOverflow(List<string> roots)
+    {
+        List<string> simplifiedRoots = new List<string>();
+
+        for (int i = 0; i < roots.Count; i++)
+        {
+            AddRootIfMissing(simplifiedRoots, SimplifyRootForOverflow(roots[i]));
+        }
+
+        NormalizeRootConflicts(simplifiedRoots);
+        return SortBreedRoots(simplifiedRoots);
+    }
+
+    private static string SimplifyRootForOverflow(string root)
+    {
+        if (string.Equals(root, "Black Inu", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(root, "Shiba Inu", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Inu";
+        }
+
+        return root;
+    }
+
+    private static string FinalizeBreedNameFromRoots(List<string> roots)
+    {
+        List<string> finalRoots = SortBreedRoots(roots);
+
+        if (finalRoots.Count == 0)
+        {
+            return "Mixed Breed";
+        }
+
+        if (finalRoots.Count > 3)
+        {
+            finalRoots = CapBreedRoots(new List<string>(), new List<string>(), finalRoots);
+        }
+
+        return string.Join(" ", finalRoots.ToArray());
+    }
+
     private static bool LooksHybridLikeBreedName(string breedName)
     {
         string rawBreed = GetRawBreedText(breedName);
-        string separatedBreed = GetSeparatedBreedText(breedName);
-        string compactBreed = GetCompactBreedText(breedName);
+        List<string> roots = ExtractBreedRoots(breedName);
 
-        if (ContainsAny(rawBreed, separatedBreed, compactBreed,
-            "guard", "warden", "sentinel", "runner", "striker",
-            "line", "strain", "legacy", "prime", "hybrid", "variant", "blood"))
-        {
-            return true;
-        }
-
-        return DetectBreedFamilies(breedName).Count > 1;
+        return roots.Count > 1 ||
+               rawBreed.Contains("hybrid") ||
+               rawBreed.Contains("mix") ||
+               rawBreed.Contains("mixed") ||
+               rawBreed.Contains("cross");
     }
 
-    private static string FinalizeHybridBreedName(string breedName)
+    private static void AddRootsIfMissing(List<string> targetRoots, List<string> sourceRoots)
     {
-        string cleanedName = CollapseSpaces(ExpandKnownCompactBreedName(CleanBreedName(breedName)));
-
-        if (LooksLikeRawBreedConcatenation(cleanedName))
+        if (sourceRoots == null)
         {
-            return "Apex Hybrid";
+            return;
         }
 
-        string[] parts = GetBreedWords(cleanedName);
-
-        if (parts.Length == 0)
+        for (int i = 0; i < sourceRoots.Count; i++)
         {
-            return "Mixed Line";
-        }
-
-        if (parts.Length <= 3)
-        {
-            return string.Join(" ", parts);
-        }
-
-        return $"{parts[0]} {parts[1]} {parts[2]}";
-    }
-
-    private static string ExpandKnownCompactBreedName(string breedName)
-    {
-        string compactBreed = GetCompactBreedText(breedName);
-
-        switch (compactBreed)
-        {
-            case "germanbull":
-                return "German Bull Hybrid";
-
-            case "germanbully":
-                return "German Bully Hybrid";
-
-            case "shepherdbull":
-                return "Shepherd Bull Hybrid";
-
-            case "shepherdbully":
-                return "Shepherd Bully Hybrid";
-
-            case "pitgerman":
-                return "Pit German Hybrid";
-
-            case "pitshepherd":
-                return "Pit Shepherd Hybrid";
-
-            case "bullshepherd":
-                return "Bull Shepherd Hybrid";
-
-            case "bullyshepherd":
-                return "Bully Shepherd Hybrid";
-
-            case "alaskanmastiffrottweiler":
-                return "Alaskan Mastiff Rottweiler";
-
-            default:
-                return breedName;
+            AddRootIfMissing(targetRoots, sourceRoots[i]);
         }
     }
 
-    private static bool LooksLikeRawBreedConcatenation(string breedName)
+    private static void AddRootIfMissing(List<string> roots, string root)
     {
-        string compactBreed = GetCompactBreedText(breedName);
+        if (roots == null || string.IsNullOrWhiteSpace(root))
+        {
+            return;
+        }
 
-        if (compactBreed.Length < 18 || GetBreedWords(breedName).Length > 1)
+        for (int i = 0; i < roots.Count; i++)
+        {
+            if (string.Equals(roots[i], root, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        roots.Add(root);
+    }
+
+    private static void NormalizeRootConflicts(List<string> roots)
+    {
+        if (roots == null)
+        {
+            return;
+        }
+
+        if (ContainsRoot(roots, "Pit") ||
+            ContainsRoot(roots, "Bully") ||
+            ContainsRoot(roots, "Staffy") ||
+            ContainsRoot(roots, "Bulldog"))
+        {
+            RemoveRoot(roots, "Bull");
+        }
+
+        if (ContainsRoot(roots, "Black Inu") || ContainsRoot(roots, "Shiba Inu"))
+        {
+            RemoveRoot(roots, "Inu");
+        }
+
+        if (ContainsRoot(roots, "Dutch") ||
+            ContainsRoot(roots, "Anatolian") ||
+            ContainsRoot(roots, "Australian"))
+        {
+            RemoveRoot(roots, "Shepherd");
+        }
+
+        if (ContainsRoot(roots, "Alaskan") && ContainsRoot(roots, "Malamute"))
+        {
+            RemoveRoot(roots, "Alaskan");
+        }
+    }
+
+    private static bool ContainsRoot(List<string> roots, string root)
+    {
+        if (roots == null)
         {
             return false;
         }
 
-        return DetectBreedFamilies(breedName).Count > 1;
+        for (int i = 0; i < roots.Count; i++)
+        {
+            if (string.Equals(roots[i], root, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    private static string PickDeterministicName(string[] names, string seed)
+    private static void RemoveRoot(List<string> roots, string root)
     {
-        if (names == null || names.Length == 0)
+        if (roots == null)
         {
-            return "Mixed Line";
+            return;
         }
 
-        int index = GetDeterministicIndex(seed, names.Length);
-        return names[index];
+        for (int i = roots.Count - 1; i >= 0; i--)
+        {
+            if (string.Equals(roots[i], root, StringComparison.OrdinalIgnoreCase))
+            {
+                roots.RemoveAt(i);
+            }
+        }
     }
 
-    private static int GetDeterministicIndex(string seed, int count)
+    private static List<string> SortBreedRoots(List<string> roots)
     {
-        if (count <= 0)
+        List<string> sortedRoots = new List<string>();
+
+        if (roots == null)
         {
-            return 0;
+            return sortedRoots;
         }
 
-        uint hash = 2166136261;
-        string safeSeed = seed ?? string.Empty;
+        AddRootsByOrder(sortedRoots, roots);
+        return sortedRoots;
+    }
 
-        for (int i = 0; i < safeSeed.Length; i++)
+    private static void AddRootsByOrder(List<string> sortedRoots, List<string> roots)
+    {
+        for (int i = 0; i < breedRootDefinitions.Count; i++)
         {
-            hash ^= char.ToLowerInvariant(safeSeed[i]);
-            hash *= 16777619;
+            string root = breedRootDefinitions[i].root;
+
+            if (ContainsRoot(roots, root))
+            {
+                AddRootIfMissing(sortedRoots, root);
+            }
         }
 
-        return (int)(hash % count);
+        for (int i = 0; i < roots.Count; i++)
+        {
+            AddRootIfMissing(sortedRoots, roots[i]);
+        }
+    }
+
+    private class BreedRootDefinition
+    {
+        public readonly string root;
+        public readonly int sortOrder;
+        public readonly string[] patterns;
+
+        public BreedRootDefinition(string root, int sortOrder, params string[] patterns)
+        {
+            this.root = root;
+            this.sortOrder = sortOrder;
+            this.patterns = patterns ?? new string[0];
+        }
     }
 
     private static string GetRawBreedText(string breedName)
