@@ -168,7 +168,7 @@ public static class BreedLibrary
         AddHybridName(names, "German Shepherd", "Rottweiler", "Shepherd Rott");
         AddHybridName(names, "Cane Corso", "Pit Bull", "Corso Pit");
         AddHybridName(names, "Belgian Malinois", "German Shepherd", "Malinois Shepherd");
-        AddHybridName(names, "Rottweiler", "Doberman", "Doberman Rott");
+        AddHybridName(names, "Rottweiler", "Doberman", "Rotterman");
         AddHybridName(names, "Boxer", "Mastiff", "Boxer Mastiff");
         AddHybridName(names, "Pit Bull", "Dogo Argentino", "Pit Dogo");
         AddHybridName(names, "Presa Canario", "Cane Corso", "Corso Presa");
@@ -177,25 +177,40 @@ public static class BreedLibrary
         AddHybridName(names, "German Shepherd", "Dogo Argentino", "Dogo Shepherd");
         AddHybridName(names, "Pit Bull", "Akita", "Pit Akita");
         AddHybridName(names, "Cane Corso", "Rottweiler", "Corso Rott");
-        AddHybridName(names, "Mastiff", "Rottweiler", "Rott Mastiff");
+        AddHybridName(names, "Mastiff", "Rottweiler", "Rottmastiff");
         AddHybridName(names, "Presa Canario", "Pit Bull", "Pit Presa");
         AddHybridName(names, "Doberman", "Cane Corso", "Corso Doberman");
         AddHybridName(names, "Boxer", "Rottweiler", "Boxer Rott");
         AddHybridName(names, "German Shepherd", "Mastiff", "Mastiff Shepherd");
         AddHybridName(names, "Belgian Malinois", "Doberman", "Doberman Malinois");
-        AddHybridName(names, "German Shepherd", "Pit Bull", "Pit Shepherd");
-        AddHybridName(names, "German Shepherd", "American Bully", "Bully Shepherd");
+        AddHybridName(names, "German Shepherd", "Pit Bull", "Pit Bullshep");
+        AddHybridName(names, "Shepherd", "Pit Bull", "Pit Bullshep");
+        AddHybridName(names, "German Shepherd", "American Bully", "Bullyshep");
+        AddHybridName(names, "Shepherd", "American Bully", "Bullyshep");
         AddHybridName(names, "Belgian Malinois", "Pit Bull", "Pit Malinois");
         AddHybridName(names, "Akita", "Husky", "Husky Akita");
-        AddHybridName(names, "Greyhound", "Pit Bull", "Pit Greyhound");
+        AddHybridName(names, "Greyhound", "Pit Bull", "Pit Bullhound");
         AddHybridName(names, "Wolfdog", "German Shepherd", "Wolfdog Shepherd");
         AddHybridName(names, "Wolfdog", "Husky", "Wolfdog Husky");
-        AddHybridName(names, "Alaskan Mastiff", "Rottweiler", "Alaskan Rott Mastiff");
-        AddHybridName(names, "AlaskanMastiffRottweiler", "Black Inu", "Alaskan Rott Inu");
-        AddHybridName(names, "Rott Mastiff Hybrid", "Black Inu", "Rott Mastiff Inu");
+        AddHybridName(names, "Alaskan Mastiff", "Rottweiler", "Alaskan Rottmastiff");
+        AddHybridName(names, "AlaskanMastiffRottweiler", "Black Inu", "Rottmastiff Inu");
+        AddHybridName(names, "Rott Mastiff Hybrid", "Black Inu", "Rottmastiff Inu");
         AddHybridName(names, "Pit Bull", "Boxer", "Pit Boxer");
         AddHybridName(names, "Greyhound", "Husky", "Husky Greyhound");
-        AddHybridName(names, "German Shepherd", "Husky", "Shepherd Husky");
+        AddHybridName(names, "German Shepherd", "Husky", "Shepsky");
+        AddHybridName(names, "Shepherd", "Husky", "Shepsky");
+        AddHybridName(names, "Bulldog", "German Shepherd", "Bullshep");
+        AddHybridName(names, "Bulldog", "Shepherd", "Bullshep");
+        AddHybridName(names, "Bulldog Shepherd", "Catahoula", "Bullshep Catahoula");
+        AddHybridName(names, "Pit Bull Shepherd", "Catahoula", "Pit Bullshep Catahoula");
+        AddHybridName(names, "Bulldog", "Catahoula", "Catabull");
+        AddHybridName(names, "Bulldog", "Greyhound", "Bullhound");
+        AddHybridName(names, "American Bully", "Greyhound", "Bullyhound");
+        AddHybridName(names, "Bully", "Greyhound", "Bullyhound");
+        AddHybridName(names, "Rott Mastiff", "Black Inu", "Rottmastiff Inu");
+        AddHybridName(names, "Catahoula Bulldog", "Shepherd", "Catabull Shep");
+        AddHybridName(names, "Catahoula Bulldog", "German Shepherd", "Catabull Shep");
+        AddHybridName(names, "Bulldog Shepherd Catahoula", "Rottweiler", "Bullshep Rott");
 
         return names;
     }
@@ -264,9 +279,207 @@ public static class BreedLibrary
         List<string> parent1Roots = ExtractBreedRoots(breed1);
         List<string> parent2Roots = ExtractBreedRoots(breed2);
         List<string> combinedRoots = MergeBreedRoots(parent1Roots, parent2Roots);
-        List<string> cappedRoots = CapBreedRoots(parent1Roots, parent2Roots, combinedRoots);
 
-        return FinalizeBreedNameFromRoots(cappedRoots);
+        return BuildCompressedHybridBreedName(parent1Roots, parent2Roots, combinedRoots);
+    }
+
+    private static string BuildCompressedHybridBreedName(
+        List<string> parent1Roots,
+        List<string> parent2Roots,
+        List<string> combinedRoots)
+    {
+        List<string> displayRoots = SimplifyRootsForOverflow(combinedRoots);
+
+        if (displayRoots.Count == 0)
+        {
+            return "Mixed Breed";
+        }
+
+        string specialName = GetSpecialHybridDisplayName(parent1Roots, parent2Roots, displayRoots);
+
+        if (!string.IsNullOrWhiteSpace(specialName))
+        {
+            return CollapseSpaces(specialName);
+        }
+
+        List<string> workingRoots = new List<string>(displayRoots);
+        List<string> displayParts = new List<string>();
+
+        AddCompressedDisplayPart(workingRoots, displayParts);
+        AddRemainingDisplayParts(workingRoots, displayParts);
+
+        return CollapseSpaces(string.Join(" ", displayParts.ToArray()));
+    }
+
+    private static string GetSpecialHybridDisplayName(
+        List<string> parent1Roots,
+        List<string> parent2Roots,
+        List<string> displayRoots)
+    {
+        List<string> simplifiedParent1Roots = SimplifyRootsForOverflow(parent1Roots);
+        List<string> simplifiedParent2Roots = SimplifyRootsForOverflow(parent2Roots);
+
+        if (ContainsRoot(displayRoots, "Rott") &&
+            ContainsRoot(displayRoots, "Mastiff") &&
+            ContainsRoot(displayRoots, "Inu"))
+        {
+            return "Rottmastiff Inu";
+        }
+
+        if (ContainsRoot(displayRoots, "Alaskan") &&
+            ContainsRoot(displayRoots, "Rott") &&
+            ContainsRoot(displayRoots, "Mastiff"))
+        {
+            return "Alaskan Rottmastiff";
+        }
+
+        if (ContainsRoot(displayRoots, "Husky") &&
+            ContainsRoot(displayRoots, "Akita") &&
+            displayRoots.Count <= 2)
+        {
+            return "Husky Akita";
+        }
+
+        if (ParentHasRoots(simplifiedParent1Roots, "Pit", "Shepherd") ||
+            ParentHasRoots(simplifiedParent2Roots, "Pit", "Shepherd"))
+        {
+            if (ContainsRoot(displayRoots, "Rott"))
+            {
+                return "Pit Bullshep Rott";
+            }
+
+            if (ContainsRoot(displayRoots, "Catahoula"))
+            {
+                return "Pit Bullshep Catahoula";
+            }
+        }
+
+        if (ParentHasRoots(simplifiedParent1Roots, "Catahoula", "Bulldog") ||
+            ParentHasRoots(simplifiedParent2Roots, "Catahoula", "Bulldog"))
+        {
+            if (ContainsRoot(displayRoots, "Shepherd"))
+            {
+                return "Catabull Shep";
+            }
+
+            if (ContainsRoot(displayRoots, "Rott"))
+            {
+                return "Catabull Rott";
+            }
+        }
+
+        if (ParentHasRoots(simplifiedParent1Roots, "Bulldog", "Shepherd") ||
+            ParentHasRoots(simplifiedParent2Roots, "Bulldog", "Shepherd"))
+        {
+            if (ContainsRoot(displayRoots, "Rott"))
+            {
+                return "Bullshep Rott";
+            }
+
+            if (ContainsRoot(displayRoots, "Catahoula"))
+            {
+                return "Bullshep Catahoula";
+            }
+        }
+
+        if (ParentHasRoots(simplifiedParent1Roots, "Rott", "Mastiff") ||
+            ParentHasRoots(simplifiedParent2Roots, "Rott", "Mastiff"))
+        {
+            if (ContainsRoot(displayRoots, "Inu"))
+            {
+                return "Rottmastiff Inu";
+            }
+
+            if (ContainsRoot(displayRoots, "Alaskan"))
+            {
+                return "Alaskan Rottmastiff";
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static bool ParentHasRoots(List<string> parentRoots, string root1, string root2)
+    {
+        return ContainsRoot(parentRoots, root1) && ContainsRoot(parentRoots, root2);
+    }
+
+    private static void AddCompressedDisplayPart(List<string> workingRoots, List<string> displayParts)
+    {
+        if (TryUseCompressedPart(workingRoots, displayParts, "Pit", "Shepherd", "Pit Bullshep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Bully", "Shepherd", "Bullyshep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Staffy", "Shepherd", "Staffshep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Boxer", "Shepherd", "Boxshep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Bulldog", "Shepherd", "Bullshep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Catahoula", "Bulldog", "Catabull") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Pit", "Catahoula", "Pit Catahoula") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Bully", "Catahoula", "Bullyhoula") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Shepherd", "Catahoula", "Catahoula Shep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Pit", "Greyhound", "Pit Bullhound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Bulldog", "Greyhound", "Bullhound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Bully", "Greyhound", "Bullyhound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Boxer", "Greyhound", "Boxerhound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Staffy", "Greyhound", "Staffhound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Rott", "Greyhound", "Rotthound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Mastiff", "Greyhound", "Mastihound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Shepherd", "Greyhound", "Shephound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Husky", "Greyhound", "Huskyhound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Akita", "Greyhound", "Akitahound") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Rott", "Shepherd", "Rottshep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Mastiff", "Shepherd", "Mastishep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Husky", "Shepherd", "Shepsky") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Akita", "Shepherd", "Akita Shep") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Rott", "Mastiff", "Rottmastiff") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Corso", "Rott", "Corso Rott") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Rott", "Doberman", "Rotterman") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Pit", "Bulldog", "Pit Bulldog") ||
+            TryUseCompressedPart(workingRoots, displayParts, "Bully", "Bulldog", "Bully Bulldog"))
+        {
+            return;
+        }
+    }
+
+    private static bool TryUseCompressedPart(
+        List<string> workingRoots,
+        List<string> displayParts,
+        string root1,
+        string root2,
+        string displayPart)
+    {
+        if (!ContainsRoot(workingRoots, root1) || !ContainsRoot(workingRoots, root2))
+        {
+            return false;
+        }
+
+        RemoveRoot(workingRoots, root1);
+        RemoveRoot(workingRoots, root2);
+        displayParts.Add(displayPart);
+        return true;
+    }
+
+    private static void AddRemainingDisplayParts(List<string> workingRoots, List<string> displayParts)
+    {
+        List<string> sortedRoots = SortBreedRoots(workingRoots);
+
+        for (int i = 0; i < sortedRoots.Count && displayParts.Count < 2; i++)
+        {
+            displayParts.Add(GetDisplayRootName(sortedRoots[i], displayParts.Count > 0));
+        }
+
+        if (displayParts.Count == 0)
+        {
+            displayParts.Add("Mixed Breed");
+        }
+    }
+
+    private static string GetDisplayRootName(string root, bool isAfterCompressedPart)
+    {
+        if (isAfterCompressedPart && string.Equals(root, "Shepherd", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Shep";
+        }
+
+        return root;
     }
 
     private static List<string> ExtractBreedRoots(string breedName)
@@ -286,8 +499,79 @@ public static class BreedLibrary
             }
         }
 
+        AddRootsFromKnownShorthand(roots, compactBreed);
         NormalizeRootConflicts(roots);
         return SortBreedRoots(roots);
+    }
+
+    private static void AddRootsFromKnownShorthand(List<string> roots, string compactBreed)
+    {
+        if (string.IsNullOrWhiteSpace(compactBreed))
+        {
+            return;
+        }
+
+        bool hasPitBullshep = compactBreed.Contains("pitbullshep");
+        bool hasPitBullhound = compactBreed.Contains("pitbullhound");
+
+        if (hasPitBullshep)
+        {
+            AddRootIfMissing(roots, "Pit");
+            AddRootIfMissing(roots, "Shepherd");
+        }
+
+        if (!hasPitBullshep && compactBreed.Contains("bullshep"))
+        {
+            AddRootIfMissing(roots, "Bulldog");
+            AddRootIfMissing(roots, "Shepherd");
+        }
+
+        AddShorthandRootsIfMatched(roots, compactBreed, "bullyshep", "Bully", "Shepherd");
+        AddShorthandRootsIfMatched(roots, compactBreed, "staffshep", "Staffy", "Shepherd");
+        AddShorthandRootsIfMatched(roots, compactBreed, "boxshep", "Boxer", "Shepherd");
+        AddShorthandRootsIfMatched(roots, compactBreed, "catabull", "Catahoula", "Bulldog");
+        AddShorthandRootsIfMatched(roots, compactBreed, "rottshep", "Rott", "Shepherd");
+        AddShorthandRootsIfMatched(roots, compactBreed, "mastishep", "Mastiff", "Shepherd");
+        AddShorthandRootsIfMatched(roots, compactBreed, "shepsky", "Shepherd", "Husky");
+        AddShorthandRootsIfMatched(roots, compactBreed, "rottmastiff", "Rott", "Mastiff");
+        AddShorthandRootsIfMatched(roots, compactBreed, "rotterman", "Rott", "Doberman");
+
+        if (hasPitBullhound)
+        {
+            AddRootIfMissing(roots, "Pit");
+            AddRootIfMissing(roots, "Greyhound");
+        }
+
+        if (!hasPitBullhound && compactBreed.Contains("bullhound"))
+        {
+            AddRootIfMissing(roots, "Bulldog");
+            AddRootIfMissing(roots, "Greyhound");
+        }
+
+        AddShorthandRootsIfMatched(roots, compactBreed, "bullyhound", "Bully", "Greyhound");
+        AddShorthandRootsIfMatched(roots, compactBreed, "boxerhound", "Boxer", "Greyhound");
+        AddShorthandRootsIfMatched(roots, compactBreed, "staffhound", "Staffy", "Greyhound");
+        AddShorthandRootsIfMatched(roots, compactBreed, "rotthound", "Rott", "Greyhound");
+        AddShorthandRootsIfMatched(roots, compactBreed, "mastihound", "Mastiff", "Greyhound");
+        AddShorthandRootsIfMatched(roots, compactBreed, "shephound", "Shepherd", "Greyhound");
+        AddShorthandRootsIfMatched(roots, compactBreed, "huskyhound", "Husky", "Greyhound");
+        AddShorthandRootsIfMatched(roots, compactBreed, "akitahound", "Akita", "Greyhound");
+    }
+
+    private static void AddShorthandRootsIfMatched(
+        List<string> roots,
+        string compactBreed,
+        string shorthand,
+        string root1,
+        string root2)
+    {
+        if (!compactBreed.Contains(shorthand))
+        {
+            return;
+        }
+
+        AddRootIfMissing(roots, root1);
+        AddRootIfMissing(roots, root2);
     }
 
     private static bool RootMatches(
@@ -462,6 +746,15 @@ public static class BreedLibrary
         if (ContainsRoot(roots, "Black Inu") || ContainsRoot(roots, "Shiba Inu"))
         {
             RemoveRoot(roots, "Inu");
+        }
+
+        if (ContainsRoot(roots, "Greyhound") ||
+            ContainsRoot(roots, "Whippet") ||
+            ContainsRoot(roots, "Saluki") ||
+            ContainsRoot(roots, "Ridgeback") ||
+            ContainsRoot(roots, "Pharaoh"))
+        {
+            RemoveRoot(roots, "Hound");
         }
 
         if (ContainsRoot(roots, "Dutch") ||
