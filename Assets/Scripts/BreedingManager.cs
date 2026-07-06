@@ -362,6 +362,9 @@ public class BreedingManager : MonoBehaviour
     {
         Dog newborn = ScriptableObject.CreateInstance<Dog>();
 
+        EnsureParentLineageId(parent1);
+        EnsureParentLineageId(parent2);
+
         newborn.dogId = System.Guid.NewGuid().ToString();
 
         newborn.dogName = GenerateName();
@@ -374,6 +377,7 @@ public class BreedingManager : MonoBehaviour
         newborn.fatherId = parent1.gender == DogGender.Male ? parent1.dogId : parent2.dogId;
         newborn.motherId = parent1.gender == DogGender.Female ? parent1.dogId : parent2.dogId;
         newborn.generation = Mathf.Max(parent1.generation, parent2.generation) + 1;
+        StoreParentLineageSnapshot(newborn, parent1, parent2);
 
         newborn.strengthPotential = BreedPotential(parent1.strengthPotential, parent2.strengthPotential);
         newborn.agilityPotential = BreedPotential(parent1.agilityPotential, parent2.agilityPotential);
@@ -401,6 +405,59 @@ public class BreedingManager : MonoBehaviour
         newborn.totalFights = 0;
 
         return newborn;
+    }
+
+    void EnsureParentLineageId(Dog parent)
+    {
+        if (parent == null)
+        {
+            return;
+        }
+
+        if (dogManager != null)
+        {
+            dogManager.EnsureDogHasStableId(parent);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(parent.dogId) || parent.dogId == "dog_id")
+        {
+            parent.dogId = System.Guid.NewGuid().ToString();
+        }
+    }
+
+    void StoreParentLineageSnapshot(Dog newborn, Dog parent1, Dog parent2)
+    {
+        if (newborn == null)
+        {
+            return;
+        }
+
+        newborn.parentAName = GetLineageName(parent1);
+        newborn.parentBName = GetLineageName(parent2);
+        newborn.parentABreed = GetLineageBreed(parent1);
+        newborn.parentBBreed = GetLineageBreed(parent2);
+        newborn.parentASex = GetLineageSex(parent1);
+        newborn.parentBSex = GetLineageSex(parent2);
+    }
+
+    string GetLineageName(Dog dog)
+    {
+        return dog == null || string.IsNullOrWhiteSpace(dog.dogName)
+            ? "Unknown"
+            : dog.dogName.Trim();
+    }
+
+    string GetLineageBreed(Dog dog)
+    {
+        return dog == null || string.IsNullOrWhiteSpace(dog.breed)
+            ? "Unknown"
+            : GetDisplayBreedName(dog.breed);
+    }
+
+    string GetLineageSex(Dog dog)
+    {
+        return dog == null ? "Unknown" : dog.gender.ToString();
     }
 
     string GetBreedingBlockedMessage(Dog parent1, Dog parent2)

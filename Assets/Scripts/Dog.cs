@@ -111,6 +111,12 @@ public class Dog : ScriptableObject
     public string parent2Id = "";
     public string fatherId = "";
     public string motherId = "";
+    public string parentAName = "";
+    public string parentBName = "";
+    public string parentABreed = "";
+    public string parentBBreed = "";
+    public string parentASex = "";
+    public string parentBSex = "";
     public int lastBredWeek = -999;
 
     [Header("Bloodline")]

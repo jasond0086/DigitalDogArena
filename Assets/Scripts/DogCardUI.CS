@@ -1,9 +1,12 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
-public class DogCardUI : MonoBehaviour
+public class DogCardUI : MonoBehaviour, IPointerClickHandler
 {
+    const float DoubleClickThreshold = 0.3f;
+
     [Header("UI Text")]
     public TextMeshProUGUI nameText;
     public TextMeshProUGUI statsText;
@@ -25,6 +28,7 @@ public class DogCardUI : MonoBehaviour
 
     private Dog dog;
     private DogManager dogManager;
+    private float lastClickTime = -1f;
 
     public void Setup(Dog dogToDisplay, DogManager manager)
     {
@@ -36,6 +40,8 @@ public class DogCardUI : MonoBehaviour
             Debug.LogError("DogCardUI received a null dog.");
             return;
         }
+
+        EnsureDoubleClickRaycastTarget();
 
         if (nameText != null)
         {
@@ -81,6 +87,55 @@ public class DogCardUI : MonoBehaviour
             dogImage.color = Color.white;
             dogImage.enabled = dogImage.sprite != null;
         }
+    }
+
+    void EnsureDoubleClickRaycastTarget()
+    {
+        Graphic clickableGraphic = GetComponent<Graphic>();
+
+        if (clickableGraphic == null)
+        {
+            Image clickTarget = gameObject.AddComponent<Image>();
+            clickTarget.color = new Color(1f, 1f, 1f, 0f);
+            clickTarget.raycastTarget = true;
+            return;
+        }
+
+        clickableGraphic.raycastTarget = true;
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData == null ||
+            eventData.button != PointerEventData.InputButton.Left ||
+            dog == null ||
+            dogManager == null ||
+            IsClickOnRenameInput(eventData))
+        {
+            return;
+        }
+
+        float clickTime = Time.unscaledTime;
+
+        if (lastClickTime >= 0f && clickTime - lastClickTime <= DoubleClickThreshold)
+        {
+            lastClickTime = -1f;
+            dogManager.OpenDogDetail(dog);
+            return;
+        }
+
+        lastClickTime = clickTime;
+    }
+
+    bool IsClickOnRenameInput(PointerEventData eventData)
+    {
+        if (renameInputField == null || eventData.pointerPress == null)
+        {
+            return false;
+        }
+
+        TMP_InputField clickedInput = eventData.pointerPress.GetComponentInParent<TMP_InputField>();
+        return clickedInput == renameInputField;
     }
 
     void ConfigureRenameUI()

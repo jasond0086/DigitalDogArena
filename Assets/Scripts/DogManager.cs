@@ -148,6 +148,7 @@ public class DogManager : MonoBehaviour
     private List<Dog> selectableParent2Dogs = new List<Dog>();
     private bool isRefreshingDogDropdowns = false;
     private int selectedStableBreedFilterIndex = 0;
+    private DogDetailPanelUI dogDetailPanel;
 
     void Start()
     {
@@ -1904,6 +1905,7 @@ public class DogManager : MonoBehaviour
             return;
         }
 
+        EnsureDogHasStableId(newDog);
         newDog.NormalizeLegacyStats();
         ownedDogs.Add(newDog);
 
@@ -1914,6 +1916,101 @@ public class DogManager : MonoBehaviour
         SaveStable();
 
         Debug.Log($"New dog added to stable: {newDog.dogName}");
+    }
+
+    public void OpenDogDetail(Dog dog)
+    {
+        if (dog == null)
+        {
+            return;
+        }
+
+        DogDetailPanelUI panel = GetOrCreateDogDetailPanel();
+
+        if (panel == null)
+        {
+            Debug.LogWarning("Could not open dog detail panel because no Canvas was found.");
+            return;
+        }
+
+        panel.Show(dog, this);
+    }
+
+    public Dog FindOwnedDogById(string dogId)
+    {
+        if (string.IsNullOrWhiteSpace(dogId) || ownedDogs == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < ownedDogs.Count; i++)
+        {
+            Dog dog = ownedDogs[i];
+
+            if (dog != null && string.Equals(dog.dogId, dogId, System.StringComparison.Ordinal))
+            {
+                return dog;
+            }
+        }
+
+        return null;
+    }
+
+    public void EnsureDogHasStableId(Dog dog)
+    {
+        if (dog == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(dog.dogId) && dog.dogId != "dog_id")
+        {
+            return;
+        }
+
+        dog.dogId = $"dog_{System.Guid.NewGuid().ToString("N")}";
+    }
+
+    public string GetCurrentStrategyTextForDog(Dog dog)
+    {
+        if (dog == null)
+        {
+            return "Unknown";
+        }
+
+        if (dog == selectedFighter1)
+        {
+            return fighter1Strategy.ToString();
+        }
+
+        if (dog == selectedFighter2)
+        {
+            return fighter2Strategy.ToString();
+        }
+
+        return "Not selected";
+    }
+
+    DogDetailPanelUI GetOrCreateDogDetailPanel()
+    {
+        if (dogDetailPanel != null)
+        {
+            return dogDetailPanel;
+        }
+
+        Canvas canvas = FindObjectOfType<Canvas>();
+
+        if (canvas == null)
+        {
+            return null;
+        }
+
+        GameObject panelObject = new GameObject("DogDetailPanel", typeof(RectTransform));
+        panelObject.transform.SetParent(canvas.transform, false);
+        dogDetailPanel = panelObject.AddComponent<DogDetailPanelUI>();
+        panelObject.SetActive(false);
+
+        return dogDetailPanel;
     }
 
     public bool TryRenameDog(Dog dog, string requestedName, out string cleanedName, out string message)
@@ -1941,6 +2038,10 @@ public class DogManager : MonoBehaviour
         RefreshDogSelectionDropdowns();
         UpdateSelectedFightersText();
         UpdateMatchupPreview();
+        if (dogDetailPanel != null)
+        {
+            dogDetailPanel.RefreshIfShowing(dog);
+        }
         DisplayDogs();
         SaveStable();
 
@@ -1956,6 +2057,8 @@ public class DogManager : MonoBehaviour
         {
             if (dog == null) continue;
 
+            EnsureDogHasStableId(dog);
+
             DogSaveData dogData = new DogSaveData
             {
                 dogId = dog.dogId,
@@ -1968,6 +2071,12 @@ public class DogManager : MonoBehaviour
                 parent2Id = dog.parent2Id,
                 fatherId = dog.fatherId,
                 motherId = dog.motherId,
+                parentAName = dog.parentAName,
+                parentBName = dog.parentBName,
+                parentABreed = dog.parentABreed,
+                parentBBreed = dog.parentBBreed,
+                parentASex = dog.parentASex,
+                parentBSex = dog.parentBSex,
                 lastBredWeek = dog.lastBredWeek,
 
                 bloodlineName = dog.bloodlineName,
@@ -2058,6 +2167,7 @@ public class DogManager : MonoBehaviour
     void ApplySaveDataToDog(Dog dog, DogSaveData savedDog)
     {
         dog.dogId = savedDog.dogId;
+        EnsureDogHasStableId(dog);
         dog.dogName = savedDog.dogName;
         dog.breed = savedDog.breed;
         dog.gender = GetSavedGenderWithFallback(savedDog);
@@ -2067,6 +2177,12 @@ public class DogManager : MonoBehaviour
         dog.parent2Id = savedDog.parent2Id;
         dog.fatherId = savedDog.fatherId;
         dog.motherId = savedDog.motherId;
+        dog.parentAName = savedDog.parentAName;
+        dog.parentBName = savedDog.parentBName;
+        dog.parentABreed = savedDog.parentABreed;
+        dog.parentBBreed = savedDog.parentBBreed;
+        dog.parentASex = savedDog.parentASex;
+        dog.parentBSex = savedDog.parentBSex;
         dog.lastBredWeek = savedDog.lastBredWeek;
 
         dog.bloodlineName = savedDog.bloodlineName;
@@ -2213,6 +2329,12 @@ public class DogSaveData
     public string parent2Id;
     public string fatherId;
     public string motherId;
+    public string parentAName;
+    public string parentBName;
+    public string parentABreed;
+    public string parentBBreed;
+    public string parentASex;
+    public string parentBSex;
     public int lastBredWeek = -999;
 
     public string bloodlineName;
