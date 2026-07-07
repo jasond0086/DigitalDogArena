@@ -57,6 +57,7 @@ public class BreedingManager : MonoBehaviour
         ConfigurePortraitImage(parent1PortraitImage);
         ConfigurePortraitImage(parent2PortraitImage);
         ConfigurePortraitImage(puppyPreviewImage);
+        ConfigurePuppyPreviewImage();
         ConfigurePuppyPreviewText();
     }
 
@@ -1140,9 +1141,10 @@ public class BreedingManager : MonoBehaviour
             parent2PortraitImage = FindSceneComponentByName<Image>("Parent2PortraitImage");
         }
 
-        if (puppyPreviewText == null)
+        TextMeshProUGUI breedCenterText = FindSceneComponentByName<TextMeshProUGUI>("BreedCenterText");
+        if (breedCenterText != null)
         {
-            puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("BreedCenterText");
+            puppyPreviewText = breedCenterText;
         }
 
         if (puppyPreviewImage == null)
@@ -1187,29 +1189,19 @@ public class BreedingManager : MonoBehaviour
 
     Image CreatePuppyPreviewImage()
     {
-        Transform previewParent = null;
-
-        if (puppyPreviewText != null)
-        {
-            previewParent = puppyPreviewText.transform.parent;
-        }
-
-        if (previewParent == null)
-        {
-            RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
-            previewParent = centerPanel != null ? centerPanel.transform : transform;
-        }
+        RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
+        Transform previewParent = centerPanel != null ? centerPanel.transform : transform;
 
         GameObject imageObject = new GameObject("PuppyPreviewImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         imageObject.transform.SetParent(previewParent, false);
         imageObject.transform.SetAsFirstSibling();
 
         RectTransform rectTransform = imageObject.GetComponent<RectTransform>();
-        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        rectTransform.anchoredPosition = new Vector2(0f, -62f);
-        rectTransform.sizeDelta = new Vector2(110f, 110f);
+        rectTransform.anchorMin = new Vector2(0.5f, 0f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0f);
+        rectTransform.pivot = new Vector2(0.5f, 0f);
+        rectTransform.anchoredPosition = new Vector2(0f, 14f);
+        rectTransform.sizeDelta = new Vector2(70f, 70f);
         rectTransform.localScale = Vector3.one;
 
         Image image = imageObject.GetComponent<Image>();
@@ -1220,6 +1212,30 @@ public class BreedingManager : MonoBehaviour
         return image;
     }
 
+    void ConfigurePuppyPreviewImage()
+    {
+        if (puppyPreviewImage == null)
+        {
+            return;
+        }
+
+        RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
+        RectTransform rectTransform = puppyPreviewImage.rectTransform;
+
+        if (centerPanel != null && rectTransform.parent != centerPanel)
+        {
+            rectTransform.SetParent(centerPanel, false);
+        }
+
+        rectTransform.SetAsFirstSibling();
+        rectTransform.anchorMin = new Vector2(0.5f, 0f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0f);
+        rectTransform.pivot = new Vector2(0.5f, 0f);
+        rectTransform.anchoredPosition = new Vector2(0f, 14f);
+        rectTransform.sizeDelta = new Vector2(70f, 70f);
+        rectTransform.localScale = Vector3.one;
+    }
+
     void ConfigurePuppyPreviewText()
     {
         if (puppyPreviewText == null)
@@ -1228,13 +1244,29 @@ public class BreedingManager : MonoBehaviour
         }
 
         puppyPreviewText.raycastTarget = false;
-        puppyPreviewText.alignment = TextAlignmentOptions.Center;
+        puppyPreviewText.alignment = TextAlignmentOptions.TopLeft;
         puppyPreviewText.enableWordWrapping = true;
-        puppyPreviewText.fontSize = Mathf.Min(puppyPreviewText.fontSize, 16f);
+        puppyPreviewText.overflowMode = TextOverflowModes.Truncate;
 
+        RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
         RectTransform rectTransform = puppyPreviewText.rectTransform;
-        rectTransform.anchoredPosition = new Vector2(0f, 66f);
-        rectTransform.sizeDelta = new Vector2(330f, 112f);
+        bool textWasMovedIntoCenterPanel = false;
+
+        if (centerPanel != null && rectTransform.parent != centerPanel)
+        {
+            rectTransform.SetParent(centerPanel, false);
+            textWasMovedIntoCenterPanel = true;
+        }
+
+        if (textWasMovedIntoCenterPanel)
+        {
+            rectTransform.anchorMin = Vector2.zero;
+            rectTransform.anchorMax = Vector2.one;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.offsetMin = new Vector2(22f, 88f);
+            rectTransform.offsetMax = new Vector2(-22f, -22f);
+            rectTransform.localScale = Vector3.one;
+        }
     }
 
     void UpdatePuppyPreview(Dog parent1, Dog parent2)
@@ -1263,16 +1295,98 @@ public class BreedingManager : MonoBehaviour
         {
             return
                 "Puppy Preview\n" +
-                $"Breed: {predictedBreed}\n" +
+                $"Predicted Breed: {predictedBreed}\n" +
+                BuildGenerationPreviewLine(parent1, parent2) +
+                BuildParentMixLine(parent1, parent2) +
                 warning;
         }
 
         return
             "Puppy Preview\n" +
-            $"Breed: {predictedBreed}\n" +
-            "Sex: Male or Female\n" +
-            $"Family: {GetBreedFamilyLabel(predictedBreed, parent1, parent2)}\n" +
-            BuildPotentialPreviewLine(parent1, parent2);
+            $"Predicted Breed: {predictedBreed}\n" +
+            BuildGenerationPreviewLine(parent1, parent2) +
+            BuildParentMixLine(parent1, parent2) +
+            BuildLikelyTraitPreviewLine(parent1, parent2) +
+            BuildLikelyStatRangePreviewLine(parent1, parent2) +
+            $"Preview Image: {GetBreedFamilyLabel(predictedBreed, parent1, parent2)}";
+    }
+
+    string BuildGenerationPreviewLine(Dog parent1, Dog parent2)
+    {
+        int predictedGeneration = Mathf.Max(parent1.generation, parent2.generation) + 1;
+        return $"Generation: G{predictedGeneration + 1}\n";
+    }
+
+    string BuildParentMixLine(Dog parent1, Dog parent2)
+    {
+        return
+            $"Parent Mix: {GetParentMixLabel(parent1)} x {GetParentMixLabel(parent2)}\n";
+    }
+
+    string GetParentMixLabel(Dog parent)
+    {
+        if (parent == null)
+        {
+            return "Unknown";
+        }
+
+        string parentName = string.IsNullOrWhiteSpace(parent.dogName)
+            ? "Unknown"
+            : parent.dogName.Trim();
+        string parentBreed = string.IsNullOrWhiteSpace(parent.breed)
+            ? "Unknown"
+            : GetDisplayBreedName(parent.breed);
+
+        return $"{parentName} ({parentBreed})";
+    }
+
+    string BuildLikelyTraitPreviewLine(Dog parent1, Dog parent2)
+    {
+        string inheritedTraits = BuildLikelyInheritedTraitText(parent1, parent2);
+        int mutationPercent = Mathf.RoundToInt(traitMutationChance * 100f);
+
+        return $"Likely Traits: {inheritedTraits}; {mutationPercent}% mutation chance\n";
+    }
+
+    string BuildLikelyInheritedTraitText(Dog parent1, Dog parent2)
+    {
+        System.Collections.Generic.List<string> traitNames = new System.Collections.Generic.List<string>();
+        AddTraitNameIfMissing(traitNames, parent1.primaryTrait);
+        AddTraitNameIfMissing(traitNames, parent1.secondaryTrait);
+        AddTraitNameIfMissing(traitNames, parent2.primaryTrait);
+        AddTraitNameIfMissing(traitNames, parent2.secondaryTrait);
+
+        if (traitNames.Count == 0)
+        {
+            return "None from parents";
+        }
+
+        return string.Join("/", traitNames.ToArray());
+    }
+
+    void AddTraitNameIfMissing(System.Collections.Generic.List<string> traitNames, DogTrait trait)
+    {
+        if (traitNames == null || trait == DogTrait.None)
+        {
+            return;
+        }
+
+        string traitName = trait.ToString();
+
+        if (!traitNames.Contains(traitName))
+        {
+            traitNames.Add(traitName);
+        }
+    }
+
+    string BuildLikelyStatRangePreviewLine(Dog parent1, Dog parent2)
+    {
+        return
+            "Likely Stat Range:\n" +
+            $"STR {BuildStartingStatRange(parent1.strength, parent2.strength, parent1.strengthPotential, parent2.strengthPotential)}  " +
+            $"AGI {BuildStartingStatRange(parent1.agility, parent2.agility, parent1.agilityPotential, parent2.agilityPotential)}\n" +
+            $"STA {BuildStartingStatRange(parent1.stamina, parent2.stamina, parent1.staminaPotential, parent2.staminaPotential)}  " +
+            $"INT {BuildStartingStatRange(parent1.GetIntelligence(), parent2.GetIntelligence(), parent1.GetIntelligencePotential(), parent2.GetIntelligencePotential())}\n";
     }
 
     string GetPuppyPreviewWarning(Dog parent1, Dog parent2)
@@ -1316,16 +1430,43 @@ public class BreedingManager : MonoBehaviour
             $"INT {BuildPotentialRange(parent1.GetIntelligencePotential(), parent2.GetIntelligencePotential())}";
     }
 
+    string BuildStartingStatRange(int parentStat1, int parentStat2, int parentPotential1, int parentPotential2)
+    {
+        int average = Mathf.RoundToInt((parentStat1 + parentStat2) / 2f);
+        int potentialHigh = GetPotentialPreviewHigh(parentPotential1, parentPotential2);
+        int upperLimit = Mathf.Min(100, potentialHigh);
+        int low = Mathf.Clamp(average - statVariance, 1, upperLimit);
+        int high = Mathf.Clamp(average + statVariance, 1, upperLimit);
+
+        if (high < low)
+        {
+            high = low;
+        }
+
+        return $"{low}-{high}";
+    }
+
     string BuildPotentialRange(int parentPotential1, int parentPotential2)
+    {
+        int inheritedPotential = GetInheritedPotentialPreviewCenter(parentPotential1, parentPotential2);
+        int low = Mathf.Clamp(inheritedPotential - potentialVariance, 40, 120);
+        int high = GetPotentialPreviewHigh(parentPotential1, parentPotential2);
+
+        return $"{low}-{high}";
+    }
+
+    int GetPotentialPreviewHigh(int parentPotential1, int parentPotential2)
+    {
+        int inheritedPotential = GetInheritedPotentialPreviewCenter(parentPotential1, parentPotential2);
+        return Mathf.Clamp(inheritedPotential + potentialVariance, 40, 120);
+    }
+
+    int GetInheritedPotentialPreviewCenter(int parentPotential1, int parentPotential2)
     {
         int bestParentPotential = Mathf.Max(parentPotential1, parentPotential2);
         int average = Mathf.RoundToInt((parentPotential1 + parentPotential2) / 2f);
         int inheritanceFloor = Mathf.RoundToInt(bestParentPotential * 0.85f);
-        int inheritedPotential = Mathf.Max(average, inheritanceFloor);
-        int low = Mathf.Clamp(inheritedPotential - potentialVariance, 40, 120);
-        int high = Mathf.Clamp(inheritedPotential + potentialVariance, 40, 120);
-
-        return $"{low}-{high}";
+        return Mathf.Max(average, inheritanceFloor);
     }
 
     Sprite ChoosePuppyPreviewSprite(Dog parent1, Dog parent2, string predictedBreed)
