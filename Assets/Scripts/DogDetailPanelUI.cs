@@ -10,6 +10,14 @@ public class DogDetailPanelUI : MonoBehaviour
     TextMeshProUGUI mainInfoText;
     TextMeshProUGUI statsText;
     TextMeshProUGUI familyHeaderText;
+    RectTransform familyTreeRoot;
+    TMP_Text currentDogTreeText;
+    TMP_Text sireTreeText;
+    TMP_Text damTreeText;
+    TMP_Text sireGrandparentAText;
+    TMP_Text sireGrandparentBText;
+    TMP_Text damGrandparentAText;
+    TMP_Text damGrandparentBText;
     TMP_Text familyTreeText;
     Button closeButton;
 
@@ -108,9 +116,50 @@ public class DogDetailPanelUI : MonoBehaviour
         familyHeaderText.text = "Family Tree";
         ConfigureRect(familyHeaderText.rectTransform, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 282f), new Vector2(-32f, -338f));
 
-        familyTreeText = CreateText(panel.transform, "DogDetailFamilyTreeBody", 14f, TextAlignmentOptions.TopLeft);
+        familyTreeRoot = CreateFamilyTreeRoot(panel.transform);
+
+        familyTreeText = CreateText(panel.transform, "DogDetailFamilyTreeBody", 12f, TextAlignmentOptions.TopLeft);
         familyTreeText.overflowMode = TextOverflowModes.Overflow;
-        ConfigureRect(familyTreeText.rectTransform, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 32f), new Vector2(-32f, -374f));
+        ConfigureRect(familyTreeText.rectTransform, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 32f), new Vector2(-32f, -572f));
+    }
+
+    RectTransform CreateFamilyTreeRoot(Transform parent)
+    {
+        GameObject rootObject = CreateUIObject("FamilyTreeRoot", parent);
+        RectTransform rootRect = rootObject.GetComponent<RectTransform>();
+        ConfigureRect(rootRect, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 84f), new Vector2(-32f, -374f));
+
+        currentDogTreeText = CreateFamilyTreeNode(rootObject.transform, "CurrentDogNodeText", new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(180f, 58f));
+        sireTreeText = CreateFamilyTreeNode(rootObject.transform, "SireNodeText", new Vector2(0.25f, 1f), new Vector2(0f, -118f), new Vector2(170f, 58f));
+        damTreeText = CreateFamilyTreeNode(rootObject.transform, "DamNodeText", new Vector2(0.75f, 1f), new Vector2(0f, -118f), new Vector2(170f, 58f));
+        sireGrandparentAText = CreateFamilyTreeNode(rootObject.transform, "SireParentANodeText", new Vector2(0.14f, 1f), new Vector2(0f, -198f), new Vector2(110f, 58f));
+        sireGrandparentBText = CreateFamilyTreeNode(rootObject.transform, "SireParentBNodeText", new Vector2(0.38f, 1f), new Vector2(0f, -198f), new Vector2(110f, 58f));
+        damGrandparentAText = CreateFamilyTreeNode(rootObject.transform, "DamParentANodeText", new Vector2(0.62f, 1f), new Vector2(0f, -198f), new Vector2(110f, 58f));
+        damGrandparentBText = CreateFamilyTreeNode(rootObject.transform, "DamParentBNodeText", new Vector2(0.86f, 1f), new Vector2(0f, -198f), new Vector2(110f, 58f));
+
+        return rootRect;
+    }
+
+    TMP_Text CreateFamilyTreeNode(Transform parent, string objectName, Vector2 anchor, Vector2 anchoredPosition, Vector2 size)
+    {
+        GameObject nodeObject = CreateUIObject(objectName.Replace("Text", ""), parent);
+        Image nodeImage = nodeObject.AddComponent<Image>();
+        nodeImage.color = new Color(0.09f, 0.11f, 0.13f, 0.92f);
+        nodeImage.raycastTarget = false;
+
+        RectTransform nodeRect = nodeObject.GetComponent<RectTransform>();
+        nodeRect.anchorMin = anchor;
+        nodeRect.anchorMax = anchor;
+        nodeRect.pivot = new Vector2(0.5f, 0.5f);
+        nodeRect.anchoredPosition = anchoredPosition;
+        nodeRect.sizeDelta = size;
+
+        TextMeshProUGUI nodeText = CreateText(nodeObject.transform, objectName, 10f, TextAlignmentOptions.Center);
+        nodeText.enableWordWrapping = true;
+        nodeText.overflowMode = TextOverflowModes.Ellipsis;
+        ConfigureRect(nodeText.rectTransform, Vector2.zero, Vector2.one, new Vector2(5f, 4f), new Vector2(-5f, -4f));
+
+        return nodeText;
     }
 
     Button CreateCloseButton(Transform parent)
@@ -183,8 +232,129 @@ public class DogDetailPanelUI : MonoBehaviour
         mainInfoText.text = BuildMainInfoText();
         statsText.text = BuildStatsText();
         familyHeaderText.text = "Family Tree";
+        RefreshVisualFamilyTree();
         familyTreeText.text = BuildFamilyTreeBodyText();
         RefreshPortrait();
+    }
+
+    void RefreshVisualFamilyTree()
+    {
+        if (IsFoundationDog(currentDog))
+        {
+            SetTreeNode(currentDogTreeText, BuildDogNodeText(currentDog, "Foundation Dog"));
+            SetTreeNode(sireTreeText, "Parents\nUnknown");
+            SetTreeNode(damTreeText, "Foundation\nLine");
+            SetTreeNode(sireGrandparentAText, "Unknown");
+            SetTreeNode(sireGrandparentBText, "Unknown");
+            SetTreeNode(damGrandparentAText, "Unknown");
+            SetTreeNode(damGrandparentBText, "Unknown");
+            return;
+        }
+
+        Dog sireOrParentA = dogManager != null ? dogManager.FindOwnedDogById(GetParentAId(currentDog)) : null;
+        Dog damOrParentB = dogManager != null ? dogManager.FindOwnedDogById(GetParentBId(currentDog)) : null;
+
+        SetTreeNode(currentDogTreeText, BuildDogNodeText(currentDog, currentDog.dogName));
+        SetTreeNode(sireTreeText, BuildParentNodeText("Sire / Parent A", sireOrParentA, currentDog.parentAName, currentDog.parentASex, currentDog.parentABreed));
+        SetTreeNode(damTreeText, BuildParentNodeText("Dam / Parent B", damOrParentB, currentDog.parentBName, currentDog.parentBSex, currentDog.parentBBreed));
+
+        SetTreeNode(sireGrandparentAText, BuildGrandparentNodeText(sireOrParentA, true));
+        SetTreeNode(sireGrandparentBText, BuildGrandparentNodeText(sireOrParentA, false));
+        SetTreeNode(damGrandparentAText, BuildGrandparentNodeText(damOrParentB, true));
+        SetTreeNode(damGrandparentBText, BuildGrandparentNodeText(damOrParentB, false));
+    }
+
+    void SetTreeNode(TMP_Text text, string value)
+    {
+        if (text != null)
+        {
+            text.text = value;
+        }
+    }
+
+    string BuildParentNodeText(string fallbackLabel, Dog liveDog, string storedName, string storedSex, string storedBreed)
+    {
+        if (liveDog != null)
+        {
+            return BuildDogNodeText(liveDog, GetParentRole(liveDog.gender.ToString(), fallbackLabel));
+        }
+
+        bool hasSnapshot = !string.IsNullOrWhiteSpace(storedName) ||
+                           !string.IsNullOrWhiteSpace(storedSex) ||
+                           !string.IsNullOrWhiteSpace(storedBreed);
+
+        if (!hasSnapshot)
+        {
+            return "Unknown";
+        }
+
+        return BuildNodeText(
+            GetSafeText(storedName, fallbackLabel),
+            GetSafeText(storedSex, "Unknown"),
+            GetDisplayBreedName(storedBreed),
+            string.Empty);
+    }
+
+    string BuildGrandparentNodeText(Dog parent, bool useParentA)
+    {
+        if (parent == null)
+        {
+            return "Unknown";
+        }
+
+        string grandparentId = useParentA ? GetParentAId(parent) : GetParentBId(parent);
+        Dog grandparent = dogManager != null ? dogManager.FindOwnedDogById(grandparentId) : null;
+
+        if (grandparent != null)
+        {
+            return BuildDogNodeText(grandparent, grandparent.dogName);
+        }
+
+        string storedName = useParentA ? parent.parentAName : parent.parentBName;
+        string storedSex = useParentA ? parent.parentASex : parent.parentBSex;
+        string storedBreed = useParentA ? parent.parentABreed : parent.parentBBreed;
+
+        if (string.IsNullOrWhiteSpace(storedName) &&
+            string.IsNullOrWhiteSpace(storedSex) &&
+            string.IsNullOrWhiteSpace(storedBreed))
+        {
+            return "Unknown";
+        }
+
+        return BuildNodeText(
+            GetSafeText(storedName, "Unknown"),
+            GetSafeText(storedSex, "Unknown"),
+            GetDisplayBreedName(storedBreed),
+            string.Empty);
+    }
+
+    string BuildDogNodeText(Dog dog, string label)
+    {
+        if (dog == null)
+        {
+            return "Unknown";
+        }
+
+        return BuildNodeText(
+            GetSafeText(label, dog.dogName),
+            dog.gender.ToString(),
+            GetDisplayBreedName(dog.breed),
+            GetShortGenerationText(dog));
+    }
+
+    string BuildNodeText(string name, string sex, string breed, string generation)
+    {
+        StringBuilder builder = new StringBuilder();
+        builder.AppendLine(GetSafeText(name, "Unknown"));
+        builder.AppendLine(GetSafeText(sex, "Unknown"));
+        builder.AppendLine(GetSafeText(breed, "Unknown"));
+
+        if (!string.IsNullOrWhiteSpace(generation))
+        {
+            builder.Append(generation);
+        }
+
+        return builder.ToString();
     }
 
     void RefreshPortrait()
