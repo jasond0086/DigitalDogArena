@@ -38,7 +38,7 @@ public class FightPresentationManager : MonoBehaviour
     private const float BreedArchetypeSpriteMaxWidth = 2f;
     private const float FightIntroWalkInSeconds = 1f;
     private const float FightIntroScanPulseSeconds = 1f;
-    private const float FightIntroCopySeconds = 0.75f;
+    private const float FightIntroCopySeconds = 1.35f;
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
@@ -110,6 +110,8 @@ public class FightPresentationManager : MonoBehaviour
     private string fighterBBreedArtResourceName = string.Empty;
     private string scanDogABreedArtResourceName = string.Empty;
     private string scanDogBBreedArtResourceName = string.Empty;
+    private string scanDigitalCopyABreedArtResourceName = string.Empty;
+    private string scanDigitalCopyBBreedArtResourceName = string.Empty;
     private GameObject fighterAContactShadow;
     private GameObject fighterBContactShadow;
     private Dog currentDogImprintA;
@@ -283,6 +285,7 @@ public class FightPresentationManager : MonoBehaviour
         PositionScanSubjectsOutsideChamber();
         PositionScanDigitalCopies();
         UpdateScanDogVisuals(dogA, dogB);
+        UpdateScanDigitalCopyVisuals(dogA, dogB);
         SetScanChamberEffectsVisible(false);
         SetScanDigitalCopiesVisible(false);
         UpdateScanChamberLabels(dogA, dogB);
@@ -305,13 +308,15 @@ public class FightPresentationManager : MonoBehaviour
         yield return AnimateDogsIntoChamber(dogA, dogB);
 
         SetScanChamberEffectsVisible(true);
-        Debug.Log($"DNA scan started for {dogA.dogName} and {dogB.dogName}. Real dogs remain safe. Digital imprints are being copied.");
-        yield return PlayScanEffect();
-
         SetScanDigitalCopiesVisible(true);
+        PositionScanDigitalCopies();
+        Debug.Log($"DNA scan started for {dogA.dogName} and {dogB.dogName}. Real dogs remain safe. Digital imprints are being copied.");
+        yield return AnimateScanSweep();
+
         Debug.Log($"Digital imprint copies created for {dogA.dogName} and {dogB.dogName}.");
         yield return PlayImprintCreationEffect();
 
+        yield return new WaitForSeconds(0.2f);
         HideScanChamber();
 
         ShowMonitorTransition();
@@ -2793,6 +2798,23 @@ public class FightPresentationManager : MonoBehaviour
         return spriteRenderer;
     }
 
+    SpriteRenderer GetExistingBreedArchetypeSpriteRenderer(GameObject artObject)
+    {
+        if (artObject == null)
+        {
+            return null;
+        }
+
+        Transform spriteTransform = artObject.transform.Find("BreedArchetypeSprite");
+
+        if (spriteTransform == null)
+        {
+            return null;
+        }
+
+        return spriteTransform.GetComponent<SpriteRenderer>();
+    }
+
     GameObject GetBreedArchetypeTextureQuad(GameObject artObject)
     {
         if (artObject == null)
@@ -2841,6 +2863,17 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         return quadObject;
+    }
+
+    GameObject GetExistingBreedArchetypeTextureQuad(GameObject artObject)
+    {
+        if (artObject == null)
+        {
+            return null;
+        }
+
+        Transform quadTransform = artObject.transform.Find("BreedArchetypeTextureQuad");
+        return quadTransform != null ? quadTransform.gameObject : null;
     }
 
     Material GetBreedArchetypeTextureMaterial(Renderer objectRenderer)
@@ -3021,6 +3054,55 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         GameObject textureQuad = GetBreedArchetypeTextureQuad(artObject);
+
+        if (textureQuad == null || !textureQuad.activeSelf)
+        {
+            return;
+        }
+
+        Renderer quadRenderer = textureQuad.GetComponent<Renderer>();
+
+        if (quadRenderer != null && quadRenderer.material != null)
+        {
+            SetMaterialColor(quadRenderer.material, color);
+        }
+    }
+
+    void TintSafeDogVisual(GameObject artObject)
+    {
+        TintExistingBreedArchetypeArt(artObject, new Color(0.88f, 0.92f, 0.92f, 0.95f));
+    }
+
+    void TintDigitalImprintVisual(GameObject artObject, bool isDogA, float intensity)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        Color copyColor = isDogA
+            ? new Color(0.2f, 1f, 1f, Mathf.Clamp01(0.45f + intensity * 0.45f))
+            : new Color(1f, 0.32f, 1f, Mathf.Clamp01(0.45f + intensity * 0.45f));
+
+        TintExistingBreedArchetypeArt(artObject, copyColor);
+        SetRuntimeObjectColor(artObject, copyColor);
+    }
+
+    void TintExistingBreedArchetypeArt(GameObject artObject, Color color)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        SpriteRenderer spriteRenderer = GetExistingBreedArchetypeSpriteRenderer(artObject);
+
+        if (spriteRenderer != null && spriteRenderer.enabled)
+        {
+            spriteRenderer.color = color;
+        }
+
+        GameObject textureQuad = GetExistingBreedArchetypeTextureQuad(artObject);
 
         if (textureQuad == null || !textureQuad.activeSelf)
         {
@@ -3219,6 +3301,14 @@ public class FightPresentationManager : MonoBehaviour
         {
             scanDogBBreedArtResourceName = resourceName;
         }
+        else if (artObject == scanDigitalCopyA)
+        {
+            scanDigitalCopyABreedArtResourceName = resourceName;
+        }
+        else if (artObject == scanDigitalCopyB)
+        {
+            scanDigitalCopyBBreedArtResourceName = resourceName;
+        }
     }
 
     string GetBreedArtResourceName(GameObject artObject)
@@ -3241,6 +3331,16 @@ public class FightPresentationManager : MonoBehaviour
         if (artObject == scanDogBVisualArt)
         {
             return scanDogBBreedArtResourceName;
+        }
+
+        if (artObject == scanDigitalCopyA)
+        {
+            return scanDigitalCopyABreedArtResourceName;
+        }
+
+        if (artObject == scanDigitalCopyB)
+        {
+            return scanDigitalCopyBBreedArtResourceName;
         }
 
         return string.Empty;
@@ -3360,48 +3460,105 @@ public class FightPresentationManager : MonoBehaviour
 
     IEnumerator PlayScanEffect()
     {
+        yield return AnimateScanSweep();
+    }
+
+    IEnumerator AnimateScanSweep()
+    {
         float elapsed = 0f;
+        Vector3 beamAStart = GetScanBeamSweepPosition(true, -0.82f);
+        Vector3 beamAEnd = GetScanBeamSweepPosition(true, 0.82f);
+        Vector3 beamBStart = GetScanBeamSweepPosition(false, -0.82f);
+        Vector3 beamBEnd = GetScanBeamSweepPosition(false, 0.82f);
+        Vector3 copyAStart = GetScanDigitalCopyStartPosition(true);
+        Vector3 copyBStart = GetScanDigitalCopyStartPosition(false);
 
         while (elapsed < FightIntroScanPulseSeconds)
         {
             elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / FightIntroScanPulseSeconds);
+            float smoothT = t * t * (3f - 2f * t);
             float pulse = 1f + Mathf.Sin(elapsed * 12f) * 0.12f;
+            float copyPulse = Mathf.Lerp(0.52f, 0.86f, smoothT) + Mathf.Sin(elapsed * 16f) * 0.04f;
 
-            SetScanPrimitiveScale("ScanBeamA", new Vector3(0.2f * pulse, 1.45f, 0.2f * pulse));
-            SetScanPrimitiveScale("ScanBeamB", new Vector3(0.2f * pulse, 1.45f, 0.2f * pulse));
+            SetScanPrimitiveTransform("ScanBeamA", Vector3.Lerp(beamAStart, beamAEnd, smoothT), new Vector3(0.12f * pulse, 1.5f, 0.035f));
+            SetScanPrimitiveTransform("ScanBeamB", Vector3.Lerp(beamBEnd, beamBStart, smoothT), new Vector3(0.12f * pulse, 1.5f, 0.035f));
             SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f * pulse, 0.65f * pulse, 0.65f * pulse));
+            SetScanDigitalCopyTransform(scanDigitalCopyA, copyAStart, copyPulse, true);
+            SetScanDigitalCopyTransform(scanDigitalCopyB, copyBStart, copyPulse, false);
+            TintDigitalImprintVisual(scanDigitalCopyA, true, Mathf.Lerp(0.38f, 0.78f, smoothT));
+            TintDigitalImprintVisual(scanDigitalCopyB, false, Mathf.Lerp(0.38f, 0.78f, smoothT));
 
             yield return null;
         }
 
-        SetScanPrimitiveScale("ScanBeamA", new Vector3(0.18f, 1.4f, 0.18f));
-        SetScanPrimitiveScale("ScanBeamB", new Vector3(0.18f, 1.4f, 0.18f));
+        SetScanPrimitiveTransform("ScanBeamA", GetScanBeamSweepPosition(true, 0f), new Vector3(0.1f, 1.45f, 0.035f));
+        SetScanPrimitiveTransform("ScanBeamB", GetScanBeamSweepPosition(false, 0f), new Vector3(0.1f, 1.45f, 0.035f));
         SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f, 0.65f, 0.65f));
+        SetScanDigitalCopyTransform(scanDigitalCopyA, copyAStart, 0.86f, true);
+        SetScanDigitalCopyTransform(scanDigitalCopyB, copyBStart, 0.86f, false);
     }
 
     IEnumerator PlayImprintCreationEffect()
     {
+        yield return AnimateImprintSeparation();
+        yield return AnimateImprintTransfer();
+    }
+
+    IEnumerator AnimateImprintSeparation()
+    {
         Vector3 dogAStart = GetScanDigitalCopyStartPosition(true);
         Vector3 dogBStart = GetScanDigitalCopyStartPosition(false);
-        Vector3 dogAEnd = GetScanDigitalCopyTransferPosition(true);
-        Vector3 dogBEnd = GetScanDigitalCopyTransferPosition(false);
+        Vector3 dogAEnd = GetScanDigitalCopySeparationPosition(true);
+        Vector3 dogBEnd = GetScanDigitalCopySeparationPosition(false);
         float elapsed = 0f;
+        float duration = FightIntroCopySeconds * 0.42f;
 
-        while (elapsed < FightIntroCopySeconds)
+        while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / FightIntroCopySeconds);
+            float t = Mathf.Clamp01(elapsed / duration);
             float smoothT = t * t * (3f - 2f * t);
             float pulse = 1f + Mathf.Sin(elapsed * 16f) * 0.16f;
 
             SetScanDigitalCopyTransform(scanDigitalCopyA, Vector3.Lerp(dogAStart, dogAEnd, smoothT), pulse, true);
             SetScanDigitalCopyTransform(scanDigitalCopyB, Vector3.Lerp(dogBStart, dogBEnd, smoothT), pulse, false);
+            TintDigitalImprintVisual(scanDigitalCopyA, true, Mathf.Lerp(0.72f, 1f, smoothT));
+            TintDigitalImprintVisual(scanDigitalCopyB, false, Mathf.Lerp(0.72f, 1f, smoothT));
 
             yield return null;
         }
 
         SetScanDigitalCopyTransform(scanDigitalCopyA, dogAEnd, 1f, true);
         SetScanDigitalCopyTransform(scanDigitalCopyB, dogBEnd, 1f, false);
+    }
+
+    IEnumerator AnimateImprintTransfer()
+    {
+        Vector3 dogAStart = GetScanDigitalCopySeparationPosition(true);
+        Vector3 dogBStart = GetScanDigitalCopySeparationPosition(false);
+        Vector3 dogAEnd = GetScanDigitalCopyTransferPosition(true);
+        Vector3 dogBEnd = GetScanDigitalCopyTransferPosition(false);
+        float elapsed = 0f;
+        float duration = FightIntroCopySeconds * 0.58f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float smoothT = t * t * (3f - 2f * t);
+            float pulse = 1f + Mathf.Sin(elapsed * 18f) * 0.12f;
+
+            SetScanDigitalCopyTransform(scanDigitalCopyA, Vector3.Lerp(dogAStart, dogAEnd, smoothT), pulse, true);
+            SetScanDigitalCopyTransform(scanDigitalCopyB, Vector3.Lerp(dogBStart, dogBEnd, smoothT), pulse, false);
+            SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f + smoothT * 0.18f, 0.65f + smoothT * 0.18f, 0.65f + smoothT * 0.18f));
+
+            yield return null;
+        }
+
+        SetScanDigitalCopyTransform(scanDigitalCopyA, dogAEnd, 1f, true);
+        SetScanDigitalCopyTransform(scanDigitalCopyB, dogBEnd, 1f, false);
+        SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f, 0.65f, 0.65f));
     }
 
     void CreateScanDogVisualsIfNeeded()
@@ -3413,13 +3570,18 @@ public class FightPresentationManager : MonoBehaviour
 
         if (scanDogAVisualArt == null)
         {
-            scanDogAVisualArt = GetOrCreateScanDogVisualArt("SafeDogA_ImprintArt");
+            scanDogAVisualArt = CreateSafeDogVisual("SafeDogA_ImprintArt");
         }
 
         if (scanDogBVisualArt == null)
         {
-            scanDogBVisualArt = GetOrCreateScanDogVisualArt("SafeDogB_ImprintArt");
+            scanDogBVisualArt = CreateSafeDogVisual("SafeDogB_ImprintArt");
         }
+    }
+
+    GameObject CreateSafeDogVisual(string objectName)
+    {
+        return GetOrCreateScanDogVisualArt(objectName);
     }
 
     GameObject GetOrCreateScanDogVisualArt(string objectName)
@@ -3454,6 +3616,31 @@ public class FightPresentationManager : MonoBehaviour
 
     bool ApplyBreedArchetypeArtToScanDog(GameObject artObject, Dog dog, bool isDogA)
     {
+        bool applied = ApplyBreedArchetypeArtToScanVisual(artObject, dog, isDogA);
+
+        if (applied)
+        {
+            UpdateSingleScanDogVisualPosition(artObject, isDogA ? scanDogATransform : scanDogBTransform, isDogA);
+            TintSafeDogVisual(artObject);
+        }
+
+        return applied;
+    }
+
+    bool CreateDigitalImprintVisual(GameObject artObject, Dog dog, bool isDogA)
+    {
+        bool applied = ApplyBreedArchetypeArtToScanVisual(artObject, dog, isDogA);
+
+        if (applied)
+        {
+            TintDigitalImprintVisual(artObject, isDogA, 0.55f);
+        }
+
+        return applied;
+    }
+
+    bool ApplyBreedArchetypeArtToScanVisual(GameObject artObject, Dog dog, bool isDogA)
+    {
         if (artObject == null || dog == null)
         {
             SetBreedArchetypeArtVisible(artObject, false);
@@ -3480,13 +3667,23 @@ public class FightPresentationManager : MonoBehaviour
 
             SetBreedArtResourceName(artObject, resourceName);
             artObject.SetActive(true);
-            UpdateSingleScanDogVisualPosition(artObject, isDogA ? scanDogATransform : scanDogBTransform, isDogA);
+            SetDigitalCopyFallbackVisible(artObject, false);
             return true;
         }
 
         SetBreedArtResourceName(artObject, string.Empty);
         artObject.SetActive(false);
         return false;
+    }
+
+    void UpdateScanDigitalCopyVisuals(Dog dogA, Dog dogB)
+    {
+        bool dogAHasBreedArt = CreateDigitalImprintVisual(scanDigitalCopyA, dogA, true);
+        bool dogBHasBreedArt = CreateDigitalImprintVisual(scanDigitalCopyB, dogB, false);
+
+        SetDigitalCopyFallbackVisible(scanDigitalCopyA, !dogAHasBreedArt);
+        SetDigitalCopyFallbackVisible(scanDigitalCopyB, !dogBHasBreedArt);
+        PositionScanDigitalCopies();
     }
 
     void UpdateScanDogVisualPositions()
@@ -3530,13 +3727,13 @@ public class FightPresentationManager : MonoBehaviour
         if (scanDigitalCopyA == null)
         {
             scanDigitalCopyA = GetOrCreateScanPrimitive("DigitalCopyImprintA", PrimitiveType.Capsule);
-            SetObjectColor(scanDigitalCopyA, new Color(0.2f, 1f, 1f, 0.9f));
+            ConfigureFallbackDigitalCopyCapsule(scanDigitalCopyA, true);
         }
 
         if (scanDigitalCopyB == null)
         {
             scanDigitalCopyB = GetOrCreateScanPrimitive("DigitalCopyImprintB", PrimitiveType.Capsule);
-            SetObjectColor(scanDigitalCopyB, new Color(1f, 0.25f, 1f, 0.9f));
+            ConfigureFallbackDigitalCopyCapsule(scanDigitalCopyB, false);
         }
 
         PositionScanDigitalCopies();
@@ -3559,7 +3756,12 @@ public class FightPresentationManager : MonoBehaviour
     {
         Transform sourceTransform = isDogA ? scanDogATransform : scanDogBTransform;
         Vector3 basePosition = sourceTransform != null ? sourceTransform.localPosition : GetScanInsidePosition(isDogA);
-        return basePosition + new Vector3(0f, 0.65f, -0.45f);
+        return basePosition + new Vector3(0f, 0.18f, -0.45f);
+    }
+
+    Vector3 GetScanDigitalCopySeparationPosition(bool isDogA)
+    {
+        return GetScanDigitalCopyStartPosition(isDogA) + new Vector3(isDogA ? 0.18f : -0.18f, 0.42f, -0.24f);
     }
 
     Vector3 GetScanDigitalCopyTransferPosition(bool isDogA)
@@ -3576,7 +3778,61 @@ public class FightPresentationManager : MonoBehaviour
 
         copyObject.transform.localPosition = position;
         copyObject.transform.localRotation = Quaternion.Euler(0f, isDogA ? 35f : -35f, 0f);
-        copyObject.transform.localScale = new Vector3(0.36f * pulse, 0.78f * pulse, 0.36f * pulse);
+        copyObject.transform.localScale = HasBreedArchetypeVisual(copyObject)
+            ? Vector3.one * (0.68f * pulse)
+            : new Vector3(0.36f * pulse, 0.78f * pulse, 0.36f * pulse);
+        FaceBreedArchetypeArtTowardPresentationCamera(copyObject);
+        SetDogArtFacing(copyObject, isDogA, GetBreedArtResourceName(copyObject));
+    }
+
+    void ConfigureFallbackDigitalCopyCapsule(GameObject copyObject, bool isDogA)
+    {
+        if (copyObject == null)
+        {
+            return;
+        }
+
+        SetObjectColor(copyObject, isDogA ? new Color(0.2f, 1f, 1f, 0.9f) : new Color(1f, 0.25f, 1f, 0.9f));
+
+        Collider copyCollider = copyObject.GetComponent<Collider>();
+
+        if (copyCollider != null)
+        {
+            copyCollider.enabled = false;
+        }
+    }
+
+    void SetDigitalCopyFallbackVisible(GameObject copyObject, bool visible)
+    {
+        if (copyObject == null)
+        {
+            return;
+        }
+
+        Renderer fallbackRenderer = copyObject.GetComponent<Renderer>();
+
+        if (fallbackRenderer != null)
+        {
+            fallbackRenderer.enabled = visible;
+        }
+    }
+
+    bool HasBreedArchetypeVisual(GameObject artObject)
+    {
+        if (artObject == null)
+        {
+            return false;
+        }
+
+        SpriteRenderer spriteRenderer = GetExistingBreedArchetypeSpriteRenderer(artObject);
+
+        if (spriteRenderer != null && spriteRenderer.enabled && spriteRenderer.sprite != null)
+        {
+            return true;
+        }
+
+        GameObject textureQuad = GetExistingBreedArchetypeTextureQuad(artObject);
+        return textureQuad != null && textureQuad.activeSelf;
     }
 
     void SetScanChamberEffectsVisible(bool isVisible)
@@ -3584,6 +3840,8 @@ public class FightPresentationManager : MonoBehaviour
         SetScanChildActive("ScanBeamA", isVisible);
         SetScanChildActive("ScanBeamB", isVisible);
         SetScanChildActive("DNACopyCore", isVisible);
+        SetScanChildActive("ScanSealPanelLeft", isVisible);
+        SetScanChildActive("ScanSealPanelRight", isVisible);
     }
 
     void SetScanDigitalCopiesVisible(bool isVisible)
@@ -3644,6 +3902,25 @@ public class FightPresentationManager : MonoBehaviour
         {
             childObject.transform.localScale = scale;
         }
+    }
+
+    void SetScanPrimitiveTransform(string objectName, Vector3 position, Vector3 scale)
+    {
+        GameObject childObject = GetScanChildObject(objectName);
+
+        if (childObject == null)
+        {
+            return;
+        }
+
+        childObject.transform.localPosition = position;
+        childObject.transform.localScale = scale;
+    }
+
+    Vector3 GetScanBeamSweepPosition(bool isDogA, float zOffset)
+    {
+        Vector3 dogPosition = isDogA ? GetScanInsidePosition(true) : GetScanInsidePosition(false);
+        return new Vector3(dogPosition.x, 1.42f, dogPosition.z + zOffset);
     }
 
     GameObject GetScanChildObject(string objectName)
@@ -5869,6 +6146,20 @@ public class FightPresentationManager : MonoBehaviour
         basePlatform.transform.localPosition = Vector3.zero;
         basePlatform.transform.localScale = new Vector3(5f, 0.15f, 3f);
         SetObjectColor(basePlatform, new Color(0.08f, 0.08f, 0.1f));
+
+        CreateScanSealPanel("ScanSealPanelLeft", new Vector3(-2.25f, 1.05f, 0f));
+        CreateScanSealPanel("ScanSealPanelRight", new Vector3(2.25f, 1.05f, 0f));
+    }
+
+    void CreateScanSealPanel(string objectName, Vector3 position)
+    {
+        GameObject sealPanel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        sealPanel.name = objectName;
+        sealPanel.transform.SetParent(scanChamberRoot.transform);
+        sealPanel.transform.localPosition = position;
+        sealPanel.transform.localScale = new Vector3(0.08f, 1.7f, 2.55f);
+        SetObjectColor(sealPanel, new Color(0.03f, 0.32f, 0.42f));
+        sealPanel.SetActive(false);
     }
 
     GameObject CreateSafeDogPlaceholder(string objectName, Vector3 position, Color color)
