@@ -39,8 +39,8 @@ public class FightPresentationManager : MonoBehaviour
     private const float FightIntroWalkInSeconds = 1f;
     private const float FightIntroScanPulseSeconds = 1f;
     private const float FightIntroCopySeconds = 1.35f;
+    private const float FightIntroMonitorHandoffSeconds = 0.85f;
     private const float ScanIntroDelaySeconds = 1.5f;
-    private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
     private const float RoundActionDurationSeconds = 1.6f;
     private const float CinematicHitFreezeMinSeconds = 0.018f;
@@ -319,18 +319,17 @@ public class FightPresentationManager : MonoBehaviour
         Debug.Log($"Digital imprint copies created for {dogA.dogName} and {dogB.dogName}.");
         yield return PlayImprintCreationEffect();
 
-        yield return new WaitForSeconds(0.2f);
+        yield return new WaitForSeconds(0.1f);
+        SetScanDigitalCopiesVisible(false);
+        SetScanChamberEffectsVisible(false);
         HideScanChamber();
 
         ShowMonitorTransition();
         Debug.Log($"Digital imprints for {dogA.dogName} and {dogB.dogName} are entering the monitor grid.");
 
-        yield return new WaitForSeconds(MonitorTransitionDelaySeconds);
+        yield return ShowMonitorHandoff();
 
-        HideMonitorTransition();
-        scanIntroCoroutine = null;
-        ShowPlaceholderArena(dogA, dogB);
-        onComplete?.Invoke();
+        RevealArenaAfterIntro(dogA, dogB, onComplete);
     }
 
     public void PresentRound(int roundNumber, Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
@@ -786,6 +785,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         CreateMonitorTransitionObjectsIfNeeded();
+        ResetMonitorHandoffObjects();
         UpdateMonitorTransitionLabels();
         monitorTransitionRoot.SetActive(true);
         SetFightPresentationViewportVisible(true);
@@ -1507,6 +1507,9 @@ public class FightPresentationManager : MonoBehaviour
         if (scanChamberRoot.transform.childCount > 0)
         {
             AssignExistingScanTransforms();
+            CreateScanSealPanel("ScanSealPanelLeft", new Vector3(-2.25f, 1.05f, 0f));
+            CreateScanSealPanel("ScanSealPanelRight", new Vector3(2.25f, 1.05f, 0f));
+            CreateScanTransferPoint();
             scanChamberObjectsCreated = true;
             return;
         }
@@ -1517,6 +1520,7 @@ public class FightPresentationManager : MonoBehaviour
         CreateScanBeam("ScanBeamA", new Vector3(-1.5f, 1.45f, 0f), new Color(0.1f, 0.8f, 1f));
         CreateScanBeam("ScanBeamB", new Vector3(1.5f, 1.45f, 0f), new Color(1f, 0.2f, 0.9f));
         CreateCopyCore();
+        CreateScanTransferPoint();
 
         scanChamberObjectsCreated = true;
     }
@@ -3493,17 +3497,18 @@ public class FightPresentationManager : MonoBehaviour
         SetScanPrimitiveTransform("ScanBeamA", GetScanBeamSweepPosition(true, 0f), new Vector3(0.1f, 1.45f, 0.035f));
         SetScanPrimitiveTransform("ScanBeamB", GetScanBeamSweepPosition(false, 0f), new Vector3(0.1f, 1.45f, 0.035f));
         SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f, 0.65f, 0.65f));
+        SetScanPrimitiveScale("ScanTransferPoint", new Vector3(0.34f, 0.34f, 0.34f));
         SetScanDigitalCopyTransform(scanDigitalCopyA, copyAStart, 1f, true);
         SetScanDigitalCopyTransform(scanDigitalCopyB, copyBStart, 1f, false);
     }
 
     IEnumerator PlayImprintCreationEffect()
     {
-        yield return AnimateImprintSeparation();
-        yield return AnimateImprintTransfer();
+        yield return AnimateImprintDetach();
+        yield return AnimateImprintTransferToMonitor();
     }
 
-    IEnumerator AnimateImprintSeparation()
+    IEnumerator AnimateImprintDetach()
     {
         Vector3 dogAStart = GetScanDigitalCopyStartPosition(true);
         Vector3 dogBStart = GetScanDigitalCopyStartPosition(false);
@@ -3531,7 +3536,7 @@ public class FightPresentationManager : MonoBehaviour
         SetScanDigitalCopyTransform(scanDigitalCopyB, dogBEnd, 1f, false);
     }
 
-    IEnumerator AnimateImprintTransfer()
+    IEnumerator AnimateImprintTransferToMonitor()
     {
         Vector3 dogAStart = GetScanDigitalCopySeparationPosition(true);
         Vector3 dogBStart = GetScanDigitalCopySeparationPosition(false);
@@ -3539,6 +3544,8 @@ public class FightPresentationManager : MonoBehaviour
         Vector3 dogBEnd = GetScanDigitalCopyTransferPosition(false);
         float elapsed = 0f;
         float duration = FightIntroCopySeconds * 0.58f;
+
+        MovePresentationCameraTo(new Vector3(0f, 3.15f, -6.25f), new Vector3(0f, 1.28f, -0.9f), duration);
 
         while (elapsed < duration)
         {
@@ -3550,6 +3557,7 @@ public class FightPresentationManager : MonoBehaviour
             SetScanDigitalCopyTransform(scanDigitalCopyA, Vector3.Lerp(dogAStart, dogAEnd, smoothT), pulse, true);
             SetScanDigitalCopyTransform(scanDigitalCopyB, Vector3.Lerp(dogBStart, dogBEnd, smoothT), pulse, false);
             SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f + smoothT * 0.18f, 0.65f + smoothT * 0.18f, 0.65f + smoothT * 0.18f));
+            SetScanPrimitiveScale("ScanTransferPoint", new Vector3(0.34f + smoothT * 0.18f, 0.34f + smoothT * 0.18f, 0.34f + smoothT * 0.18f));
 
             yield return null;
         }
@@ -3557,6 +3565,80 @@ public class FightPresentationManager : MonoBehaviour
         SetScanDigitalCopyTransform(scanDigitalCopyA, dogAEnd, 1f, true);
         SetScanDigitalCopyTransform(scanDigitalCopyB, dogBEnd, 1f, false);
         SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f, 0.65f, 0.65f));
+        SetScanPrimitiveScale("ScanTransferPoint", new Vector3(0.42f, 0.42f, 0.42f));
+    }
+
+    IEnumerator ShowMonitorHandoff()
+    {
+        if (monitorTransitionRoot == null)
+        {
+            yield break;
+        }
+
+        float elapsed = 0f;
+
+        while (elapsed < FightIntroMonitorHandoffSeconds)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / FightIntroMonitorHandoffSeconds);
+            float smoothT = t * t * (3f - 2f * t);
+            float pulse = 1f + Mathf.Sin(elapsed * 16f) * 0.12f;
+
+            SetMonitorStreamNode("ImprintStreamA_Outer", Vector3.Lerp(new Vector3(-1.45f, -0.85f, -0.35f), new Vector3(-0.65f, 0.15f, -0.25f), smoothT), 0.18f * pulse);
+            SetMonitorStreamNode("ImprintStreamB_Outer", Vector3.Lerp(new Vector3(1.45f, -0.85f, -0.35f), new Vector3(0.65f, 0.15f, -0.25f), smoothT), 0.18f * pulse);
+            SetMonitorStreamNode("ImprintStreamA_Inner", Vector3.Lerp(new Vector3(-0.65f, 0.15f, -0.25f), new Vector3(-0.15f, 1.05f, -0.3f), smoothT), 0.15f * pulse);
+            SetMonitorStreamNode("ImprintStreamB_Inner", Vector3.Lerp(new Vector3(0.65f, 0.15f, -0.25f), new Vector3(0.15f, 1.05f, -0.3f), smoothT), 0.15f * pulse);
+            SetMonitorStreamNode("ImprintStreamCore", new Vector3(0f, 1.25f, -0.3f), Mathf.Lerp(0.26f, 0.44f, Mathf.Sin(smoothT * Mathf.PI)));
+
+            yield return null;
+        }
+
+        ResetMonitorHandoffObjects();
+    }
+
+    void SetMonitorStreamNode(string objectName, Vector3 position, float size)
+    {
+        GameObject nodeObject = GetMonitorTransitionChildObject(objectName);
+
+        if (nodeObject == null)
+        {
+            return;
+        }
+
+        float safeSize = Mathf.Max(0.01f, size);
+        nodeObject.transform.localPosition = position;
+        nodeObject.transform.localScale = new Vector3(safeSize, safeSize, safeSize);
+    }
+
+    void ResetMonitorHandoffObjects()
+    {
+        SetMonitorStreamNode("ImprintStreamA_Outer", new Vector3(-1.45f, -0.85f, -0.35f), 0.2f);
+        SetMonitorStreamNode("ImprintStreamA_Inner", new Vector3(-0.65f, 0.15f, -0.25f), 0.16f);
+        SetMonitorStreamNode("ImprintStreamB_Outer", new Vector3(1.45f, -0.85f, -0.35f), 0.2f);
+        SetMonitorStreamNode("ImprintStreamB_Inner", new Vector3(0.65f, 0.15f, -0.25f), 0.16f);
+        SetMonitorStreamNode("ImprintStreamCore", new Vector3(0f, 1.25f, -0.3f), 0.28f);
+    }
+
+    GameObject GetMonitorTransitionChildObject(string objectName)
+    {
+        if (monitorTransitionRoot == null || string.IsNullOrEmpty(objectName))
+        {
+            return null;
+        }
+
+        Transform childTransform = monitorTransitionRoot.transform.Find(objectName);
+        return childTransform != null ? childTransform.gameObject : null;
+    }
+
+    void RevealArenaAfterIntro(Dog dogA, Dog dogB, System.Action onComplete)
+    {
+        SetScanDigitalCopiesVisible(false);
+        SetScanChamberEffectsVisible(false);
+        HideScanChamber();
+        HideMonitorTransition();
+        scanIntroCoroutine = null;
+        ShowPlaceholderArena(dogA, dogB);
+        onComplete?.Invoke();
     }
 
     void CreateScanDogVisualsIfNeeded()
@@ -3764,7 +3846,13 @@ public class FightPresentationManager : MonoBehaviour
 
     Vector3 GetScanDigitalCopyTransferPosition(bool isDogA)
     {
-        return isDogA ? new Vector3(-0.45f, 1.45f, -0.95f) : new Vector3(0.45f, 1.45f, -0.95f);
+        Vector3 transferPoint = GetScanTransferPointPosition();
+        return transferPoint + new Vector3(isDogA ? -0.22f : 0.22f, 0f, 0.02f);
+    }
+
+    Vector3 GetScanTransferPointPosition()
+    {
+        return new Vector3(0f, 1.42f, -1.15f);
     }
 
     void SetScanDigitalCopyTransform(GameObject copyObject, Vector3 position, float pulse, bool isDogA)
@@ -3839,6 +3927,7 @@ public class FightPresentationManager : MonoBehaviour
         SetScanChildActive("ScanBeamA", isVisible);
         SetScanChildActive("ScanBeamB", isVisible);
         SetScanChildActive("DNACopyCore", isVisible);
+        SetScanChildActive("ScanTransferPoint", isVisible);
         SetScanChildActive("ScanSealPanelLeft", isVisible);
         SetScanChildActive("ScanSealPanelRight", isVisible);
     }
@@ -6159,7 +6248,11 @@ public class FightPresentationManager : MonoBehaviour
 
     void CreateScanSealPanel(string objectName, Vector3 position)
     {
-        GameObject sealPanel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Transform existingPanel = scanChamberRoot.transform.Find(objectName);
+        GameObject sealPanel = existingPanel != null
+            ? existingPanel.gameObject
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+
         sealPanel.name = objectName;
         sealPanel.transform.SetParent(scanChamberRoot.transform);
         sealPanel.transform.localPosition = position;
@@ -6198,6 +6291,21 @@ public class FightPresentationManager : MonoBehaviour
         copyCore.transform.localPosition = new Vector3(0f, 1.25f, 0f);
         copyCore.transform.localScale = new Vector3(0.65f, 0.65f, 0.65f);
         SetObjectColor(copyCore, new Color(0.45f, 1f, 0.75f));
+    }
+
+    void CreateScanTransferPoint()
+    {
+        Transform existingTransferPoint = scanChamberRoot.transform.Find("ScanTransferPoint");
+        GameObject transferPoint = existingTransferPoint != null
+            ? existingTransferPoint.gameObject
+            : GameObject.CreatePrimitive(PrimitiveType.Sphere);
+
+        transferPoint.name = "ScanTransferPoint";
+        transferPoint.transform.SetParent(scanChamberRoot.transform);
+        transferPoint.transform.localPosition = GetScanTransferPointPosition();
+        transferPoint.transform.localScale = new Vector3(0.34f, 0.34f, 0.34f);
+        SetObjectColor(transferPoint, new Color(0.4f, 1f, 0.85f));
+        transferPoint.SetActive(false);
     }
 
     void CreateArenaImpactEffectsIfNeeded()
