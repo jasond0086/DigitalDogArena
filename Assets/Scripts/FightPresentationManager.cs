@@ -52,6 +52,9 @@ public class FightPresentationManager : MonoBehaviour
     private const float FighterResultCharacterSize = 0.058f;
     private const float RoundStatusCharacterSize = 0.058f;
     private const float ClashTextCharacterSize = 0.052f;
+    private const float ScanTitleCharacterSize = 0.105f;
+    private const float ScanSubtitleCharacterSize = 0.068f;
+    private const float ScanDogNameCharacterSize = 0.074f;
 
     private static GameObject sharedArenaRoot;
     private static GameObject sharedScanChamberRoot;
@@ -3458,11 +3461,6 @@ public class FightPresentationManager : MonoBehaviour
         UpdateScanChamberLabels(dogA, dogB);
     }
 
-    IEnumerator PlayScanEffect()
-    {
-        yield return AnimateScanSweep();
-    }
-
     IEnumerator AnimateScanSweep()
     {
         float elapsed = 0f;
@@ -3479,7 +3477,7 @@ public class FightPresentationManager : MonoBehaviour
             float t = Mathf.Clamp01(elapsed / FightIntroScanPulseSeconds);
             float smoothT = t * t * (3f - 2f * t);
             float pulse = 1f + Mathf.Sin(elapsed * 12f) * 0.12f;
-            float copyPulse = Mathf.Lerp(0.52f, 0.86f, smoothT) + Mathf.Sin(elapsed * 16f) * 0.04f;
+            float copyPulse = 1f + Mathf.Sin(elapsed * 10f) * 0.025f;
 
             SetScanPrimitiveTransform("ScanBeamA", Vector3.Lerp(beamAStart, beamAEnd, smoothT), new Vector3(0.12f * pulse, 1.5f, 0.035f));
             SetScanPrimitiveTransform("ScanBeamB", Vector3.Lerp(beamBEnd, beamBStart, smoothT), new Vector3(0.12f * pulse, 1.5f, 0.035f));
@@ -3495,8 +3493,8 @@ public class FightPresentationManager : MonoBehaviour
         SetScanPrimitiveTransform("ScanBeamA", GetScanBeamSweepPosition(true, 0f), new Vector3(0.1f, 1.45f, 0.035f));
         SetScanPrimitiveTransform("ScanBeamB", GetScanBeamSweepPosition(false, 0f), new Vector3(0.1f, 1.45f, 0.035f));
         SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f, 0.65f, 0.65f));
-        SetScanDigitalCopyTransform(scanDigitalCopyA, copyAStart, 0.86f, true);
-        SetScanDigitalCopyTransform(scanDigitalCopyB, copyBStart, 0.86f, false);
+        SetScanDigitalCopyTransform(scanDigitalCopyA, copyAStart, 1f, true);
+        SetScanDigitalCopyTransform(scanDigitalCopyB, copyBStart, 1f, false);
     }
 
     IEnumerator PlayImprintCreationEffect()
@@ -3519,7 +3517,7 @@ public class FightPresentationManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float smoothT = t * t * (3f - 2f * t);
-            float pulse = 1f + Mathf.Sin(elapsed * 16f) * 0.16f;
+            float pulse = 1f + Mathf.Sin(elapsed * 14f) * 0.035f;
 
             SetScanDigitalCopyTransform(scanDigitalCopyA, Vector3.Lerp(dogAStart, dogAEnd, smoothT), pulse, true);
             SetScanDigitalCopyTransform(scanDigitalCopyB, Vector3.Lerp(dogBStart, dogBEnd, smoothT), pulse, false);
@@ -3547,7 +3545,7 @@ public class FightPresentationManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float smoothT = t * t * (3f - 2f * t);
-            float pulse = 1f + Mathf.Sin(elapsed * 18f) * 0.12f;
+            float pulse = 1f + Mathf.Sin(elapsed * 16f) * 0.03f;
 
             SetScanDigitalCopyTransform(scanDigitalCopyA, Vector3.Lerp(dogAStart, dogAEnd, smoothT), pulse, true);
             SetScanDigitalCopyTransform(scanDigitalCopyB, Vector3.Lerp(dogBStart, dogBEnd, smoothT), pulse, false);
@@ -3778,9 +3776,10 @@ public class FightPresentationManager : MonoBehaviour
 
         copyObject.transform.localPosition = position;
         copyObject.transform.localRotation = Quaternion.Euler(0f, isDogA ? 35f : -35f, 0f);
+        float safePulse = Mathf.Clamp(pulse, 0.95f, 1.05f);
         copyObject.transform.localScale = HasBreedArchetypeVisual(copyObject)
-            ? Vector3.one * (0.68f * pulse)
-            : new Vector3(0.36f * pulse, 0.78f * pulse, 0.36f * pulse);
+            ? Vector3.one * (0.68f * safePulse)
+            : new Vector3(0.36f * safePulse, 0.78f * safePulse, 0.36f * safePulse);
         FaceBreedArchetypeArtTowardPresentationCamera(copyObject);
         SetDogArtFacing(copyObject, isDogA, GetBreedArtResourceName(copyObject));
     }
@@ -3941,10 +3940,27 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberTitleLabel", "DNA SCAN", new Vector3(0f, 3f, 0f), Color.white, 0.17f);
-        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberSafetyLabel", "REAL DOGS SAFE\nCOPYING IMPRINTS", new Vector3(0f, 2.62f, 0f), new Color(0.45f, 1f, 0.75f), 0.095f);
-        CreateOrUpdateLabel(scanChamberRoot, "SafeDogALabel", GetDogDisplayName(dogA, "DOG A"), GetLabelPosition(scanDogATransform, new Vector3(-1.5f, 1.95f, 0f)), Color.cyan, 0.115f);
-        CreateOrUpdateLabel(scanChamberRoot, "SafeDogBLabel", GetDogDisplayName(dogB, "DOG B"), GetLabelPosition(scanDogBTransform, new Vector3(1.5f, 1.95f, 0f)), Color.magenta, 0.115f);
+        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberTitleLabel", "DNA SCAN CHAMBER", GetScanTitleLabelPosition(), Color.white, ScanTitleCharacterSize);
+        CreateOrUpdateLabel(scanChamberRoot, "ScanChamberSafetyLabel", "COPYING DIGITAL IMPRINTS", GetScanSubtitleLabelPosition(), new Color(0.45f, 1f, 0.75f), ScanSubtitleCharacterSize);
+        CreateOrUpdateLabel(scanChamberRoot, "SafeDogALabel", GetDogDisplayName(dogA, "DOG A"), GetScanDogNameLabelPosition(scanDogATransform, true), Color.cyan, ScanDogNameCharacterSize);
+        CreateOrUpdateLabel(scanChamberRoot, "SafeDogBLabel", GetDogDisplayName(dogB, "DOG B"), GetScanDogNameLabelPosition(scanDogBTransform, false), Color.magenta, ScanDogNameCharacterSize);
+    }
+
+    Vector3 GetScanTitleLabelPosition()
+    {
+        return new Vector3(0f, 2.82f, 0.12f);
+    }
+
+    Vector3 GetScanSubtitleLabelPosition()
+    {
+        return new Vector3(0f, 2.52f, 0.12f);
+    }
+
+    Vector3 GetScanDogNameLabelPosition(Transform targetTransform, bool isDogA)
+    {
+        float defaultX = isDogA ? -1.55f : 1.55f;
+        float x = targetTransform != null ? Mathf.Clamp(targetTransform.localPosition.x, -1.95f, 1.95f) : defaultX;
+        return new Vector3(x, 1.84f, -0.08f);
     }
 
     void UpdateMonitorTransitionLabels()
@@ -5066,16 +5082,6 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         label.text = text;
-    }
-
-    Vector3 GetLabelPosition(Transform targetTransform, Vector3 fallbackPosition)
-    {
-        if (targetTransform == null)
-        {
-            return fallbackPosition;
-        }
-
-        return targetTransform.localPosition + new Vector3(0f, 1.45f, 0f);
     }
 
     Vector3 GetArenaTitleLabelPosition()
