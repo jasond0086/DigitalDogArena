@@ -36,6 +36,9 @@ public class FightPresentationManager : MonoBehaviour
     private const float BreedArchetypeArtBaseScale = 0.9f;
     private const float BreedArchetypeSpriteTargetHeight = 1.56f;
     private const float BreedArchetypeSpriteMaxWidth = 2f;
+    private const float FightIntroWalkInSeconds = 1f;
+    private const float FightIntroScanPulseSeconds = 1f;
+    private const float FightIntroCopySeconds = 0.75f;
     private const float ScanIntroDelaySeconds = 1.5f;
     private const float MonitorTransitionDelaySeconds = 1f;
     private const float CameraMoveDurationSeconds = 0.75f;
@@ -75,6 +78,8 @@ public class FightPresentationManager : MonoBehaviour
     private Transform fighterBTransform;
     private Transform scanDogATransform;
     private Transform scanDogBTransform;
+    private GameObject scanDigitalCopyA;
+    private GameObject scanDigitalCopyB;
     private GameObject dogImprintPrefab;
     private GameObject fighterADogImprintArt;
     private GameObject fighterBDogImprintArt;
@@ -218,9 +223,14 @@ public class FightPresentationManager : MonoBehaviour
 
     public void PlayScanIntroThenShowArena(Dog dogA, Dog dogB)
     {
+        PlayFightIntroSequence(dogA, dogB, null);
+    }
+
+    public void PlayFightIntroSequence(Dog dogA, Dog dogB, System.Action onComplete)
+    {
         if (dogA == null || dogB == null)
         {
-            Debug.LogWarning("FightPresentationManager could not start DNA scan because one or both dogs were missing.");
+            Debug.LogWarning("FightPresentationManager could not start fight intro because one or both dogs were missing.");
             return;
         }
 
@@ -238,25 +248,42 @@ public class FightPresentationManager : MonoBehaviour
         if (scanChamberRoot == null)
         {
             Debug.LogWarning("FightPresentationManager could not create ScanChamberRoot.");
+            onComplete?.Invoke();
             return;
         }
 
         CreateScanChamberObjectsIfNeeded();
-        PositionScanSubjects();
+        CreateScanDigitalCopiesIfNeeded();
+        PositionScanSubjectsOutsideChamber();
+        PositionScanDigitalCopies();
+        SetScanChamberEffectsVisible(false);
+        SetScanDigitalCopiesVisible(false);
         UpdateScanChamberLabels(dogA, dogB);
         scanChamberRoot.SetActive(true);
         SetFightPresentationViewportVisible(true);
         FrameScanChamber();
 
-        Debug.Log($"DNA scan started for {dogA.dogName} and {dogB.dogName}. Real dogs remain safe. Digital imprints are being copied.");
+        Debug.Log($"Fight intro started for {dogA.dogName} and {dogB.dogName}. Real dogs are entering the sealed scan chamber.");
 
-        scanIntroCoroutine = StartCoroutine(ScanIntroRoutine(dogA, dogB));
+        scanIntroCoroutine = StartCoroutine(FightIntroSequenceRoutine(dogA, dogB, onComplete));
     }
 
     IEnumerator ScanIntroRoutine(Dog dogA, Dog dogB)
     {
-        // This short pause lets the scan chamber read as an intro before the digital arena appears.
-        yield return new WaitForSeconds(ScanIntroDelaySeconds);
+        yield return FightIntroSequenceRoutine(dogA, dogB, null);
+    }
+
+    IEnumerator FightIntroSequenceRoutine(Dog dogA, Dog dogB, System.Action onComplete)
+    {
+        yield return AnimateDogsIntoChamber(dogA, dogB);
+
+        SetScanChamberEffectsVisible(true);
+        Debug.Log($"DNA scan started for {dogA.dogName} and {dogB.dogName}. Real dogs remain safe. Digital imprints are being copied.");
+        yield return PlayScanEffect();
+
+        SetScanDigitalCopiesVisible(true);
+        Debug.Log($"Digital imprint copies created for {dogA.dogName} and {dogB.dogName}.");
+        yield return PlayImprintCreationEffect();
 
         HideScanChamber();
 
@@ -268,6 +295,7 @@ public class FightPresentationManager : MonoBehaviour
         HideMonitorTransition();
         scanIntroCoroutine = null;
         ShowPlaceholderArena(dogA, dogB);
+        onComplete?.Invoke();
     }
 
     public void PresentRound(int roundNumber, Dog dogA, Dog dogB, int dogAHealth, int dogBHealth)
@@ -3113,6 +3141,219 @@ public class FightPresentationManager : MonoBehaviour
             scanDogBTransform.localPosition = new Vector3(1.5f, 0.6f, 0f);
             scanDogBTransform.localScale = new Vector3(0.65f, 1.05f, 0.65f);
         }
+    }
+
+    void PositionScanSubjectsOutsideChamber()
+    {
+        if (scanDogATransform != null)
+        {
+            scanDogATransform.localPosition = GetScanOutsidePosition(true);
+            scanDogATransform.localScale = new Vector3(0.65f, 1.05f, 0.65f);
+        }
+
+        if (scanDogBTransform != null)
+        {
+            scanDogBTransform.localPosition = GetScanOutsidePosition(false);
+            scanDogBTransform.localScale = new Vector3(0.65f, 1.05f, 0.65f);
+        }
+    }
+
+    IEnumerator AnimateDogsIntoChamber(Dog dogA, Dog dogB)
+    {
+        Vector3 dogAStart = GetScanOutsidePosition(true);
+        Vector3 dogBStart = GetScanOutsidePosition(false);
+        Vector3 dogAEnd = GetScanInsidePosition(true);
+        Vector3 dogBEnd = GetScanInsidePosition(false);
+
+        float elapsed = 0f;
+
+        while (elapsed < FightIntroWalkInSeconds)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / FightIntroWalkInSeconds);
+            float smoothT = t * t * (3f - 2f * t);
+
+            if (scanDogATransform != null)
+            {
+                scanDogATransform.localPosition = Vector3.Lerp(dogAStart, dogAEnd, smoothT);
+            }
+
+            if (scanDogBTransform != null)
+            {
+                scanDogBTransform.localPosition = Vector3.Lerp(dogBStart, dogBEnd, smoothT);
+            }
+
+            UpdateScanChamberLabels(dogA, dogB);
+            yield return null;
+        }
+
+        PositionScanSubjects();
+        UpdateScanChamberLabels(dogA, dogB);
+    }
+
+    IEnumerator PlayScanEffect()
+    {
+        float elapsed = 0f;
+
+        while (elapsed < FightIntroScanPulseSeconds)
+        {
+            elapsed += Time.deltaTime;
+            float pulse = 1f + Mathf.Sin(elapsed * 12f) * 0.12f;
+
+            SetScanPrimitiveScale("ScanBeamA", new Vector3(0.2f * pulse, 1.45f, 0.2f * pulse));
+            SetScanPrimitiveScale("ScanBeamB", new Vector3(0.2f * pulse, 1.45f, 0.2f * pulse));
+            SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f * pulse, 0.65f * pulse, 0.65f * pulse));
+
+            yield return null;
+        }
+
+        SetScanPrimitiveScale("ScanBeamA", new Vector3(0.18f, 1.4f, 0.18f));
+        SetScanPrimitiveScale("ScanBeamB", new Vector3(0.18f, 1.4f, 0.18f));
+        SetScanPrimitiveScale("DNACopyCore", new Vector3(0.65f, 0.65f, 0.65f));
+    }
+
+    IEnumerator PlayImprintCreationEffect()
+    {
+        float elapsed = 0f;
+
+        while (elapsed < FightIntroCopySeconds)
+        {
+            elapsed += Time.deltaTime;
+            float pulse = 1f + Mathf.Sin(elapsed * 16f) * 0.16f;
+
+            PositionScanDigitalCopies();
+
+            if (scanDigitalCopyA != null)
+            {
+                scanDigitalCopyA.transform.localScale = new Vector3(0.36f * pulse, 0.78f * pulse, 0.36f * pulse);
+            }
+
+            if (scanDigitalCopyB != null)
+            {
+                scanDigitalCopyB.transform.localScale = new Vector3(0.36f * pulse, 0.78f * pulse, 0.36f * pulse);
+            }
+
+            yield return null;
+        }
+
+        PositionScanDigitalCopies();
+    }
+
+    void CreateScanDigitalCopiesIfNeeded()
+    {
+        if (scanChamberRoot == null)
+        {
+            return;
+        }
+
+        if (scanDigitalCopyA == null)
+        {
+            scanDigitalCopyA = GetOrCreateScanPrimitive("DigitalCopyImprintA", PrimitiveType.Capsule);
+            SetObjectColor(scanDigitalCopyA, new Color(0.2f, 1f, 1f, 0.9f));
+        }
+
+        if (scanDigitalCopyB == null)
+        {
+            scanDigitalCopyB = GetOrCreateScanPrimitive("DigitalCopyImprintB", PrimitiveType.Capsule);
+            SetObjectColor(scanDigitalCopyB, new Color(1f, 0.25f, 1f, 0.9f));
+        }
+
+        PositionScanDigitalCopies();
+    }
+
+    void PositionScanDigitalCopies()
+    {
+        if (scanDigitalCopyA != null)
+        {
+            Vector3 basePosition = scanDogATransform != null ? scanDogATransform.localPosition : GetScanInsidePosition(true);
+            scanDigitalCopyA.transform.localPosition = basePosition + new Vector3(0f, 0.65f, -0.45f);
+            scanDigitalCopyA.transform.localScale = new Vector3(0.36f, 0.78f, 0.36f);
+        }
+
+        if (scanDigitalCopyB != null)
+        {
+            Vector3 basePosition = scanDogBTransform != null ? scanDogBTransform.localPosition : GetScanInsidePosition(false);
+            scanDigitalCopyB.transform.localPosition = basePosition + new Vector3(0f, 0.65f, -0.45f);
+            scanDigitalCopyB.transform.localScale = new Vector3(0.36f, 0.78f, 0.36f);
+        }
+    }
+
+    void SetScanChamberEffectsVisible(bool isVisible)
+    {
+        SetScanChildActive("ScanBeamA", isVisible);
+        SetScanChildActive("ScanBeamB", isVisible);
+        SetScanChildActive("DNACopyCore", isVisible);
+    }
+
+    void SetScanDigitalCopiesVisible(bool isVisible)
+    {
+        if (scanDigitalCopyA != null)
+        {
+            scanDigitalCopyA.SetActive(isVisible);
+        }
+
+        if (scanDigitalCopyB != null)
+        {
+            scanDigitalCopyB.SetActive(isVisible);
+        }
+    }
+
+    Vector3 GetScanOutsidePosition(bool isDogA)
+    {
+        return isDogA ? new Vector3(-2.85f, 0.6f, -0.55f) : new Vector3(2.85f, 0.6f, -0.55f);
+    }
+
+    Vector3 GetScanInsidePosition(bool isDogA)
+    {
+        return isDogA ? new Vector3(-1.5f, 0.6f, 0f) : new Vector3(1.5f, 0.6f, 0f);
+    }
+
+    GameObject GetOrCreateScanPrimitive(string objectName, PrimitiveType primitiveType)
+    {
+        Transform existingObject = scanChamberRoot.transform.Find(objectName);
+
+        if (existingObject != null)
+        {
+            existingObject.gameObject.hideFlags = HideFlags.DontSave;
+            return existingObject.gameObject;
+        }
+
+        GameObject createdObject = GameObject.CreatePrimitive(primitiveType);
+        createdObject.name = objectName;
+        createdObject.transform.SetParent(scanChamberRoot.transform);
+        createdObject.hideFlags = HideFlags.DontSave;
+        return createdObject;
+    }
+
+    void SetScanChildActive(string objectName, bool isActive)
+    {
+        GameObject childObject = GetScanChildObject(objectName);
+
+        if (childObject != null)
+        {
+            childObject.SetActive(isActive);
+        }
+    }
+
+    void SetScanPrimitiveScale(string objectName, Vector3 scale)
+    {
+        GameObject childObject = GetScanChildObject(objectName);
+
+        if (childObject != null)
+        {
+            childObject.transform.localScale = scale;
+        }
+    }
+
+    GameObject GetScanChildObject(string objectName)
+    {
+        if (scanChamberRoot == null || string.IsNullOrEmpty(objectName))
+        {
+            return null;
+        }
+
+        Transform childTransform = scanChamberRoot.transform.Find(objectName);
+        return childTransform != null ? childTransform.gameObject : null;
     }
 
     void UpdateScanChamberLabels(Dog dogA, Dog dogB)

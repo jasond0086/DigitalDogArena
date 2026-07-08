@@ -46,6 +46,7 @@ public class FightManager : MonoBehaviour
     private RivalHandlerData activeRival;
     private int fighter1WinsBeforeFight;
     private int fighter2WinsBeforeFight;
+    private bool fightIntroInProgress;
 
     void Awake()
     {
@@ -133,7 +134,7 @@ public class FightManager : MonoBehaviour
         }
 
         InitializeFight(dog1, dog2, false, null);
-        PlayNextRound();
+        BeginFightIntroThenFirstRound();
     }
 
     public void StartRivalFight()
@@ -179,18 +180,13 @@ public class FightManager : MonoBehaviour
         }
 
         InitializeFight(playerDog, rival.rivalDog, true, rival);
-        PlayNextRound();
+        BeginFightIntroThenFirstRound();
     }
 
     void InitializeFight(Dog fighter1, Dog fighter2, bool isRivalFight, RivalHandlerData rival)
     {
         activeFighter1 = fighter1;
         activeFighter2 = fighter2;
-
-        if (fightPresentationManager != null)
-        {
-            fightPresentationManager.PlayScanIntroThenShowArena(activeFighter1, activeFighter2);
-        }
 
         activeFightIsRival = isRivalFight;
         activeRival = rival;
@@ -224,9 +220,45 @@ public class FightManager : MonoBehaviour
         );
     }
 
+    void BeginFightIntroThenFirstRound()
+    {
+        fightIntroInProgress = true;
+        UpdateFightUIState("DNA scan sequence in progress...");
+
+        if (fightPresentationManager == null)
+        {
+            CompleteFightIntroAndStartFirstRound();
+            return;
+        }
+
+        fightPresentationManager.PlayFightIntroSequence(
+            activeFighter1,
+            activeFighter2,
+            CompleteFightIntroAndStartFirstRound
+        );
+    }
+
+    void CompleteFightIntroAndStartFirstRound()
+    {
+        if (!fightInProgress || activeFighter1 == null || activeFighter2 == null)
+        {
+            fightIntroInProgress = false;
+            UpdateFightUIState();
+            return;
+        }
+
+        fightIntroInProgress = false;
+        PlayNextRound();
+    }
+
     public void PlayNextRound()
     {
         if (!fightInProgress || activeFighter1 == null || activeFighter2 == null)
+        {
+            return;
+        }
+
+        if (fightIntroInProgress)
         {
             return;
         }
@@ -458,6 +490,7 @@ public class FightManager : MonoBehaviour
         }
 
         fightInProgress = false;
+        fightIntroInProgress = false;
         string finalStatus = GetFinalFightStatus();
 
         if (activeFightIsRival)
@@ -528,12 +561,12 @@ public class FightManager : MonoBehaviour
     {
         if (startFightButton != null)
         {
-            startFightButton.interactable = !fightInProgress;
+            startFightButton.interactable = !fightInProgress && !fightIntroInProgress;
         }
 
         if (nextRoundButton != null)
         {
-            nextRoundButton.interactable = fightInProgress;
+            nextRoundButton.interactable = fightInProgress && !fightIntroInProgress;
         }
 
         if (roundStatusText == null)
@@ -547,7 +580,11 @@ public class FightManager : MonoBehaviour
             return;
         }
 
-        if (fightInProgress)
+        if (fightIntroInProgress)
+        {
+            roundStatusText.text = "DNA scan sequence in progress...";
+        }
+        else if (fightInProgress)
         {
             int nextRound = Mathf.Min(currentRound + 1, maxRounds);
             roundStatusText.text = $"Round {nextRound} / {maxRounds} — adjust strategy, then play next round.";
