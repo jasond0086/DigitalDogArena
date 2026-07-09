@@ -17,6 +17,13 @@ public class FightPresentationManager : MonoBehaviour
         Unknown
     }
 
+    private enum DogVisualMode
+    {
+        SafeReal,
+        DigitalImprint,
+        ArenaFighter
+    }
+
     private const string ArenaRootName = "ArenaRoot";
     private const string ScanChamberRootName = "ScanChamberRoot";
     private const string MonitorTransitionRootName = "MonitorTransitionRoot";
@@ -242,6 +249,8 @@ public class FightPresentationManager : MonoBehaviour
         HideArenaResultLabels();
         HideStrategyEffects();
         SetDogImprintArtVisible(false);
+        SetDogIdentityArtVisible(fighterADogIdentityArt, false);
+        SetDogIdentityArtVisible(fighterBDogIdentityArt, false);
         SetBreedArchetypeArtVisible(false);
         SetContactShadowVisible(false);
         HideDogPortraitBillboards();
@@ -1656,6 +1665,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         LoadDogImprintPrefabIfNeeded();
+        CreateDogIdentityArtIfNeeded();
         CreateBreedArchetypeArtIfNeeded();
 
         if (dogImprintPrefab == null)
@@ -2876,7 +2886,7 @@ public class FightPresentationManager : MonoBehaviour
         quadRenderer.material = runtimeMaterial;
     }
 
-    bool ApplyDogPortraitIdentityArt(GameObject artObject, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, bool holographic)
+    bool ApplyDogPortraitIdentityArt(GameObject artObject, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, DogVisualMode visualMode)
     {
         if (artObject == null || dog == null)
         {
@@ -2892,14 +2902,14 @@ public class FightPresentationManager : MonoBehaviour
             return false;
         }
 
-        ConfigureDogIdentitySpriteArt(artObject, dogSprite, dog, isFighterA, currentHealth, maxLikelyHealth, holographic);
+        ConfigureDogIdentitySpriteArt(artObject, dogSprite, dog, isFighterA, currentHealth, maxLikelyHealth, visualMode);
         SetDogIdentityArtVisible(artObject, true);
         FaceBreedArchetypeArtTowardPresentationCamera(artObject);
         SetDogArtFacing(artObject, isFighterA);
         return true;
     }
 
-    void ConfigureDogIdentitySpriteArt(GameObject artObject, Sprite sprite, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, bool holographic)
+    void ConfigureDogIdentitySpriteArt(GameObject artObject, Sprite sprite, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, DogVisualMode visualMode)
     {
         SpriteRenderer spriteRenderer = GetDogIdentitySpriteRenderer(artObject);
 
@@ -2912,8 +2922,8 @@ public class FightPresentationManager : MonoBehaviour
 
         spriteRenderer.enabled = true;
         spriteRenderer.sprite = sprite;
-        spriteRenderer.color = GetDogIdentitySpriteTint(dog, isFighterA, currentHealth, maxLikelyHealth, holographic);
-        spriteRenderer.sortingOrder = holographic ? 490 : 480;
+        spriteRenderer.color = GetDogIdentitySpriteTint(dog, isFighterA, currentHealth, maxLikelyHealth, visualMode);
+        spriteRenderer.sortingOrder = visualMode == DogVisualMode.SafeReal ? 480 : 490;
         spriteRenderer.transform.localPosition = Vector3.zero;
         spriteRenderer.transform.localRotation = Quaternion.identity;
         spriteRenderer.transform.localScale = GetDogIdentitySpriteScale(sprite);
@@ -2929,9 +2939,9 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
-    Color GetDogIdentitySpriteTint(Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, bool holographic)
+    Color GetDogIdentitySpriteTint(Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, DogVisualMode visualMode)
     {
-        if (!holographic)
+        if (visualMode == DogVisualMode.SafeReal)
         {
             return new Color(0.98f, 0.98f, 0.94f, 1f);
         }
@@ -2943,7 +2953,9 @@ public class FightPresentationManager : MonoBehaviour
             : new Color(1f, 0.42f, 1f, 0.84f);
 
         Color tintColor = Color.Lerp(hologramBase, identityColor, 0.36f);
-        tintColor.a = Mathf.Lerp(0.72f, 0.92f, Mathf.Clamp01(healthPercent));
+        tintColor.a = visualMode == DogVisualMode.ArenaFighter
+            ? Mathf.Lerp(0.64f, 0.86f, Mathf.Clamp01(healthPercent))
+            : Mathf.Lerp(0.72f, 0.92f, Mathf.Clamp01(healthPercent));
         return tintColor;
     }
 
@@ -4022,7 +4034,7 @@ public class FightPresentationManager : MonoBehaviour
 
     bool ApplyBreedArchetypeArtToScanDog(GameObject artObject, Dog dog, bool isDogA)
     {
-        bool applied = ApplyDogPortraitArtToScanVisual(artObject, dog, isDogA, false);
+        bool applied = ApplyDogPortraitArtToScanVisual(artObject, dog, isDogA, DogVisualMode.SafeReal);
 
         if (!applied)
         {
@@ -4040,7 +4052,7 @@ public class FightPresentationManager : MonoBehaviour
 
     bool CreateDigitalImprintVisual(GameObject artObject, Dog dog, bool isDogA)
     {
-        bool applied = ApplyDogPortraitArtToScanVisual(artObject, dog, isDogA, true);
+        bool applied = ApplyDogPortraitArtToScanVisual(artObject, dog, isDogA, DogVisualMode.DigitalImprint);
 
         if (!applied)
         {
@@ -4055,7 +4067,7 @@ public class FightPresentationManager : MonoBehaviour
         return applied;
     }
 
-    bool ApplyDogPortraitArtToScanVisual(GameObject artObject, Dog dog, bool isDogA, bool holographic)
+    bool ApplyDogPortraitArtToScanVisual(GameObject artObject, Dog dog, bool isDogA, DogVisualMode visualMode)
     {
         if (artObject == null || dog == null)
         {
@@ -4069,7 +4081,7 @@ public class FightPresentationManager : MonoBehaviour
             return false;
         }
 
-        ConfigureDogIdentitySpriteArt(artObject, dogSprite, dog, isDogA, 1, 1, holographic);
+        ConfigureDogIdentitySpriteArt(artObject, dogSprite, dog, isDogA, 1, 1, visualMode);
         SetBreedArtResourceName(artObject, string.Empty);
         artObject.SetActive(true);
         SetDigitalCopyFallbackVisible(artObject, false);
@@ -5612,30 +5624,89 @@ public class FightPresentationManager : MonoBehaviour
         ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, new Color(0f, 0.58f, 0.78f));
         ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, new Color(0.78f, 0.1f, 0.68f));
         UpdateDogImprintArtPositions();
-        SetDogIdentityArtVisible(fighterADogIdentityArt, false);
-        SetDogIdentityArtVisible(fighterBDogIdentityArt, false);
+        ApplyArenaFighterVisual(
+            currentDogImprintA,
+            fighterABreedArchetypeArt,
+            fighterADogIdentityArt,
+            fighterADogImprintArt,
+            fighterATransform,
+            true,
+            dogAHealth,
+            visualMaxHealthA,
+            refreshBreedArt
+        );
+        ApplyArenaFighterVisual(
+            currentDogImprintB,
+            fighterBBreedArchetypeArt,
+            fighterBDogIdentityArt,
+            fighterBDogImprintArt,
+            fighterBTransform,
+            false,
+            dogBHealth,
+            visualMaxHealthB,
+            refreshBreedArt
+        );
+        UpdateHealthBars(dogAHealth, dogBHealth);
+        UpdatePortraitFrameVisuals(dogAHealth, dogBHealth);
+    }
 
-        bool dogAHasBreedArt = fighterABreedArchetypeArt != null && fighterABreedArchetypeArt.activeSelf;
-        bool dogBHasBreedArt = fighterBBreedArchetypeArt != null && fighterBBreedArchetypeArt.activeSelf;
+    void ApplyArenaFighterVisual(
+        Dog dog,
+        GameObject breedArtObject,
+        GameObject dogImageObject,
+        GameObject genericImprintObject,
+        Transform capsuleFallbackTransform,
+        bool isFighterA,
+        int currentHealth,
+        int maxLikelyHealth,
+        bool refreshBreedArt
+    )
+    {
+        bool hasBreedHologram = breedArtObject != null && breedArtObject.activeSelf;
 
         if (refreshBreedArt)
         {
             CreateBreedArchetypeArtIfNeeded();
-            dogAHasBreedArt = ApplyBreedArchetypeArtToFighter(fighterABreedArchetypeArt, currentDogImprintA, true, dogAHealth, visualMaxHealthA);
-            dogBHasBreedArt = ApplyBreedArchetypeArtToFighter(fighterBBreedArchetypeArt, currentDogImprintB, false, dogBHealth, visualMaxHealthB);
+            hasBreedHologram = ApplyBreedArchetypeArtToFighter(breedArtObject, dog, isFighterA, currentHealth, maxLikelyHealth);
         }
 
-        bool dogAUsesGenericImprint = !dogAHasBreedArt && dogImprintPrefab != null && fighterADogImprintArt != null;
-        bool dogBUsesGenericImprint = !dogBHasBreedArt && dogImprintPrefab != null && fighterBDogImprintArt != null;
+        if (hasBreedHologram)
+        {
+            SetDogIdentityArtVisible(dogImageObject, false);
+            SetDogImprintArtVisible(genericImprintObject, false);
+            SetFighterCapsuleVisible(capsuleFallbackTransform, false);
+            return;
+        }
 
-        SetDogImprintArtVisible(fighterADogImprintArt, dogAUsesGenericImprint);
-        SetDogImprintArtVisible(fighterBDogImprintArt, dogBUsesGenericImprint);
-        ApplyDogIdentityVisuals(fighterADogImprintArt, currentDogImprintA, dogAHealth, visualMaxHealthA, true);
-        ApplyDogIdentityVisuals(fighterBDogImprintArt, currentDogImprintB, dogBHealth, visualMaxHealthB, false);
-        SetFighterCapsuleVisible(fighterATransform, !dogAHasBreedArt && !dogAUsesGenericImprint);
-        SetFighterCapsuleVisible(fighterBTransform, !dogBHasBreedArt && !dogBUsesGenericImprint);
-        UpdateHealthBars(dogAHealth, dogBHealth);
-        UpdatePortraitFrameVisuals(dogAHealth, dogBHealth);
+        SetBreedArchetypeArtVisible(breedArtObject, false);
+
+        bool hasHolographicDogImage = ApplyDogPortraitIdentityArt(
+            dogImageObject,
+            dog,
+            isFighterA,
+            currentHealth,
+            maxLikelyHealth,
+            DogVisualMode.ArenaFighter
+        );
+
+        if (hasHolographicDogImage)
+        {
+            SetDogImprintArtVisible(genericImprintObject, false);
+            SetFighterCapsuleVisible(capsuleFallbackTransform, false);
+            return;
+        }
+
+        bool hasGenericImprint = dogImprintPrefab != null && genericImprintObject != null;
+        SetDogImprintArtVisible(genericImprintObject, hasGenericImprint);
+
+        if (hasGenericImprint)
+        {
+            ApplyDogIdentityVisuals(genericImprintObject, dog, currentHealth, maxLikelyHealth, isFighterA);
+            SetFighterCapsuleVisible(capsuleFallbackTransform, false);
+            return;
+        }
+
+        SetFighterCapsuleVisible(capsuleFallbackTransform, true);
     }
 
     void ApplyImprintCorruption(Transform fighterTransform, int currentHealth, int maxLikelyHealth, GameObject[] corruptionNodes, Color cleanColor)
