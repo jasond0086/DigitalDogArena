@@ -31,6 +31,10 @@ public class FightPresentationManager : MonoBehaviour
     private const string FightPresentationViewportName = "FightPresentationViewport";
     private const string DogImprintResourcePath = "FightPresentation/DogImprint";
     private const string BreedArchetypeResourceFolder = "FightPresentation/BreedArchetypes/";
+    private const string DigitalRimGlowName = "DigitalRimGlow";
+    private const string DigitalRimGlowPrefix = "DigitalRimGlow_";
+    private const string DigitalScanlinePrefix = "DigitalScanline_";
+    private const string DigitalGlitchBlockPrefix = "DigitalGlitchBlock_";
     private const int MaxBreedArchetypeVariantNumber = 10;
     private const bool ShowDogPortraitPlaceholders = false;
     private const float DogArtGroundY = 0.16f;
@@ -2391,11 +2395,11 @@ public class FightPresentationManager : MonoBehaviour
             {
                 if (sprite != null)
                 {
-                    ConfigureBreedArchetypeSpriteArt(artObject, sprite, dog, isFighterA, currentHealth, maxLikelyHealth, resourceName);
+                    ConfigureBreedArchetypeSpriteArt(artObject, sprite, dog, isFighterA, currentHealth, maxLikelyHealth, resourceName, DogVisualMode.ArenaFighter);
                 }
                 else
                 {
-                    ConfigureBreedArchetypeTextureArt(artObject, texture, dog, isFighterA, currentHealth, maxLikelyHealth, resourceName);
+                    ConfigureBreedArchetypeTextureArt(artObject, texture, dog, isFighterA, currentHealth, maxLikelyHealth, resourceName, DogVisualMode.ArenaFighter);
                 }
 
                 SetBreedArtResourceName(artObject, resourceName);
@@ -2810,7 +2814,16 @@ public class FightPresentationManager : MonoBehaviour
         Debug.LogWarning($"FightPresentationManager could not resolve breed art for {dogName}. Raw breed: '{rawBreedText}'. Compact breed: '{compactBreedText}'. Attempted resources: {attemptedResources}.");
     }
 
-    void ConfigureBreedArchetypeSpriteArt(GameObject artObject, Sprite sprite, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, string resourceName)
+    void ConfigureBreedArchetypeSpriteArt(
+        GameObject artObject,
+        Sprite sprite,
+        Dog dog,
+        bool isFighterA,
+        int currentHealth,
+        int maxLikelyHealth,
+        string resourceName,
+        DogVisualMode visualMode = DogVisualMode.ArenaFighter
+    )
     {
         SpriteRenderer spriteRenderer = GetBreedArchetypeSpriteRenderer(artObject);
         GameObject textureQuad = GetBreedArchetypeTextureQuad(artObject);
@@ -2829,7 +2842,7 @@ public class FightPresentationManager : MonoBehaviour
 
         spriteRenderer.enabled = true;
         spriteRenderer.sprite = sprite;
-        spriteRenderer.color = GetBreedArchetypeArtTint(dog, isFighterA, currentHealth, maxLikelyHealth);
+        spriteRenderer.color = GetBreedArchetypeArtTint(dog, isFighterA, currentHealth, maxLikelyHealth, visualMode);
         SetSpriteFacing(spriteRenderer, isFighterA, resourceName);
         spriteRenderer.sortingOrder = 460;
         spriteRenderer.transform.localPosition = Vector3.zero;
@@ -2844,9 +2857,20 @@ public class FightPresentationManager : MonoBehaviour
         {
             spriteRenderer.material = runtimeMaterial;
         }
+
+        ApplyDogVisualModeEffects(artObject, isFighterA, visualMode);
     }
 
-    void ConfigureBreedArchetypeTextureArt(GameObject artObject, Texture2D texture, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, string resourceName)
+    void ConfigureBreedArchetypeTextureArt(
+        GameObject artObject,
+        Texture2D texture,
+        Dog dog,
+        bool isFighterA,
+        int currentHealth,
+        int maxLikelyHealth,
+        string resourceName,
+        DogVisualMode visualMode = DogVisualMode.ArenaFighter
+    )
     {
         SpriteRenderer spriteRenderer = GetBreedArchetypeSpriteRenderer(artObject);
         GameObject textureQuad = GetBreedArchetypeTextureQuad(artObject);
@@ -2879,11 +2903,12 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         Material runtimeMaterial = GetBreedArchetypeTextureMaterial(quadRenderer);
-        Color tintColor = GetBreedArchetypeArtTint(dog, isFighterA, currentHealth, maxLikelyHealth);
+        Color tintColor = GetBreedArchetypeArtTint(dog, isFighterA, currentHealth, maxLikelyHealth, visualMode);
 
         runtimeMaterial.mainTexture = texture;
         SetMaterialColor(runtimeMaterial, tintColor);
         quadRenderer.material = runtimeMaterial;
+        ApplyDogVisualModeEffects(artObject, isFighterA, visualMode);
     }
 
     bool ApplyDogPortraitIdentityArt(GameObject artObject, Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, DogVisualMode visualMode)
@@ -2937,6 +2962,8 @@ public class FightPresentationManager : MonoBehaviour
         {
             spriteRenderer.material = runtimeMaterial;
         }
+
+        ApplyDogVisualModeEffects(artObject, isFighterA, visualMode);
     }
 
     Color GetDogIdentitySpriteTint(Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, DogVisualMode visualMode)
@@ -3300,12 +3327,178 @@ public class FightPresentationManager : MonoBehaviour
         artObject.transform.localPosition = localPosition;
     }
 
-    Color GetBreedArchetypeArtTint(Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth)
+    Color GetBreedArchetypeArtTint(Dog dog, bool isFighterA, int currentHealth, int maxLikelyHealth, DogVisualMode visualMode = DogVisualMode.ArenaFighter)
     {
+        if (visualMode == DogVisualMode.SafeReal)
+        {
+            return new Color(0.96f, 0.96f, 0.92f, 1f);
+        }
+
         float healthPercent = GetVisualHealthPercent(currentHealth, maxLikelyHealth);
         Color identityColor = GetDogIdentityColor(dog, isFighterA);
         Color finalColor = ApplyHealthCorruptionVisual(identityColor, healthPercent);
-        return Color.Lerp(Color.white, finalColor, 0.34f);
+        Color digitalBase = isFighterA
+            ? new Color(0.24f, 0.95f, 1f, 0.82f)
+            : new Color(0.36f, 0.72f, 1f, 0.82f);
+        float identityWeight = visualMode == DogVisualMode.ArenaFighter ? 0.4f : 0.26f;
+        Color tintColor = Color.Lerp(digitalBase, finalColor, identityWeight);
+        tintColor.a = visualMode == DogVisualMode.ArenaFighter
+            ? Mathf.Lerp(0.62f, 0.84f, Mathf.Clamp01(healthPercent))
+            : 0.78f;
+        return tintColor;
+    }
+
+    void ApplyDogVisualModeEffects(GameObject artObject, bool isFighterA, DogVisualMode visualMode)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        bool shouldShowDigitalEffects = visualMode != DogVisualMode.SafeReal;
+        SetDogDigitalEffectChildrenVisible(artObject, shouldShowDigitalEffects);
+
+        if (!shouldShowDigitalEffects)
+        {
+            return;
+        }
+
+        Color accentColor = isFighterA
+            ? new Color(0.08f, 0.95f, 1f, 1f)
+            : new Color(0.28f, 0.68f, 1f, 1f);
+        float effectScale = visualMode == DogVisualMode.ArenaFighter ? 1.08f : 0.96f;
+
+        SetNamedChildVisible(artObject.transform, DigitalRimGlowName, false);
+
+        CreateOrUpdateDigitalEffectBar(
+            artObject,
+            $"{DigitalRimGlowPrefix}Top",
+            new Vector3(0f, 1.5f, -0.065f),
+            new Vector3(1.52f * effectScale, 0.025f, 0.025f),
+            accentColor
+        );
+        CreateOrUpdateDigitalEffectBar(
+            artObject,
+            $"{DigitalRimGlowPrefix}Bottom",
+            new Vector3(0f, 0.18f, -0.065f),
+            new Vector3(1.52f * effectScale, 0.025f, 0.025f),
+            accentColor
+        );
+        CreateOrUpdateDigitalEffectBar(
+            artObject,
+            $"{DigitalRimGlowPrefix}Left",
+            new Vector3(-0.78f * effectScale, 0.84f, -0.065f),
+            new Vector3(0.025f, 1.08f * effectScale, 0.025f),
+            accentColor
+        );
+        CreateOrUpdateDigitalEffectBar(
+            artObject,
+            $"{DigitalRimGlowPrefix}Right",
+            new Vector3(0.78f * effectScale, 0.84f, -0.065f),
+            new Vector3(0.025f, 1.08f * effectScale, 0.025f),
+            accentColor
+        );
+
+        for (int i = 0; i < 4; i++)
+        {
+            float y = 0.36f + (i * 0.26f);
+            float xJitter = i % 2 == 0 ? -0.04f : 0.05f;
+            CreateOrUpdateDigitalEffectBar(
+                artObject,
+                $"{DigitalScanlinePrefix}{i}",
+                new Vector3(xJitter, y, -0.055f),
+                new Vector3(1.12f * effectScale, 0.012f, 0.012f),
+                accentColor
+            );
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            float side = i == 1 ? -1f : 1f;
+            float y = 0.42f + (i * 0.28f);
+            CreateOrUpdateDigitalEffectBar(
+                artObject,
+                $"{DigitalGlitchBlockPrefix}{i}",
+                new Vector3(side * (0.48f + i * 0.08f), y, -0.07f),
+                new Vector3(0.16f + i * 0.04f, 0.055f, 0.018f),
+                accentColor
+            );
+        }
+    }
+
+    void SetDogDigitalEffectChildrenVisible(GameObject artObject, bool visible)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        SetNamedChildVisible(artObject.transform, DigitalRimGlowName, visible);
+        SetNamedChildVisible(artObject.transform, $"{DigitalRimGlowPrefix}Top", visible);
+        SetNamedChildVisible(artObject.transform, $"{DigitalRimGlowPrefix}Bottom", visible);
+        SetNamedChildVisible(artObject.transform, $"{DigitalRimGlowPrefix}Left", visible);
+        SetNamedChildVisible(artObject.transform, $"{DigitalRimGlowPrefix}Right", visible);
+
+        for (int i = 0; i < 4; i++)
+        {
+            SetNamedChildVisible(artObject.transform, $"{DigitalScanlinePrefix}{i}", visible);
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            SetNamedChildVisible(artObject.transform, $"{DigitalGlitchBlockPrefix}{i}", visible);
+        }
+    }
+
+    void SetNamedChildVisible(Transform parentTransform, string childName, bool visible)
+    {
+        if (parentTransform == null)
+        {
+            return;
+        }
+
+        Transform childTransform = parentTransform.Find(childName);
+
+        if (childTransform != null)
+        {
+            childTransform.gameObject.SetActive(visible);
+        }
+    }
+
+    void CreateOrUpdateDigitalEffectBar(GameObject parentObject, string childName, Vector3 localPosition, Vector3 localScale, Color color)
+    {
+        if (parentObject == null)
+        {
+            return;
+        }
+
+        Transform existingTransform = parentObject.transform.Find(childName);
+        GameObject effectObject;
+
+        if (existingTransform != null)
+        {
+            effectObject = existingTransform.gameObject;
+        }
+        else
+        {
+            effectObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            effectObject.name = childName;
+            effectObject.transform.SetParent(parentObject.transform);
+            PrepareRuntimePrimitive(effectObject);
+        }
+
+        effectObject.hideFlags = HideFlags.DontSave;
+        effectObject.SetActive(true);
+        effectObject.transform.localPosition = localPosition;
+        effectObject.transform.localRotation = Quaternion.identity;
+        effectObject.transform.localScale = localScale;
+
+        Renderer effectRenderer = effectObject.GetComponent<Renderer>();
+
+        if (effectRenderer != null)
+        {
+            SetObjectUnlitColor(effectObject, color);
+        }
     }
 
     void SetMaterialColor(Material runtimeMaterial, Color color)
@@ -3361,6 +3554,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         TintExistingDogIdentityArt(artObject, new Color(0.98f, 0.98f, 0.94f, 1f));
         TintExistingBreedArchetypeArt(artObject, new Color(0.88f, 0.92f, 0.92f, 0.95f));
+        ApplyDogVisualModeEffects(artObject, true, DogVisualMode.SafeReal);
     }
 
     void TintDigitalImprintVisual(GameObject artObject, bool isDogA, float intensity)
@@ -3372,11 +3566,12 @@ public class FightPresentationManager : MonoBehaviour
 
         Color copyColor = isDogA
             ? new Color(0.2f, 1f, 1f, Mathf.Clamp01(0.45f + intensity * 0.45f))
-            : new Color(1f, 0.32f, 1f, Mathf.Clamp01(0.45f + intensity * 0.45f));
+            : new Color(0.34f, 0.72f, 1f, Mathf.Clamp01(0.45f + intensity * 0.45f));
 
         TintExistingDogIdentityArt(artObject, copyColor);
         TintExistingBreedArchetypeArt(artObject, copyColor);
         SetRuntimeObjectColor(artObject, copyColor);
+        ApplyDogVisualModeEffects(artObject, isDogA, DogVisualMode.DigitalImprint);
     }
 
     void TintExistingDogIdentityArt(GameObject artObject, Color color)
@@ -4038,7 +4233,7 @@ public class FightPresentationManager : MonoBehaviour
 
         if (!applied)
         {
-            applied = ApplyBreedArchetypeArtToScanVisual(artObject, dog, isDogA);
+            applied = ApplyBreedArchetypeArtToScanVisual(artObject, dog, isDogA, DogVisualMode.SafeReal);
         }
 
         if (applied)
@@ -4056,7 +4251,7 @@ public class FightPresentationManager : MonoBehaviour
 
         if (!applied)
         {
-            applied = ApplyBreedArchetypeArtToScanVisual(artObject, dog, isDogA);
+            applied = ApplyBreedArchetypeArtToScanVisual(artObject, dog, isDogA, DogVisualMode.DigitalImprint);
         }
 
         if (applied)
@@ -4088,7 +4283,7 @@ public class FightPresentationManager : MonoBehaviour
         return true;
     }
 
-    bool ApplyBreedArchetypeArtToScanVisual(GameObject artObject, Dog dog, bool isDogA)
+    bool ApplyBreedArchetypeArtToScanVisual(GameObject artObject, Dog dog, bool isDogA, DogVisualMode visualMode)
     {
         if (artObject == null || dog == null)
         {
@@ -4107,11 +4302,11 @@ public class FightPresentationManager : MonoBehaviour
 
             if (sprite != null)
             {
-                ConfigureBreedArchetypeSpriteArt(artObject, sprite, dog, isDogA, 1, 1, resourceName);
+                ConfigureBreedArchetypeSpriteArt(artObject, sprite, dog, isDogA, 1, 1, resourceName, visualMode);
             }
             else
             {
-                ConfigureBreedArchetypeTextureArt(artObject, texture, dog, isDogA, 1, 1, resourceName);
+                ConfigureBreedArchetypeTextureArt(artObject, texture, dog, isDogA, 1, 1, resourceName, visualMode);
             }
 
             SetBreedArtResourceName(artObject, resourceName);
@@ -5745,6 +5940,7 @@ public class FightPresentationManager : MonoBehaviour
         artObject.transform.localScale = identityScale * Mathf.Lerp(1f, 0.86f, 1f - healthPercent);
         SetDogArtFacing(artObject, isFighterA);
         GroundAlignDogArt(artObject, DogArtGroundY);
+        ApplyDogVisualModeEffects(artObject, isFighterA, DogVisualMode.ArenaFighter);
     }
 
     float GetVisualHealthPercent(int currentHealth, int maxLikelyHealth)
