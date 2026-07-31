@@ -35,6 +35,9 @@ public class FightPresentationManager : MonoBehaviour
     private const string DigitalRimGlowPrefix = "DigitalRimGlow_";
     private const string DigitalScanlinePrefix = "DigitalScanline_";
     private const string DigitalGlitchBlockPrefix = "DigitalGlitchBlock_";
+    private const string ResultVictoryGlowPrefix = "ResultVictoryGlow_";
+    private const string ResultCorruptionBlockPrefix = "ResultCorruptionBlock_";
+    private const string ResultDrawFlickerPrefix = "ResultDrawFlicker_";
     private const int MaxBreedArchetypeVariantNumber = 10;
     private const bool ShowDogPortraitPlaceholders = false;
     private const float DogArtGroundY = 0.16f;
@@ -564,6 +567,7 @@ public class FightPresentationManager : MonoBehaviour
             ApplyDogIdentityPortraitResultVisual(fighterBDogIdentityArt, false, false, Color.magenta);
             ApplyBreedArchetypeResultVisual(fighterABreedArchetypeArt, true, false, Color.cyan);
             ApplyBreedArchetypeResultVisual(fighterBBreedArchetypeArt, false, false, Color.magenta);
+            ApplyFightResultEffects(true, false);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "WINNER", "DEFEATED", new Color(0.1f, 1f, 0.35f), new Color(0.65f, 0.25f, 0.8f));
@@ -587,6 +591,7 @@ public class FightPresentationManager : MonoBehaviour
             ApplyDogIdentityPortraitResultVisual(fighterBDogIdentityArt, true, false, Color.magenta);
             ApplyBreedArchetypeResultVisual(fighterABreedArchetypeArt, false, false, Color.cyan);
             ApplyBreedArchetypeResultVisual(fighterBBreedArchetypeArt, true, false, Color.magenta);
+            ApplyFightResultEffects(false, true);
             UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
             SetRoundStatusBannerText(resultBannerText);
             UpdateArenaResultLabels(dogA, dogB, "DEFEATED", "WINNER", new Color(0.65f, 0.25f, 0.8f), new Color(0.1f, 1f, 0.35f));
@@ -608,6 +613,7 @@ public class FightPresentationManager : MonoBehaviour
         ApplyDogIdentityPortraitResultVisual(fighterBDogIdentityArt, false, true, Color.magenta);
         ApplyBreedArchetypeResultVisual(fighterABreedArchetypeArt, false, true, Color.cyan);
         ApplyBreedArchetypeResultVisual(fighterBBreedArchetypeArt, false, true, Color.magenta);
+        ApplyFightResultDrawEffects();
         UpdateRoundStatusBanner(0, dogAHealth, dogBHealth, 0, 0, true);
         SetRoundStatusBannerText(drawBannerText);
         UpdateArenaDrawLabels(dogA, dogB, new Color(1f, 0.85f, 0.2f));
@@ -3924,6 +3930,122 @@ public class FightPresentationManager : MonoBehaviour
         SetDogArtFacing(artObject, faceRight);
     }
 
+    void ApplyFightResultEffects(bool dogAWon, bool dogBWon)
+    {
+        ApplySingleFighterResultEffects(true, dogAWon, false);
+        ApplySingleFighterResultEffects(false, dogBWon, false);
+    }
+
+    void ApplyFightResultDrawEffects()
+    {
+        ApplySingleFighterResultEffects(true, false, true);
+        ApplySingleFighterResultEffects(false, false, true);
+    }
+
+    void ApplySingleFighterResultEffects(bool isFighterA, bool isWinner, bool isDraw)
+    {
+        Transform fighterTransform = isFighterA ? fighterATransform : fighterBTransform;
+        GameObject breedArtObject = isFighterA ? fighterABreedArchetypeArt : fighterBBreedArchetypeArt;
+        GameObject identityArtObject = isFighterA ? fighterADogIdentityArt : fighterBDogIdentityArt;
+        GameObject imprintArtObject = isFighterA ? fighterADogImprintArt : fighterBDogImprintArt;
+        Color accentColor = isFighterA ? Color.cyan : new Color(0.45f, 0.72f, 1f);
+
+        ApplyResultEffectToArt(breedArtObject, isWinner, isDraw, accentColor);
+        ApplyResultEffectToArt(identityArtObject, isWinner, isDraw, accentColor);
+        ApplyResultEffectToArt(imprintArtObject, isWinner, isDraw, accentColor);
+
+        if (fighterTransform != null)
+        {
+            ApplyResultEffectToArt(fighterTransform.gameObject, isWinner, isDraw, accentColor);
+        }
+    }
+
+    void ApplyResultEffectToArt(GameObject artObject, bool isWinner, bool isDraw, Color accentColor)
+    {
+        if (artObject == null || !artObject.activeSelf)
+        {
+            return;
+        }
+
+        ClearResultEffectChildren(artObject);
+
+        if (isDraw)
+        {
+            CreateResultDrawFlicker(artObject, accentColor);
+            return;
+        }
+
+        if (isWinner)
+        {
+            CreateResultVictoryGlow(artObject, accentColor);
+            return;
+        }
+
+        CreateResultCorruptionFade(artObject);
+    }
+
+    void ClearResultEffectChildren(GameObject artObject)
+    {
+        if (artObject == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            SetNamedChildVisible(artObject.transform, $"{ResultVictoryGlowPrefix}{i}", false);
+            SetNamedChildVisible(artObject.transform, $"{ResultCorruptionBlockPrefix}{i}", false);
+            SetNamedChildVisible(artObject.transform, $"{ResultDrawFlickerPrefix}{i}", false);
+        }
+    }
+
+    void CreateResultVictoryGlow(GameObject artObject, Color accentColor)
+    {
+        Color glowColor = Color.Lerp(accentColor, Color.white, 0.22f);
+        CreateOrUpdateDigitalEffectBar(artObject, $"{ResultVictoryGlowPrefix}0", new Vector3(0f, 1.62f, -0.09f), new Vector3(1.72f, 0.035f, 0.035f), glowColor);
+        CreateOrUpdateDigitalEffectBar(artObject, $"{ResultVictoryGlowPrefix}1", new Vector3(0f, 0.1f, -0.09f), new Vector3(1.72f, 0.035f, 0.035f), glowColor);
+        CreateOrUpdateDigitalEffectBar(artObject, $"{ResultVictoryGlowPrefix}2", new Vector3(-0.86f, 0.86f, -0.09f), new Vector3(0.035f, 1.26f, 0.035f), glowColor);
+        CreateOrUpdateDigitalEffectBar(artObject, $"{ResultVictoryGlowPrefix}3", new Vector3(0.86f, 0.86f, -0.09f), new Vector3(0.035f, 1.26f, 0.035f), glowColor);
+        CreateOrUpdateDigitalEffectBar(artObject, $"{ResultVictoryGlowPrefix}4", new Vector3(0f, 0.86f, -0.11f), new Vector3(1.2f, 0.022f, 0.022f), Color.Lerp(glowColor, new Color(0.1f, 1f, 0.35f), 0.35f));
+    }
+
+    void CreateResultCorruptionFade(GameObject artObject)
+    {
+        Color corruptColor = new Color(0.72f, 0.08f, 0.95f, 1f);
+
+        for (int i = 0; i < 5; i++)
+        {
+            float side = i % 2 == 0 ? -1f : 1f;
+            float y = 0.24f + (i * 0.25f);
+            float width = 0.18f + (i * 0.035f);
+            CreateOrUpdateDigitalEffectBar(
+                artObject,
+                $"{ResultCorruptionBlockPrefix}{i}",
+                new Vector3(side * (0.32f + (i * 0.08f)), y, -0.12f),
+                new Vector3(width, 0.065f, 0.026f),
+                Color.Lerp(corruptColor, new Color(0.15f, 0.02f, 0.18f), i * 0.12f)
+            );
+        }
+    }
+
+    void CreateResultDrawFlicker(GameObject artObject, Color accentColor)
+    {
+        Color flickerColor = Color.Lerp(new Color(1f, 0.85f, 0.2f), accentColor, 0.35f);
+
+        for (int i = 0; i < 5; i++)
+        {
+            float y = 0.28f + (i * 0.26f);
+            float x = i % 2 == 0 ? -0.1f : 0.12f;
+            CreateOrUpdateDigitalEffectBar(
+                artObject,
+                $"{ResultDrawFlickerPrefix}{i}",
+                new Vector3(x, y, -0.1f),
+                new Vector3(1.05f - (i * 0.08f), 0.018f, 0.018f),
+                Color.Lerp(flickerColor, Color.white, i * 0.08f)
+            );
+        }
+    }
+
     void PositionScanSubjects()
     {
         if (scanDogATransform != null)
@@ -5343,7 +5465,7 @@ public class FightPresentationManager : MonoBehaviour
             return "DRAW";
         }
 
-        return Mathf.Min(dogAHealth, dogBHealth) <= 0 ? "FINISH" : "WINNER";
+        return Mathf.Min(dogAHealth, dogBHealth) <= 0 ? "DIGITAL FINISH" : "VICTORY LOCKED";
     }
 
     string GetRoundStatusMessage(
@@ -5361,7 +5483,7 @@ public class FightPresentationManager : MonoBehaviour
     {
         if (isResult)
         {
-            return "FINAL";
+            return "FINAL SIGNAL";
         }
 
         float dogAHealthPercent = GetHealthPercent(dogAHealth, visualMaxHealthA);
