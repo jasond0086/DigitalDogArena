@@ -98,7 +98,7 @@ public class DogDetailPanelUI : MonoBehaviour
         panelRect.anchoredPosition = Vector2.zero;
         panelRect.sizeDelta = new Vector2(920f, 650f);
 
-        titleText = CreateText(panel.transform, "DogDetailTitle", 28f, TextAlignmentOptions.Left);
+        titleText = CreateText(panel.transform, "DogDetailTitle", 30f, TextAlignmentOptions.Left);
         ConfigureRect(titleText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(28f, -62f), new Vector2(-88f, -18f));
 
         closeButton = CreateCloseButton(panel.transform);
@@ -106,10 +106,10 @@ public class DogDetailPanelUI : MonoBehaviour
         portraitImage = CreateImage(panel.transform, "DogDetailPortrait");
         ConfigureRect(portraitImage.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(34f, -312f), new Vector2(294f, -92f));
 
-        mainInfoText = CreateText(panel.transform, "DogDetailMainInfo", 17f, TextAlignmentOptions.TopLeft);
+        mainInfoText = CreateText(panel.transform, "DogDetailMainInfo", 16f, TextAlignmentOptions.TopLeft);
         ConfigureRect(mainInfoText.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(320f, -314f), new Vector2(-32f, -92f));
 
-        statsText = CreateText(panel.transform, "DogDetailStats", 16f, TextAlignmentOptions.TopLeft);
+        statsText = CreateText(panel.transform, "DogDetailStats", 15f, TextAlignmentOptions.TopLeft);
         ConfigureRect(statsText.rectTransform, new Vector2(0f, 0f), new Vector2(0.48f, 1f), new Vector2(34f, 32f), new Vector2(-20f, -338f));
 
         familyHeaderText = CreateText(panel.transform, "DogDetailFamilyTreeHeader", 18f, TextAlignmentOptions.Left);
@@ -372,12 +372,17 @@ public class DogDetailPanelUI : MonoBehaviour
     string BuildMainInfoText()
     {
         StringBuilder builder = new StringBuilder();
+        builder.AppendLine("<color=#7CF6FF><b>IDENTITY</b></color>");
         builder.AppendLine($"Sex: {currentDog.gender}");
         builder.AppendLine($"Breed: {GetDisplayBreedName(currentDog.breed)}");
         builder.AppendLine($"Generation: {GetGenerationText(currentDog)}");
-        builder.AppendLine($"Age: {currentDog.age} ({currentDog.GetLifeStage()})");
+        builder.AppendLine();
+        builder.AppendLine("<color=#7CF6FF><b>CAREER</b></color>");
         builder.AppendLine($"Status: {currentDog.GetStatusText()}");
+        builder.AppendLine($"Age: {currentDog.age} ({currentDog.GetLifeStage()})");
         builder.AppendLine($"Record: {currentDog.wins}W - {currentDog.losses}L ({currentDog.totalFights} fights)");
+        builder.AppendLine();
+        builder.AppendLine("<color=#7CF6FF><b>FIGHT PLAN</b></color>");
         builder.AppendLine($"Fight Style: {currentDog.fightStyle}");
         builder.AppendLine($"Strategy: {GetStrategyText()}");
         builder.AppendLine($"Breeding: {GetBreedingStatusText()}");
@@ -387,14 +392,16 @@ public class DogDetailPanelUI : MonoBehaviour
     string BuildStatsText()
     {
         StringBuilder builder = new StringBuilder();
-        builder.AppendLine("Stats");
-        builder.AppendLine($"STR: {currentDog.strength} / {currentDog.strengthPotential}");
-        builder.AppendLine($"AGI: {currentDog.agility} / {currentDog.agilityPotential}");
-        builder.AppendLine($"STA: {currentDog.stamina} / {currentDog.staminaPotential}");
-        builder.AppendLine($"INT: {currentDog.GetIntelligence()} / {currentDog.GetIntelligencePotential()}");
+        builder.AppendLine("<color=#7CF6FF><b>STATS</b></color>");
+        builder.AppendLine(BuildStatLine("STR", currentDog.strength, currentDog.strengthPotential));
+        builder.AppendLine(BuildStatLine("AGI", currentDog.agility, currentDog.agilityPotential));
+        builder.AppendLine(BuildStatLine("STA", currentDog.stamina, currentDog.staminaPotential));
+        builder.AppendLine(BuildStatLine("INT", currentDog.GetIntelligence(), currentDog.GetIntelligencePotential()));
         builder.AppendLine();
         builder.AppendLine($"Potential: {currentDog.GetPotentialTier()} - {currentDog.GetPotentialTitle()}");
-        builder.AppendLine($"Traits: {currentDog.GetTraitSummary()}");
+        builder.AppendLine();
+        builder.AppendLine("<color=#7CF6FF><b>TRAITS</b></color>");
+        builder.Append(BuildTraitsText());
 
         if (!string.IsNullOrWhiteSpace(currentDog.bloodlineName) ||
             !string.IsNullOrWhiteSpace(currentDog.ancestorBonusSummary) ||
@@ -417,6 +424,37 @@ public class DogDetailPanelUI : MonoBehaviour
         return builder.ToString();
     }
 
+    string BuildStatLine(string statLabel, int currentValue, int potentialValue)
+    {
+        return $"{statLabel}: {currentValue,3} / {potentialValue,3}";
+    }
+
+    string BuildTraitsText()
+    {
+        bool hasPrimaryTrait = currentDog.primaryTrait != DogTrait.None;
+        bool hasSecondaryTrait = currentDog.secondaryTrait != DogTrait.None &&
+                                 currentDog.secondaryTrait != currentDog.primaryTrait;
+
+        if (!hasPrimaryTrait && !hasSecondaryTrait)
+        {
+            return "No traits discovered";
+        }
+
+        StringBuilder builder = new StringBuilder();
+
+        if (hasPrimaryTrait)
+        {
+            builder.AppendLine($"- {currentDog.primaryTrait}");
+        }
+
+        if (hasSecondaryTrait)
+        {
+            builder.AppendLine($"- {currentDog.secondaryTrait}");
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
     string BuildFamilyTreeBodyText()
     {
         StringBuilder builder = new StringBuilder();
@@ -429,9 +467,15 @@ public class DogDetailPanelUI : MonoBehaviour
         }
 
         builder.AppendLine($"Generation: {GetGenerationText(currentDog)}");
-        builder.AppendLine(BuildParentLine("Parent A", GetParentAId(currentDog), currentDog.parentAName, currentDog.parentABreed, currentDog.parentASex));
-        builder.AppendLine(BuildParentLine("Parent B", GetParentBId(currentDog), currentDog.parentBName, currentDog.parentBBreed, currentDog.parentBSex));
-        builder.AppendLine($"Lineage: {GetParentBreedForLineage(GetParentAId(currentDog), currentDog.parentABreed)} x {GetParentBreedForLineage(GetParentBId(currentDog), currentDog.parentBBreed)}");
+        builder.AppendLine(BuildParentLine("Sire", GetParentAId(currentDog), currentDog.parentAName, currentDog.parentABreed, currentDog.parentASex));
+        builder.AppendLine(BuildParentLine("Dam", GetParentBId(currentDog), currentDog.parentBName, currentDog.parentBBreed, currentDog.parentBSex));
+
+        string lineage = BuildLineageText();
+
+        if (!string.IsNullOrWhiteSpace(lineage))
+        {
+            builder.AppendLine(lineage);
+        }
 
         string grandparents = BuildGrandparentText();
 
@@ -456,11 +500,24 @@ public class DogDetailPanelUI : MonoBehaviour
         return $"{role}: {GetSafeText(name, "Unknown")} - {GetSafeText(sex, "Unknown")} - {GetDisplayBreedName(breed)}{generation}";
     }
 
-    string GetParentBreedForLineage(string parentId, string storedBreed)
+    string BuildLineageText()
+    {
+        string sireBreed = GetKnownParentBreed(GetParentAId(currentDog), currentDog.parentABreed);
+        string damBreed = GetKnownParentBreed(GetParentBId(currentDog), currentDog.parentBBreed);
+
+        if (string.IsNullOrWhiteSpace(sireBreed) && string.IsNullOrWhiteSpace(damBreed))
+        {
+            return string.Empty;
+        }
+
+        return $"Lineage: {GetSafeText(GetDisplayBreedName(sireBreed), "Unknown")} x {GetSafeText(GetDisplayBreedName(damBreed), "Unknown")}";
+    }
+
+    string GetKnownParentBreed(string parentId, string storedBreed)
     {
         Dog parent = dogManager != null ? dogManager.FindOwnedDogById(parentId) : null;
         string breed = parent != null ? parent.breed : storedBreed;
-        return GetDisplayBreedName(breed);
+        return string.IsNullOrWhiteSpace(breed) ? string.Empty : breed;
     }
 
     string GetParentRole(string sex, string fallbackLabel)
