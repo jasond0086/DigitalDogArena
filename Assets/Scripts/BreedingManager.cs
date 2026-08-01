@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using System.Text;
 
 public class BreedingManager : MonoBehaviour
 {
@@ -14,6 +15,8 @@ public class BreedingManager : MonoBehaviour
     public Image parent1PortraitImage;
     public Image parent2PortraitImage;
     public Sprite defaultDogPortraitSprite;
+    TextMeshProUGUI parent1PreviewText;
+    TextMeshProUGUI parent2PreviewText;
 
     [Header("Puppy Preview")]
     public Image puppyPreviewImage;
@@ -59,6 +62,7 @@ public class BreedingManager : MonoBehaviour
         ConfigurePortraitImage(puppyPreviewImage);
         ConfigurePuppyPreviewImage();
         ConfigurePuppyPreviewText();
+        EnsureParentPreviewText();
     }
 
     void Start()
@@ -1082,6 +1086,7 @@ public class BreedingManager : MonoBehaviour
         {
             lastDisplayedParent1 = dogManager.selectedParent1;
             SetParentPortrait(parent1PortraitImage, lastDisplayedParent1);
+            SetParentPreviewText(parent1PreviewText, lastDisplayedParent1);
             selectionChanged = true;
         }
 
@@ -1089,6 +1094,7 @@ public class BreedingManager : MonoBehaviour
         {
             lastDisplayedParent2 = dogManager.selectedParent2;
             SetParentPortrait(parent2PortraitImage, lastDisplayedParent2);
+            SetParentPreviewText(parent2PreviewText, lastDisplayedParent2);
             selectionChanged = true;
         }
 
@@ -1269,6 +1275,86 @@ public class BreedingManager : MonoBehaviour
         }
     }
 
+    void EnsureParentPreviewText()
+    {
+        parent1PreviewText = FindSceneComponentByName<TextMeshProUGUI>("Parent1PreviewText");
+        parent2PreviewText = FindSceneComponentByName<TextMeshProUGUI>("Parent2PreviewText");
+
+        if (parent1PreviewText == null)
+        {
+            parent1PreviewText = CreateParentPreviewText("Parent1PreviewText", parent1PortraitImage, true);
+        }
+
+        if (parent2PreviewText == null)
+        {
+            parent2PreviewText = CreateParentPreviewText("Parent2PreviewText", parent2PortraitImage, false);
+        }
+
+        ConfigureParentPreviewText(parent1PreviewText);
+        ConfigureParentPreviewText(parent2PreviewText);
+    }
+
+    TextMeshProUGUI CreateParentPreviewText(string objectName, Image anchorImage, bool isLeftSide)
+    {
+        Transform textParent = anchorImage != null && anchorImage.transform.parent != null
+            ? anchorImage.transform.parent
+            : transform;
+        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(textParent, false);
+
+        TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+        RectTransform rectTransform = text.rectTransform;
+
+        if (anchorImage != null)
+        {
+            RectTransform anchorRect = anchorImage.rectTransform;
+            Vector2 textSize = new Vector2(230f, 150f);
+            float portraitWidth = Mathf.Max(70f, Mathf.Abs(anchorRect.sizeDelta.x));
+            float horizontalGap = (portraitWidth * 0.5f) + (textSize.x * 0.5f) + 18f;
+
+            rectTransform.anchorMin = anchorRect.anchorMin;
+            rectTransform.anchorMax = anchorRect.anchorMax;
+            rectTransform.pivot = anchorRect.pivot;
+            rectTransform.anchoredPosition = anchorRect.anchoredPosition + new Vector2(isLeftSide ? horizontalGap : -horizontalGap, -8f);
+            rectTransform.sizeDelta = textSize;
+        }
+        else
+        {
+            rectTransform.anchorMin = isLeftSide ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
+            rectTransform.anchorMax = rectTransform.anchorMin;
+            rectTransform.pivot = isLeftSide ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
+            rectTransform.anchoredPosition = isLeftSide ? new Vector2(24f, 0f) : new Vector2(-24f, 0f);
+            rectTransform.sizeDelta = new Vector2(230f, 150f);
+        }
+
+        return text;
+    }
+
+    void ConfigureParentPreviewText(TextMeshProUGUI text)
+    {
+        if (text == null)
+        {
+            return;
+        }
+
+        text.raycastTarget = false;
+        text.alignment = TextAlignmentOptions.TopLeft;
+        text.textWrappingMode = TextWrappingModes.Normal;
+        text.overflowMode = TextOverflowModes.Truncate;
+        text.fontSize = 13f;
+        text.color = new Color(0.9f, 0.96f, 1f, 1f);
+    }
+
+    void SetParentPreviewText(TextMeshProUGUI text, Dog selectedDog)
+    {
+        if (text == null)
+        {
+            return;
+        }
+
+        text.text = BuildParentPreviewText(selectedDog);
+    }
+
     void UpdatePuppyPreview(Dog parent1, Dog parent2)
     {
         string previewText = BuildPuppyPreviewText(parent1, parent2, out string predictedBreed);
@@ -1284,7 +1370,11 @@ public class BreedingManager : MonoBehaviour
 
         if (parent1 == null || parent2 == null)
         {
-            return "Puppy Preview\nSelect Parent 1 and Parent 2.";
+            return
+                "<color=#7CF6FF><b>PREDICTED PUPPY PREVIEW</b></color>\n" +
+                "No valid pair selected.\n" +
+                "Select one sire and one dam to preview a possible puppy.\n" +
+                "Preview only - no dog is created or saved.";
         }
 
         predictedBreed = GetDisplayBreedName(BreedLibrary.GetHybridBreedName(parent1.breed, parent2.breed));
@@ -1294,7 +1384,8 @@ public class BreedingManager : MonoBehaviour
         if (!string.IsNullOrEmpty(warning))
         {
             return
-                "Puppy Preview\n" +
+                "<color=#7CF6FF><b>PREDICTED PUPPY PREVIEW</b></color>\n" +
+                "Preview only - no dog is created or saved.\n" +
                 $"Predicted Breed: {predictedBreed}\n" +
                 BuildGenerationPreviewLine(parent1, parent2) +
                 BuildParentMixLine(parent1, parent2) +
@@ -1302,13 +1393,93 @@ public class BreedingManager : MonoBehaviour
         }
 
         return
-            "Puppy Preview\n" +
+            "<color=#7CF6FF><b>PREDICTED PUPPY PREVIEW</b></color>\n" +
+            "Preview only - no dog is created or saved.\n" +
             $"Predicted Breed: {predictedBreed}\n" +
+            $"Name Style: {BuildPredictedNameStyleLine(parent1, parent2)}\n" +
             BuildGenerationPreviewLine(parent1, parent2) +
             BuildParentMixLine(parent1, parent2) +
+            BuildLikelyStrategyPreviewLine(parent1, parent2) +
             BuildLikelyTraitPreviewLine(parent1, parent2) +
             BuildLikelyStatRangePreviewLine(parent1, parent2) +
             $"Preview Image: {GetBreedFamilyLabel(predictedBreed, parent1, parent2)}";
+    }
+
+    string BuildParentPreviewText(Dog dog)
+    {
+        if (dog == null)
+        {
+            return "<color=#7CF6FF><b>EMPTY SLOT</b></color>\nSelect a breeding dog.";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.AppendLine($"<color=#7CF6FF><b>{GetParentRoleLabel(dog)}</b></color>");
+        builder.AppendLine(GetSafeDogName(dog));
+        builder.AppendLine($"{dog.gender} - {GetDisplayBreedName(dog.breed)}");
+        builder.AppendLine($"STR {dog.strength}/{dog.strengthPotential}  AGI {dog.agility}/{dog.agilityPotential}");
+        builder.AppendLine($"STA {dog.stamina}/{dog.staminaPotential}  INT {dog.GetIntelligence()}/{dog.GetIntelligencePotential()}");
+        builder.AppendLine($"Strategy: {GetBreedingPreviewStrategyText(dog)}");
+        builder.Append($"Traits: {BuildKeyTraitText(dog)}");
+        return builder.ToString();
+    }
+
+    string GetParentRoleLabel(Dog dog)
+    {
+        if (dog == null)
+        {
+            return "Parent";
+        }
+
+        return dog.gender == DogGender.Male ? "Sire" : "Dam";
+    }
+
+    string GetSafeDogName(Dog dog)
+    {
+        return dog == null || string.IsNullOrWhiteSpace(dog.dogName) ? "Unnamed Dog" : dog.dogName.Trim();
+    }
+
+    string BuildKeyTraitText(Dog dog)
+    {
+        if (dog == null)
+        {
+            return "Unknown";
+        }
+
+        string traitSummary = dog.GetTraitSummary();
+        return traitSummary == "No Traits" ? "None discovered" : traitSummary;
+    }
+
+    string GetBreedingPreviewStrategyText(Dog dog)
+    {
+        if (dogManager != null && dog != null)
+        {
+            return dogManager.GetCurrentStrategyTextForDog(dog);
+        }
+
+        return "Unknown";
+    }
+
+    string BuildPredictedNameStyleLine(Dog parent1, Dog parent2)
+    {
+        return $"{GetSafeDogName(parent1)} / {GetSafeDogName(parent2)} bloodline";
+    }
+
+    string BuildLikelyStrategyPreviewLine(Dog parent1, Dog parent2)
+    {
+        string strategyA = GetBreedingPreviewStrategyText(parent1);
+        string strategyB = GetBreedingPreviewStrategyText(parent2);
+
+        if (strategyA == "Unknown" && strategyB == "Unknown")
+        {
+            return string.Empty;
+        }
+
+        if (strategyA == strategyB)
+        {
+            return $"Likely Strategy: {strategyA}\n";
+        }
+
+        return $"Likely Strategy: {strategyA} / {strategyB}\n";
     }
 
     string BuildGenerationPreviewLine(Dog parent1, Dog parent2)
