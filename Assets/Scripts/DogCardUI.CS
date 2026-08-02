@@ -45,40 +45,30 @@ public class DogCardUI : MonoBehaviour, IPointerClickHandler
 
         if (nameText != null)
         {
-            nameText.text = dog.dogName;
-
+            nameText.text = GetSafeDogName();
         }
 
         ConfigureRenameUI();
 
         if (statsText != null)
         {
-            string breedingStatus = GetBreedingStatusText();
-
-            statsText.text =
-                $"Breed: {GetDisplayBreedName(dog.breed)}\n" +
-                $"Gender: {dog.gender}\n" +
-                $"Age {dog.age} | {dog.GetLifeStage()}\n" +
-                $"{dog.GetStatusText()} | {breedingStatus}\n" +
-                $"{dog.GetPotentialTier()} | {dog.GetPotentialTitle()}\n" +
-                $"Style: {dog.fightStyle}\n" +
-                $"Traits: {dog.GetTraitSummary()}";
+            statsText.text = BuildDogCardSummaryText();
         }
 
-        SetText(strengthValueText, $"STR {dog.strength}/{dog.strengthPotential}");
-        SetText(agilityValueText, $"AGI {dog.agility}/{dog.agilityPotential}");
-        SetText(staminaValueText, $"STA {dog.stamina}/{dog.staminaPotential}");
+        SetText(strengthValueText, BuildStatValueText("STR", dog.strength, dog.strengthPotential));
+        SetText(agilityValueText, BuildStatValueText("AGI", dog.agility, dog.agilityPotential));
+        SetText(staminaValueText, BuildStatValueText("STA", dog.stamina, dog.staminaPotential));
         if (intelligenceValueText != null)
         {
-            SetText(intelligenceValueText, $"INT {dog.GetIntelligence()}/{dog.GetIntelligencePotential()}");
+            SetText(intelligenceValueText, BuildStatValueText("INT", dog.GetIntelligence(), dog.GetIntelligencePotential()));
         }
         else
         {
-            SetText(staminaValueText, $"STA {dog.stamina}/{dog.staminaPotential}  INT {dog.GetIntelligence()}/{dog.GetIntelligencePotential()}");
+            SetText(staminaValueText, $"{BuildStatValueText("STA", dog.stamina, dog.staminaPotential)}  {BuildStatValueText("INT", dog.GetIntelligence(), dog.GetIntelligencePotential())}");
         }
 
         SetText(winsLossesValueText, $"Record {dog.wins}W - {dog.losses}L");
-        SetText(levelValueText, $"Level {dog.level}");
+        SetText(levelValueText, $"Level {Mathf.Max(1, dog.level)}");
         SetText(bloodlineText, GetBloodlineText());
 
         if (dogImage != null)
@@ -270,7 +260,7 @@ public class DogCardUI : MonoBehaviour, IPointerClickHandler
         textComponent.text = text;
         textComponent.alignment = TextAlignmentOptions.Center;
         textComponent.fontSize = nameText != null ? Mathf.Max(12f, nameText.fontSize - 2f) : 16f;
-        textComponent.enableWordWrapping = false;
+        textComponent.textWrappingMode = TextWrappingModes.NoWrap;
         textComponent.raycastTarget = false;
 
         if (nameText != null && nameText.font != null)
@@ -312,7 +302,7 @@ public class DogCardUI : MonoBehaviour, IPointerClickHandler
         messageText.alignment = TextAlignmentOptions.Center;
         messageText.fontSize = 10f;
         messageText.color = new Color(0.55f, 0.05f, 0.05f, 1f);
-        messageText.enableWordWrapping = false;
+        messageText.textWrappingMode = TextWrappingModes.NoWrap;
         messageText.raycastTarget = false;
 
         if (nameText != null && nameText.font != null)
@@ -372,15 +362,15 @@ public class DogCardUI : MonoBehaviour, IPointerClickHandler
     {
         if (dog == null || dogManager == null)
         {
-            return "Last Bred Week: Unknown";
+            return "Breeding: Unknown";
         }
 
         if (dog.CanBreedInWeek(dogManager.currentWeek))
         {
-            return "Can Breed This Week";
+            return "Breeding: Ready";
         }
 
-        return $"Already Bred This Week | Last Bred Week: {dog.lastBredWeek}";
+        return $"Breeding: Cooldown (week {dog.lastBredWeek})";
     }
 
     void SetText(TextMeshProUGUI textField, string value)
@@ -415,6 +405,100 @@ public class DogCardUI : MonoBehaviour, IPointerClickHandler
         }
 
         return text;
+    }
+
+    string BuildDogCardSummaryText()
+    {
+        return
+            $"Sex: {GetDogSexText()}\n" +
+            $"Breed: {GetShortBreedName(dog.breed)}\n" +
+            $"Generation: {GetGenerationText()}\n" +
+            $"Age: {Mathf.Max(0, dog.age)} ({GetSafeText(dog.GetLifeStage(), "Unknown")})\n" +
+            $"{GetSafeText(dog.GetStatusText(), "Status: Unknown")} | {GetBreedingStatusText()}\n" +
+            $"Potential: {GetSafeText(dog.GetPotentialTier(), "Unknown")} - {GetSafeText(dog.GetPotentialTitle(), "Unknown")}\n" +
+            $"Stats: {BuildInlineStatsText()}\n" +
+            $"Strategy: {GetStrategyText()}\n" +
+            $"Traits: {GetTraitText()}";
+    }
+
+    string BuildInlineStatsText()
+    {
+        return
+            $"STR {dog.strength}/{dog.strengthPotential} / " +
+            $"AGI {dog.agility}/{dog.agilityPotential} / " +
+            $"STA {dog.stamina}/{dog.staminaPotential} / " +
+            $"INT {dog.GetIntelligence()}/{dog.GetIntelligencePotential()}";
+    }
+
+    string BuildStatValueText(string statLabel, int value, int potential)
+    {
+        return $"{statLabel} {value}/{potential}";
+    }
+
+    string GetSafeDogName()
+    {
+        return GetSafeText(dog.dogName, "Unnamed Dog");
+    }
+
+    string GetDogSexText()
+    {
+        string genderText = dog.gender.ToString();
+        return GetSafeText(genderText, "Unknown");
+    }
+
+    string GetGenerationText()
+    {
+        if (dog.generation <= 0)
+        {
+            return "Foundation";
+        }
+
+        return $"G{dog.generation + 1}";
+    }
+
+    string GetStrategyText()
+    {
+        if (dogManager != null)
+        {
+            return GetSafeText(dogManager.GetCurrentStrategyTextForDog(dog), "Unknown");
+        }
+
+        return GetSafeText(dog.fightStyle.ToString(), "Unknown");
+    }
+
+    string GetTraitText()
+    {
+        string traitSummary = dog.GetTraitSummary();
+
+        if (string.IsNullOrWhiteSpace(traitSummary) ||
+            traitSummary == "No Traits")
+        {
+            return "None discovered";
+        }
+
+        return GetShortText(traitSummary, 42);
+    }
+
+    string GetShortBreedName(string breedName)
+    {
+        return GetShortText(GetDisplayBreedName(breedName), 30);
+    }
+
+    string GetShortText(string value, int maxLength)
+    {
+        string safeValue = GetSafeText(value, "Unknown");
+
+        if (safeValue.Length <= maxLength)
+        {
+            return safeValue;
+        }
+
+        return safeValue.Substring(0, Mathf.Max(0, maxLength - 3)).TrimEnd() + "...";
+    }
+
+    string GetSafeText(string value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
     }
 
     string GetDisplayBreedName(string breedName)
