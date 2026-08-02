@@ -15,12 +15,15 @@ public class BreedingManager : MonoBehaviour
     public Image parent1PortraitImage;
     public Image parent2PortraitImage;
     public Sprite defaultDogPortraitSprite;
-    TextMeshProUGUI parent1PreviewText;
-    TextMeshProUGUI parent2PreviewText;
+
+    [Header("Parent Preview Text")]
+    public TextMeshProUGUI parent1PreviewText;
+    public TextMeshProUGUI parent2PreviewText;
 
     [Header("Puppy Preview")]
     public Image puppyPreviewImage;
     public TextMeshProUGUI puppyPreviewText;
+    public bool createMissingPreviewFallbacks = true;
 
     [Header("Breeding Settings")]
     [Range(0, 20)] public int statVariance = 8;
@@ -60,9 +63,10 @@ public class BreedingManager : MonoBehaviour
         ConfigurePortraitImage(parent1PortraitImage);
         ConfigurePortraitImage(parent2PortraitImage);
         ConfigurePortraitImage(puppyPreviewImage);
-        ConfigurePuppyPreviewImage();
         ConfigurePuppyPreviewText();
-        EnsureParentPreviewText();
+        FindParentPreviewTextReferences();
+        ConfigureParentPreviewText(parent1PreviewText);
+        ConfigureParentPreviewText(parent2PreviewText);
     }
 
     void Start()
@@ -1147,10 +1151,14 @@ public class BreedingManager : MonoBehaviour
             parent2PortraitImage = FindSceneComponentByName<Image>("Parent2PortraitImage");
         }
 
-        TextMeshProUGUI breedCenterText = FindSceneComponentByName<TextMeshProUGUI>("BreedCenterText");
-        if (breedCenterText != null)
+        if (puppyPreviewText == null)
         {
-            puppyPreviewText = breedCenterText;
+            puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("PuppyPreviewText");
+        }
+
+        if (puppyPreviewText == null)
+        {
+            puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("BreedCenterText");
         }
 
         if (puppyPreviewImage == null)
@@ -1158,10 +1166,108 @@ public class BreedingManager : MonoBehaviour
             puppyPreviewImage = FindSceneComponentByName<Image>("PuppyPreviewImage");
         }
 
-        if (puppyPreviewImage == null)
+        if (puppyPreviewImage == null && createMissingPreviewFallbacks)
         {
-            puppyPreviewImage = CreatePuppyPreviewImage();
+            puppyPreviewImage = CreateMissingPuppyPreviewImageFallback();
         }
+    }
+
+    void FindParentPreviewTextReferences()
+    {
+        if (parent1PreviewText == null)
+        {
+            parent1PreviewText = FindSceneComponentByName<TextMeshProUGUI>("Parent1PreviewText");
+        }
+
+        if (parent2PreviewText == null)
+        {
+            parent2PreviewText = FindSceneComponentByName<TextMeshProUGUI>("Parent2PreviewText");
+        }
+
+        if (parent1PreviewText == null && createMissingPreviewFallbacks)
+        {
+            parent1PreviewText = CreateMissingParentPreviewTextFallback("Parent1PreviewText", parent1PortraitImage, true);
+        }
+
+        if (parent2PreviewText == null && createMissingPreviewFallbacks)
+        {
+            parent2PreviewText = CreateMissingParentPreviewTextFallback("Parent2PreviewText", parent2PortraitImage, false);
+        }
+    }
+
+    Image CreateMissingPuppyPreviewImageFallback()
+    {
+        RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
+        Transform previewParent = centerPanel != null ? centerPanel.transform : transform;
+
+        GameObject imageObject = new GameObject("PuppyPreviewImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        imageObject.transform.SetParent(previewParent, false);
+        imageObject.transform.SetAsFirstSibling();
+
+        RectTransform rectTransform = imageObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(0.5f, 0f);
+        rectTransform.anchorMax = new Vector2(0.5f, 0f);
+        rectTransform.pivot = new Vector2(0.5f, 0f);
+        rectTransform.anchoredPosition = new Vector2(0f, 14f);
+        rectTransform.sizeDelta = new Vector2(70f, 70f);
+        rectTransform.localScale = Vector3.one;
+
+        Image image = imageObject.GetComponent<Image>();
+        image.raycastTarget = false;
+        image.preserveAspect = true;
+        image.enabled = false;
+
+        return image;
+    }
+
+    TextMeshProUGUI CreateMissingParentPreviewTextFallback(string objectName, Image anchorImage, bool isLeftSide)
+    {
+        Transform textParent = anchorImage != null && anchorImage.transform.parent != null
+            ? anchorImage.transform.parent
+            : transform;
+
+        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
+        textObject.transform.SetParent(textParent, false);
+
+        TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+        RectTransform rectTransform = text.rectTransform;
+        Vector2 textSize = new Vector2(230f, 150f);
+
+        if (anchorImage != null)
+        {
+            RectTransform anchorRect = anchorImage.rectTransform;
+            float portraitWidth = Mathf.Max(70f, Mathf.Abs(anchorRect.sizeDelta.x));
+            float horizontalGap = (portraitWidth * 0.5f) + (textSize.x * 0.5f) + 18f;
+
+            rectTransform.anchorMin = anchorRect.anchorMin;
+            rectTransform.anchorMax = anchorRect.anchorMax;
+            rectTransform.pivot = anchorRect.pivot;
+            rectTransform.anchoredPosition = anchorRect.anchoredPosition + new Vector2(isLeftSide ? horizontalGap : -horizontalGap, -8f);
+        }
+        else
+        {
+            rectTransform.anchorMin = isLeftSide ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
+            rectTransform.anchorMax = rectTransform.anchorMin;
+            rectTransform.pivot = isLeftSide ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
+            rectTransform.anchoredPosition = isLeftSide ? new Vector2(24f, 0f) : new Vector2(-24f, 0f);
+        }
+
+        rectTransform.sizeDelta = textSize;
+
+        return text;
+    }
+
+    void ConfigurePuppyPreviewText()
+    {
+        if (puppyPreviewText == null)
+        {
+            return;
+        }
+
+        puppyPreviewText.raycastTarget = false;
+        puppyPreviewText.alignment = TextAlignmentOptions.TopLeft;
+        puppyPreviewText.textWrappingMode = TextWrappingModes.Normal;
+        puppyPreviewText.overflowMode = TextOverflowModes.Truncate;
     }
 
     T FindSceneComponentByName<T>(string objectName) where T : Component
@@ -1191,143 +1297,6 @@ public class BreedingManager : MonoBehaviour
         }
 
         return null;
-    }
-
-    Image CreatePuppyPreviewImage()
-    {
-        RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
-        Transform previewParent = centerPanel != null ? centerPanel.transform : transform;
-
-        GameObject imageObject = new GameObject("PuppyPreviewImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        imageObject.transform.SetParent(previewParent, false);
-        imageObject.transform.SetAsFirstSibling();
-
-        RectTransform rectTransform = imageObject.GetComponent<RectTransform>();
-        rectTransform.anchorMin = new Vector2(0.5f, 0f);
-        rectTransform.anchorMax = new Vector2(0.5f, 0f);
-        rectTransform.pivot = new Vector2(0.5f, 0f);
-        rectTransform.anchoredPosition = new Vector2(0f, 14f);
-        rectTransform.sizeDelta = new Vector2(70f, 70f);
-        rectTransform.localScale = Vector3.one;
-
-        Image image = imageObject.GetComponent<Image>();
-        image.raycastTarget = false;
-        image.preserveAspect = true;
-        image.enabled = false;
-
-        return image;
-    }
-
-    void ConfigurePuppyPreviewImage()
-    {
-        if (puppyPreviewImage == null)
-        {
-            return;
-        }
-
-        RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
-        RectTransform rectTransform = puppyPreviewImage.rectTransform;
-
-        if (centerPanel != null && rectTransform.parent != centerPanel)
-        {
-            rectTransform.SetParent(centerPanel, false);
-        }
-
-        rectTransform.SetAsFirstSibling();
-        rectTransform.anchorMin = new Vector2(0.5f, 0f);
-        rectTransform.anchorMax = new Vector2(0.5f, 0f);
-        rectTransform.pivot = new Vector2(0.5f, 0f);
-        rectTransform.anchoredPosition = new Vector2(0f, 14f);
-        rectTransform.sizeDelta = new Vector2(70f, 70f);
-        rectTransform.localScale = Vector3.one;
-    }
-
-    void ConfigurePuppyPreviewText()
-    {
-        if (puppyPreviewText == null)
-        {
-            return;
-        }
-
-        puppyPreviewText.raycastTarget = false;
-        puppyPreviewText.alignment = TextAlignmentOptions.TopLeft;
-        puppyPreviewText.enableWordWrapping = true;
-        puppyPreviewText.overflowMode = TextOverflowModes.Truncate;
-
-        RectTransform centerPanel = FindSceneComponentByName<RectTransform>("BreedCenterPanel1");
-        RectTransform rectTransform = puppyPreviewText.rectTransform;
-        bool textWasMovedIntoCenterPanel = false;
-
-        if (centerPanel != null && rectTransform.parent != centerPanel)
-        {
-            rectTransform.SetParent(centerPanel, false);
-            textWasMovedIntoCenterPanel = true;
-        }
-
-        if (textWasMovedIntoCenterPanel)
-        {
-            rectTransform.anchorMin = Vector2.zero;
-            rectTransform.anchorMax = Vector2.one;
-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            rectTransform.offsetMin = new Vector2(22f, 88f);
-            rectTransform.offsetMax = new Vector2(-22f, -22f);
-            rectTransform.localScale = Vector3.one;
-        }
-    }
-
-    void EnsureParentPreviewText()
-    {
-        parent1PreviewText = FindSceneComponentByName<TextMeshProUGUI>("Parent1PreviewText");
-        parent2PreviewText = FindSceneComponentByName<TextMeshProUGUI>("Parent2PreviewText");
-
-        if (parent1PreviewText == null)
-        {
-            parent1PreviewText = CreateParentPreviewText("Parent1PreviewText", parent1PortraitImage, true);
-        }
-
-        if (parent2PreviewText == null)
-        {
-            parent2PreviewText = CreateParentPreviewText("Parent2PreviewText", parent2PortraitImage, false);
-        }
-
-        ConfigureParentPreviewText(parent1PreviewText);
-        ConfigureParentPreviewText(parent2PreviewText);
-    }
-
-    TextMeshProUGUI CreateParentPreviewText(string objectName, Image anchorImage, bool isLeftSide)
-    {
-        Transform textParent = anchorImage != null && anchorImage.transform.parent != null
-            ? anchorImage.transform.parent
-            : transform;
-        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
-        textObject.transform.SetParent(textParent, false);
-
-        TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
-        RectTransform rectTransform = text.rectTransform;
-
-        if (anchorImage != null)
-        {
-            RectTransform anchorRect = anchorImage.rectTransform;
-            Vector2 textSize = new Vector2(230f, 150f);
-            float portraitWidth = Mathf.Max(70f, Mathf.Abs(anchorRect.sizeDelta.x));
-            float horizontalGap = (portraitWidth * 0.5f) + (textSize.x * 0.5f) + 18f;
-
-            rectTransform.anchorMin = anchorRect.anchorMin;
-            rectTransform.anchorMax = anchorRect.anchorMax;
-            rectTransform.pivot = anchorRect.pivot;
-            rectTransform.anchoredPosition = anchorRect.anchoredPosition + new Vector2(isLeftSide ? horizontalGap : -horizontalGap, -8f);
-            rectTransform.sizeDelta = textSize;
-        }
-        else
-        {
-            rectTransform.anchorMin = isLeftSide ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
-            rectTransform.anchorMax = rectTransform.anchorMin;
-            rectTransform.pivot = isLeftSide ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
-            rectTransform.anchoredPosition = isLeftSide ? new Vector2(24f, 0f) : new Vector2(-24f, 0f);
-            rectTransform.sizeDelta = new Vector2(230f, 150f);
-        }
-
-        return text;
     }
 
     void ConfigureParentPreviewText(TextMeshProUGUI text)

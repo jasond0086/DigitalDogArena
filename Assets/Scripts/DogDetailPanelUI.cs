@@ -5,21 +5,22 @@ using UnityEngine.UI;
 
 public class DogDetailPanelUI : MonoBehaviour
 {
-    Image portraitImage;
-    TextMeshProUGUI titleText;
-    TextMeshProUGUI mainInfoText;
-    TextMeshProUGUI statsText;
-    TextMeshProUGUI familyHeaderText;
-    RectTransform familyTreeRoot;
-    TMP_Text currentDogTreeText;
-    TMP_Text sireTreeText;
-    TMP_Text damTreeText;
-    TMP_Text sireGrandparentAText;
-    TMP_Text sireGrandparentBText;
-    TMP_Text damGrandparentAText;
-    TMP_Text damGrandparentBText;
-    TMP_Text familyTreeText;
-    Button closeButton;
+    [Header("Editable Detail Panel References")]
+    [SerializeField] Image portraitImage;
+    [SerializeField] TextMeshProUGUI titleText;
+    [SerializeField] TextMeshProUGUI mainInfoText;
+    [SerializeField] TextMeshProUGUI statsText;
+    [SerializeField] TextMeshProUGUI familyHeaderText;
+    [SerializeField] RectTransform familyTreeRoot;
+    [SerializeField] TMP_Text currentDogTreeText;
+    [SerializeField] TMP_Text sireTreeText;
+    [SerializeField] TMP_Text damTreeText;
+    [SerializeField] TMP_Text sireGrandparentAText;
+    [SerializeField] TMP_Text sireGrandparentBText;
+    [SerializeField] TMP_Text damGrandparentAText;
+    [SerializeField] TMP_Text damGrandparentBText;
+    [SerializeField] TMP_Text familyTreeText;
+    [SerializeField] Button closeButton;
 
     Dog currentDog;
     DogManager dogManager;
@@ -66,6 +67,15 @@ public class DogDetailPanelUI : MonoBehaviour
     {
         if (uiBuilt)
         {
+            return;
+        }
+
+        BindEditableUIReferences();
+
+        if (HasEditableUIReferences())
+        {
+            ConfigureEditableUIReferences();
+            uiBuilt = true;
             return;
         }
 
@@ -123,6 +133,158 @@ public class DogDetailPanelUI : MonoBehaviour
         ConfigureRect(familyTreeText.rectTransform, new Vector2(0.48f, 0f), new Vector2(1f, 1f), new Vector2(20f, 32f), new Vector2(-32f, -572f));
     }
 
+    void BindEditableUIReferences()
+    {
+        if (portraitImage == null)
+        {
+            portraitImage = FindChildComponentByName<Image>("DogDetailPortrait");
+        }
+
+        if (titleText == null)
+        {
+            titleText = FindChildComponentByName<TextMeshProUGUI>("DogDetailTitle");
+        }
+
+        if (mainInfoText == null)
+        {
+            mainInfoText = FindChildComponentByName<TextMeshProUGUI>("DogDetailMainInfo");
+        }
+
+        if (statsText == null)
+        {
+            statsText = FindChildComponentByName<TextMeshProUGUI>("DogDetailStats");
+        }
+
+        if (familyHeaderText == null)
+        {
+            familyHeaderText = FindChildComponentByName<TextMeshProUGUI>("DogDetailFamilyTreeHeader");
+        }
+
+        if (familyTreeRoot == null)
+        {
+            familyTreeRoot = FindChildComponentByName<RectTransform>("FamilyTreeRoot");
+        }
+
+        if (currentDogTreeText == null)
+        {
+            currentDogTreeText = FindChildComponentByName<TMP_Text>("CurrentDogNodeText");
+        }
+
+        if (sireTreeText == null)
+        {
+            sireTreeText = FindChildComponentByName<TMP_Text>("SireNodeText");
+        }
+
+        if (damTreeText == null)
+        {
+            damTreeText = FindChildComponentByName<TMP_Text>("DamNodeText");
+        }
+
+        if (sireGrandparentAText == null)
+        {
+            sireGrandparentAText = FindChildComponentByName<TMP_Text>("SireParentANodeText");
+        }
+
+        if (sireGrandparentBText == null)
+        {
+            sireGrandparentBText = FindChildComponentByName<TMP_Text>("SireParentBNodeText");
+        }
+
+        if (damGrandparentAText == null)
+        {
+            damGrandparentAText = FindChildComponentByName<TMP_Text>("DamParentANodeText");
+        }
+
+        if (damGrandparentBText == null)
+        {
+            damGrandparentBText = FindChildComponentByName<TMP_Text>("DamParentBNodeText");
+        }
+
+        if (familyTreeText == null)
+        {
+            familyTreeText = FindChildComponentByName<TMP_Text>("DogDetailFamilyTreeBody");
+        }
+
+        if (closeButton == null)
+        {
+            closeButton = FindChildComponentByName<Button>("DogDetailCloseButton");
+        }
+    }
+
+    bool HasEditableUIReferences()
+    {
+        return portraitImage != null &&
+               titleText != null &&
+               mainInfoText != null &&
+               statsText != null &&
+               familyHeaderText != null &&
+               familyTreeRoot != null &&
+               familyTreeText != null;
+    }
+
+    void ConfigureEditableUIReferences()
+    {
+        ConfigureCloseButton(closeButton);
+
+        ConfigureEditableText(titleText);
+        ConfigureEditableText(mainInfoText);
+        ConfigureEditableText(statsText);
+        ConfigureEditableText(familyHeaderText);
+        ConfigureEditableText(familyTreeText);
+        ConfigureEditableText(currentDogTreeText);
+        ConfigureEditableText(sireTreeText);
+        ConfigureEditableText(damTreeText);
+        ConfigureEditableText(sireGrandparentAText);
+        ConfigureEditableText(sireGrandparentBText);
+        ConfigureEditableText(damGrandparentAText);
+        ConfigureEditableText(damGrandparentBText);
+
+        if (portraitImage != null)
+        {
+            portraitImage.raycastTarget = false;
+            portraitImage.preserveAspect = true;
+        }
+    }
+
+    void ConfigureEditableText(TMP_Text text)
+    {
+        if (text == null)
+        {
+            return;
+        }
+
+        text.raycastTarget = false;
+        text.textWrappingMode = TextWrappingModes.Normal;
+    }
+
+    void ConfigureCloseButton(Button button)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(Close);
+        button.onClick.AddListener(Close);
+    }
+
+    T FindChildComponentByName<T>(string objectName) where T : Component
+    {
+        T[] components = GetComponentsInChildren<T>(true);
+
+        for (int i = 0; i < components.Length; i++)
+        {
+            T component = components[i];
+
+            if (component != null && component.gameObject.name == objectName)
+            {
+                return component;
+            }
+        }
+
+        return null;
+    }
+
     RectTransform CreateFamilyTreeRoot(Transform parent)
     {
         GameObject rootObject = CreateUIObject("FamilyTreeRoot", parent);
@@ -155,7 +317,7 @@ public class DogDetailPanelUI : MonoBehaviour
         nodeRect.sizeDelta = size;
 
         TextMeshProUGUI nodeText = CreateText(nodeObject.transform, objectName, 10f, TextAlignmentOptions.Center);
-        nodeText.enableWordWrapping = true;
+        nodeText.textWrappingMode = TextWrappingModes.Normal;
         nodeText.overflowMode = TextOverflowModes.Ellipsis;
         ConfigureRect(nodeText.rectTransform, Vector2.zero, Vector2.one, new Vector2(5f, 4f), new Vector2(-5f, -4f));
 
@@ -197,7 +359,7 @@ public class DogDetailPanelUI : MonoBehaviour
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = new Color(0.92f, 0.94f, 0.95f, 1f);
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.raycastTarget = false;
         return text;
     }
