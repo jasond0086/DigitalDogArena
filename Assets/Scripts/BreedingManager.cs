@@ -1151,15 +1151,7 @@ public class BreedingManager : MonoBehaviour
             parent2PortraitImage = FindSceneComponentByName<Image>("Parent2PortraitImage");
         }
 
-        if (puppyPreviewText == null)
-        {
-            puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("PuppyPreviewText");
-        }
-
-        if (puppyPreviewText == null)
-        {
-            puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("BreedCenterText");
-        }
+        FindPuppyPreviewTextReference();
 
         if (puppyPreviewImage == null)
         {
@@ -1268,6 +1260,21 @@ public class BreedingManager : MonoBehaviour
         puppyPreviewText.alignment = TextAlignmentOptions.TopLeft;
         puppyPreviewText.textWrappingMode = TextWrappingModes.Normal;
         puppyPreviewText.overflowMode = TextOverflowModes.Truncate;
+    }
+
+    void FindPuppyPreviewTextReference()
+    {
+        if (puppyPreviewText != null)
+        {
+            return;
+        }
+
+        puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("PuppyPreviewText");
+
+        if (puppyPreviewText == null)
+        {
+            puppyPreviewText = FindSceneComponentByName<TextMeshProUGUI>("BreedCenterText");
+        }
     }
 
     T FindSceneComponentByName<T>(string objectName) where T : Component
@@ -1657,8 +1664,16 @@ public class BreedingManager : MonoBehaviour
 
     void SetPuppyPreviewText(string message)
     {
+        if (puppyPreviewText == null)
+        {
+            FindPuppyPreviewTextReference();
+            ConfigurePuppyPreviewText();
+        }
+
         if (puppyPreviewText != null)
         {
+            puppyPreviewText.enabled = true;
+            puppyPreviewText.gameObject.SetActive(true);
             puppyPreviewText.text = message;
         }
     }
