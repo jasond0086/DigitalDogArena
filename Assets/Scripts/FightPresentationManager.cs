@@ -199,6 +199,16 @@ public class FightPresentationManager : MonoBehaviour
         ReleaseContactShadowResources();
     }
 
+    bool ShouldSkipFightIntro()
+    {
+        return !DigitalDogSettings.FightIntroEnabled;
+    }
+
+    bool ShouldReduceFightEffects()
+    {
+        return DigitalDogSettings.ReducedEffectsEnabled;
+    }
+
     public void ShowPlaceholderArena(Dog dogA, Dog dogB)
     {
         if (dogA == null || dogB == null)
@@ -288,6 +298,16 @@ public class FightPresentationManager : MonoBehaviour
         {
             StopCoroutine(scanIntroCoroutine);
             scanIntroCoroutine = null;
+        }
+
+        if (ShouldSkipFightIntro())
+        {
+            HideExistingArenaRootForScan();
+            HideMonitorTransition();
+            ResetVisualHealthTracking();
+            ShowPlaceholderArena(dogA, dogB);
+            onComplete?.Invoke();
+            return;
         }
 
         HideExistingArenaRootForScan();
@@ -4135,8 +4155,8 @@ public class FightPresentationManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / FightIntroScanPulseSeconds);
             float smoothT = t * t * (3f - 2f * t);
-            float pulse = 1f + Mathf.Sin(elapsed * 12f) * 0.12f;
-            float copyPulse = 1f + Mathf.Sin(elapsed * 10f) * 0.025f;
+            float pulse = ShouldReduceFightEffects() ? 1f : 1f + Mathf.Sin(elapsed * 12f) * 0.12f;
+            float copyPulse = ShouldReduceFightEffects() ? 1f : 1f + Mathf.Sin(elapsed * 10f) * 0.025f;
 
             SetScanPrimitiveTransform("ScanBeamA", Vector3.Lerp(beamAStart, beamAEnd, smoothT), new Vector3(0.12f * pulse, 1.5f, 0.035f));
             SetScanPrimitiveTransform("ScanBeamB", Vector3.Lerp(beamBEnd, beamBStart, smoothT), new Vector3(0.12f * pulse, 1.5f, 0.035f));
@@ -4177,7 +4197,7 @@ public class FightPresentationManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float smoothT = t * t * (3f - 2f * t);
-            float pulse = 1f + Mathf.Sin(elapsed * 14f) * 0.035f;
+            float pulse = ShouldReduceFightEffects() ? 1f : 1f + Mathf.Sin(elapsed * 14f) * 0.035f;
 
             SetScanDigitalCopyTransform(scanDigitalCopyA, Vector3.Lerp(dogAStart, dogAEnd, smoothT), pulse, true);
             SetScanDigitalCopyTransform(scanDigitalCopyB, Vector3.Lerp(dogBStart, dogBEnd, smoothT), pulse, false);
@@ -4207,7 +4227,7 @@ public class FightPresentationManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float smoothT = t * t * (3f - 2f * t);
-            float pulse = 1f + Mathf.Sin(elapsed * 16f) * 0.03f;
+            float pulse = ShouldReduceFightEffects() ? 1f : 1f + Mathf.Sin(elapsed * 16f) * 0.03f;
 
             SetScanDigitalCopyTransform(scanDigitalCopyA, Vector3.Lerp(dogAStart, dogAEnd, smoothT), pulse, true);
             SetScanDigitalCopyTransform(scanDigitalCopyB, Vector3.Lerp(dogBStart, dogBEnd, smoothT), pulse, false);
@@ -4237,7 +4257,7 @@ public class FightPresentationManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / FightIntroMonitorHandoffSeconds);
             float smoothT = t * t * (3f - 2f * t);
-            float pulse = 1f + Mathf.Sin(elapsed * 16f) * 0.12f;
+            float pulse = ShouldReduceFightEffects() ? 1f : 1f + Mathf.Sin(elapsed * 16f) * 0.12f;
 
             SetMonitorStreamNode("ImprintStreamA_Outer", Vector3.Lerp(new Vector3(-1.45f, -0.85f, -0.35f), new Vector3(-0.65f, 0.15f, -0.25f), smoothT), 0.18f * pulse);
             SetMonitorStreamNode("ImprintStreamB_Outer", Vector3.Lerp(new Vector3(1.45f, -0.85f, -0.35f), new Vector3(0.65f, 0.15f, -0.25f), smoothT), 0.18f * pulse);
@@ -5938,8 +5958,17 @@ public class FightPresentationManager : MonoBehaviour
         visualMaxHealthA = Mathf.Max(visualMaxHealthA, Mathf.Max(1, dogAHealth));
         visualMaxHealthB = Mathf.Max(visualMaxHealthB, Mathf.Max(1, dogBHealth));
 
-        ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, new Color(0f, 0.58f, 0.78f));
-        ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, new Color(0.78f, 0.1f, 0.68f));
+        if (ShouldReduceFightEffects())
+        {
+            UpdateCorruptionNodes(imprintCorruptionNodesA, null, 0f);
+            UpdateCorruptionNodes(imprintCorruptionNodesB, null, 0f);
+        }
+        else
+        {
+            ApplyImprintCorruption(fighterATransform, dogAHealth, visualMaxHealthA, imprintCorruptionNodesA, new Color(0f, 0.58f, 0.78f));
+            ApplyImprintCorruption(fighterBTransform, dogBHealth, visualMaxHealthB, imprintCorruptionNodesB, new Color(0.78f, 0.1f, 0.68f));
+        }
+
         UpdateDogImprintArtPositions();
         ApplyArenaFighterVisual(
             currentDogImprintA,
@@ -7130,7 +7159,7 @@ public class FightPresentationManager : MonoBehaviour
 
     void ShowImpactEffect(Transform target, int impact, string effectName)
     {
-        if (target == null || impact <= 0)
+        if (target == null || impact <= 0 || ShouldReduceFightEffects())
         {
             return;
         }
@@ -7278,7 +7307,7 @@ public class FightPresentationManager : MonoBehaviour
 
     void ShowStrategyEffect(Transform fighterTransform, FightStrategy strategy, string effectName, int roundNumber)
     {
-        if (fighterTransform == null)
+        if (fighterTransform == null || ShouldReduceFightEffects())
         {
             return;
         }
@@ -7464,7 +7493,7 @@ public class FightPresentationManager : MonoBehaviour
         bool isFighterA
     )
     {
-        if (dog == null || fighterTransform == null)
+        if (dog == null || fighterTransform == null || ShouldReduceFightEffects())
         {
             return;
         }
@@ -8042,14 +8071,23 @@ public class FightPresentationManager : MonoBehaviour
 
         yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAWindupPosition, fighterBWindupPosition, fighterAImpactPosition, fighterBImpactPosition, strikeDuration, dogAStyle, dogBStyle, roundNumber);
         yield return HoldFightersAtPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, 0.16f, dogAStyle, dogBStyle, roundNumber);
-        ShowStrategyEffect(fighterATransform, dogAStrategy, "A", roundNumber);
-        ShowStrategyEffect(fighterBTransform, dogBStrategy, "B", roundNumber);
+        if (!ShouldReduceFightEffects())
+        {
+            ShowStrategyEffect(fighterATransform, dogAStrategy, "A", roundNumber);
+            ShowStrategyEffect(fighterBTransform, dogBStrategy, "B", roundNumber);
+        }
+
         ApplyStyleVisualModifier(fighterATransform, dogAStyle, "A", roundNumber, dogAImpact);
         ApplyStyleVisualModifier(fighterBTransform, dogBStyle, "B", roundNumber, dogBImpact);
-        ShowTraitVisualAccents(dogA, fighterATransform, roundNumber, dogAHealth, visualMaxHealthA, dogAImpact, dogBImpact, true);
-        ShowTraitVisualAccents(dogB, fighterBTransform, roundNumber, dogBHealth, visualMaxHealthB, dogBImpact, dogAImpact, false);
-        ShowRoundImpactEffects(dogAImpact, dogBImpact, dogAStrategy, dogBStrategy, dogAStyle, dogBStyle, roundNumber);
-        yield return PlayCinematicHitBeat(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
+
+        if (!ShouldReduceFightEffects())
+        {
+            ShowTraitVisualAccents(dogA, fighterATransform, roundNumber, dogAHealth, visualMaxHealthA, dogAImpact, dogBImpact, true);
+            ShowTraitVisualAccents(dogB, fighterBTransform, roundNumber, dogBHealth, visualMaxHealthB, dogBImpact, dogAImpact, false);
+            ShowRoundImpactEffects(dogAImpact, dogBImpact, dogAStrategy, dogBStrategy, dogAStyle, dogBStyle, roundNumber);
+            yield return PlayCinematicHitBeat(dogAImpact, dogBImpact, dogAStyle, dogBStyle);
+        }
+
         yield return AnimateFightersToPositions(dogA, dogB, dogAHealth, dogBHealth, fighterAImpactPosition, fighterBImpactPosition, fighterAHome, fighterBHome, Mathf.Max(0.05f, resetDuration), dogAStyle, dogBStyle, roundNumber);
 
         HideImpactEffects();
