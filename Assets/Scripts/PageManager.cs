@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
@@ -21,14 +23,49 @@ public class PageManager : MonoBehaviour
     public Button backButton;
     public TextMeshProUGUI settingsStatusText;
 
+    [Header("Dog Pound Page")]
+    public GameObject dogPoundPage;
+    public Button dogPoundButton;
+    public DogManager dogManager;
+    public TextMeshProUGUI dogPoundTokenText;
+    public TextMeshProUGUI dogPoundTimerText;
+    public TextMeshProUGUI dogPoundStatusText;
+    public GameObject[] poundDogSlots = new GameObject[3];
+    public TextMeshProUGUI[] poundDogNameTexts = new TextMeshProUGUI[3];
+    public TextMeshProUGUI[] poundDogBreedTexts = new TextMeshProUGUI[3];
+    public TextMeshProUGUI[] poundDogSexTexts = new TextMeshProUGUI[3];
+    public TextMeshProUGUI[] poundDogStatsTexts = new TextMeshProUGUI[3];
+    public TextMeshProUGUI[] poundDogStrategyTexts = new TextMeshProUGUI[3];
+    public TextMeshProUGUI[] poundDogTraitsTexts = new TextMeshProUGUI[3];
+    public TextMeshProUGUI[] poundDogCostTexts = new TextMeshProUGUI[3];
+    public Button[] poundDogSelectButtons = new Button[3];
+    public Button adoptButton;
+    public Button refreshPoundButton;
+    public Button buyTokensButton;
+    public Button dogPoundBackButton;
+    public GameObject narratorPanel;
+
     GameObject currentPage;
     GameObject previousPage;
+
+    const int DogPoundSlotCount = 3;
+    static readonly TimeSpan DogPoundRefreshPeriod = TimeSpan.FromHours(24);
+
+    DogPoundInventoryData dogPoundInventory;
+    DateTime dogPoundLastRefreshUtc;
+    int selectedPoundDogSlot = -1;
+    bool narratorWasVisibleBeforeDogPound;
+    readonly List<TextMeshProUGUI> dogPoundStatusTexts = new List<TextMeshProUGUI>();
+    readonly Color[] poundDogSlotBaseColors = new Color[DogPoundSlotCount];
+    readonly bool[] poundDogSlotBaseColorsCaptured = new bool[DogPoundSlotCount];
 
     void Start()
     {
         DigitalDogSettings.ApplyAudioSettings();
         ConfigureSettingsControls();
         LoadSettingsIntoUI();
+        BindDogPoundSceneReferencesIfMissing();
+        ConfigureDogPoundControls();
         ShowStablePage();
     }
 
@@ -69,6 +106,173 @@ public class PageManager : MonoBehaviour
 
         LoadSettingsIntoUI();
         SetPage(settingsPage);
+    }
+
+    public void ShowDogPoundPage()
+    {
+        BindDogPoundSceneReferencesIfMissing();
+        ConfigureDogPoundControls();
+
+        if (dogPoundPage == null)
+        {
+            Debug.LogWarning("PageManager.ShowDogPoundPage was called, but DogPoundPage was not found or assigned.");
+            return;
+        }
+
+        previousPage = currentPage != dogPoundPage ? currentPage : previousPage;
+
+        if (!EnsureDogManager())
+        {
+            SetDogPoundStatus("Dog Pound is unavailable because DogManager is missing.");
+            return;
+        }
+
+        LoadOrCreateDogPoundInventory();
+        selectedPoundDogSlot = -1;
+        HideNarratorForDogPound();
+        RefreshDogPoundUI();
+        SetPage(dogPoundPage);
+    }
+
+    public void BackFromDogPound()
+    {
+        selectedPoundDogSlot = -1;
+        RestoreNarratorAfterDogPound();
+        ShowPreviousPage();
+    }
+
+    public void SelectPoundDogSlot0()
+    {
+        SelectPoundDogSlot(0);
+    }
+
+    public void SelectPoundDogSlot1()
+    {
+        SelectPoundDogSlot(1);
+    }
+
+    public void SelectPoundDogSlot2()
+    {
+        SelectPoundDogSlot(2);
+    }
+
+    public void AdoptSelectedDog()
+    {
+        Debug.Log($"Dog Pound adoption requested. Selected slot: {selectedPoundDogSlot}. Tokens: {DogPoundSettings.TokenCount}.");
+
+        if (!EnsureDogManager())
+        {
+            ReportDogPoundAdoptionFailure("Dog Pound is unavailable because DogManager is missing.");
+            return;
+        }
+
+        LoadOrCreateDogPoundInventory();
+
+        if (selectedPoundDogSlot < 0)
+        {
+            RefreshDogPoundUI();
+            ReportDogPoundAdoptionFailure("Select a dog first.");
+            return;
+        }
+
+        DogPoundOfferData offer = GetPoundOffer(selectedPoundDogSlot);
+
+        if (offer == null || offer.dog == null)
+        {
+            RefreshDogPoundUI();
+            ReportDogPoundAdoptionFailure("Selected dog data is missing.");
+            return;
+        }
+
+        if (offer.adopted)
+        {
+            RefreshDogPoundUI();
+            ReportDogPoundAdoptionFailure("Selected dog is no longer available.");
+            return;
+        }
+
+        Debug.Log($"Dog Pound selected dog cost: {offer.tokenCost}. Token count: {DogPoundSettings.TokenCount}.");
+
+        if (DogPoundSettings.TokenCount < offer.tokenCost)
+        {
+            int tokensNeeded = offer.tokenCost - DogPoundSettings.TokenCount;
+            RefreshDogPoundUI();
+            ReportDogPoundAdoptionFailure($"Not enough Dog Pound Tokens. Need {tokensNeeded} more.");
+            return;
+        }
+
+        Dog adoptedDog = dogManager.CreateDogFromSaveData(offer.dog);
+
+        if (adoptedDog == null)
+        {
+            RefreshDogPoundUI();
+            ReportDogPoundAdoptionFailure("Selected dog data is missing.");
+            return;
+        }
+
+        DogPoundSettings.TokenCount -= offer.tokenCost;
+        dogManager.AddOwnedDog(adoptedDog);
+        offer.adopted = true;
+        SaveDogPoundInventory();
+
+        string adoptedName = string.IsNullOrWhiteSpace(adoptedDog.dogName) ? "Dog" : adoptedDog.dogName;
+        selectedPoundDogSlot = -1;
+        RefreshDogPoundUI();
+        SetDogPoundStatus($"Adopted {adoptedName}.");
+        Debug.Log($"Dog Pound adoption succeeded. Adopted {adoptedName}. Tokens remaining: {DogPoundSettings.TokenCount}.");
+    }
+
+    public void RefreshDogPound()
+    {
+        if (!EnsureDogManager())
+        {
+            SetDogPoundStatus("Dog Pound is unavailable because DogManager is missing.");
+            return;
+        }
+
+        if (dogPoundInventory == null || !IsDogPoundInventoryValid(dogPoundInventory))
+        {
+            if (!DogPoundSettings.TryLoadInventory(out dogPoundInventory, out dogPoundLastRefreshUtc) ||
+                !IsDogPoundInventoryValid(dogPoundInventory))
+            {
+                GenerateNewDogPoundInventory();
+                selectedPoundDogSlot = -1;
+                SetDogPoundStatus("Three new pound dogs are available.");
+                RefreshDogPoundUI();
+                return;
+            }
+        }
+
+        if (!IsDogPoundRefreshReady())
+        {
+            SetDogPoundStatus($"New pound dogs available in {GetDogPoundRefreshRemainingText()}.");
+            RefreshDogPoundUI();
+            return;
+        }
+
+        GenerateNewDogPoundInventory();
+        selectedPoundDogSlot = -1;
+        SetDogPoundStatus("Three new pound dogs are available.");
+        RefreshDogPoundUI();
+    }
+
+    public void BuyDogPoundTokensPlaceholder()
+    {
+        SetDogPoundStatus("Buy Tokens is not implemented in this build.");
+    }
+
+    public void DebugAddDogPoundTokens()
+    {
+        DogPoundSettings.AddTokens(20);
+        Debug.Log($"Dog Pound debug tokens added. Token count: {DogPoundSettings.TokenCount}.");
+
+        if (dogPoundInventory == null && EnsureDogManager())
+        {
+            LoadOrCreateDogPoundInventory();
+        }
+
+        RefreshDogPoundUI();
+        SetDogPoundStatus("Added 20 Dog Pound Tokens.");
     }
 
     public void HideSettingsPage()
@@ -124,10 +328,617 @@ public class PageManager : MonoBehaviour
             settingsPage.SetActive(pageToShow == settingsPage);
         }
 
+        if (dogPoundPage != null)
+        {
+            bool showingDogPound = pageToShow == dogPoundPage;
+            dogPoundPage.SetActive(showingDogPound);
+
+            if (!showingDogPound)
+            {
+                RestoreNarratorAfterDogPound();
+            }
+        }
+
         if (pageToShow != null)
         {
             currentPage = pageToShow;
         }
+    }
+
+    void Update()
+    {
+        if (dogPoundPage != null && dogPoundPage.activeInHierarchy && dogPoundInventory != null)
+        {
+            UpdateDogPoundTimerText();
+        }
+    }
+
+    void BindDogPoundSceneReferencesIfMissing()
+    {
+        if (dogPoundPage == null)
+        {
+            dogPoundPage = FindSceneObjectByTrimmedName("DogPoundPage");
+        }
+
+        if (dogPoundButton == null)
+        {
+            GameObject buttonObject = FindSceneObjectByTrimmedName("DogPoundButton");
+            dogPoundButton = buttonObject != null ? buttonObject.GetComponent<Button>() : null;
+        }
+
+        if (narratorPanel == null)
+        {
+            narratorPanel = FindSceneObjectByTrimmedName("NarratorPanel");
+        }
+
+        if (dogPoundPage == null)
+        {
+            return;
+        }
+
+        Transform pageRoot = dogPoundPage.transform;
+        dogPoundTokenText = dogPoundTokenText ?? FindTextInTree(pageRoot, "DogPoundTokenText");
+        dogPoundTimerText = dogPoundTimerText ?? FindTextInTree(pageRoot, "DogPoundTimerText");
+        BindDogPoundStatusTexts(pageRoot);
+        adoptButton = adoptButton ?? FindButtonInTree(pageRoot, "AdoptButton");
+        refreshPoundButton = refreshPoundButton ?? FindButtonInTree(pageRoot, "RefreshPoundButton", "RefreshButton");
+        buyTokensButton = buyTokensButton ?? FindButtonInTree(pageRoot, "BuyTokensButton");
+        dogPoundBackButton = dogPoundBackButton ?? FindButtonInTree(pageRoot, "BackButton");
+
+        for (int slotIndex = 0; slotIndex < DogPoundSlotCount; slotIndex++)
+        {
+            if (poundDogSlots[slotIndex] == null)
+            {
+                poundDogSlots[slotIndex] = FindGameObjectInTree(pageRoot, $"PoundDogSlot{slotIndex}");
+            }
+
+            if (poundDogSlots[slotIndex] == null)
+            {
+                continue;
+            }
+
+            Transform slotRoot = poundDogSlots[slotIndex].transform;
+            poundDogNameTexts[slotIndex] = poundDogNameTexts[slotIndex] ?? FindTextInTree(slotRoot, "DogNameText");
+            poundDogBreedTexts[slotIndex] = poundDogBreedTexts[slotIndex] ?? FindTextInTree(slotRoot, "DogBreedText");
+            poundDogSexTexts[slotIndex] = poundDogSexTexts[slotIndex] ?? FindTextInTree(slotRoot, "DogSexText");
+            poundDogStatsTexts[slotIndex] = poundDogStatsTexts[slotIndex] ?? FindTextInTree(slotRoot, "DogStatsText");
+            poundDogStrategyTexts[slotIndex] = poundDogStrategyTexts[slotIndex] ?? FindTextInTree(slotRoot, "DogStrategyText");
+            poundDogTraitsTexts[slotIndex] = poundDogTraitsTexts[slotIndex] ?? FindTextInTree(slotRoot, "DogTraitsText");
+            poundDogCostTexts[slotIndex] = poundDogCostTexts[slotIndex] ?? FindTextInTree(slotRoot, "DogCostText");
+            poundDogSelectButtons[slotIndex] = poundDogSelectButtons[slotIndex] ?? slotRoot.GetComponentInChildren<Button>(true);
+        }
+    }
+
+    void ConfigureDogPoundControls()
+    {
+        if (dogPoundButton != null)
+        {
+            dogPoundButton.onClick.RemoveListener(ShowDogPoundPage);
+            dogPoundButton.onClick.AddListener(ShowDogPoundPage);
+        }
+
+        ConfigurePoundSlotButton(0, SelectPoundDogSlot0);
+        ConfigurePoundSlotButton(1, SelectPoundDogSlot1);
+        ConfigurePoundSlotButton(2, SelectPoundDogSlot2);
+
+        ConfigurePoundButton(adoptButton, AdoptSelectedDog);
+        ConfigurePoundButton(refreshPoundButton, RefreshDogPound);
+        ConfigurePoundButton(buyTokensButton, BuyDogPoundTokensPlaceholder);
+        ConfigurePoundButton(dogPoundBackButton, BackFromDogPound);
+    }
+
+    void BindDogPoundStatusTexts(Transform pageRoot)
+    {
+        dogPoundStatusTexts.Clear();
+
+        foreach (TextMeshProUGUI statusText in pageRoot.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (string.Equals(statusText.name.Trim(), "DogPoundStatusText", StringComparison.Ordinal))
+            {
+                dogPoundStatusTexts.Add(statusText);
+            }
+        }
+
+        if (dogPoundStatusTexts.Count == 0)
+        {
+            if (dogPoundStatusText != null)
+            {
+                dogPoundStatusTexts.Add(dogPoundStatusText);
+            }
+            else
+            {
+                Debug.LogWarning("Dog Pound Status Text could not be found under DogPoundPage.");
+            }
+        }
+
+        foreach (TextMeshProUGUI statusText in dogPoundStatusTexts)
+        {
+            if (statusText != null && statusText.gameObject.activeSelf && statusText.enabled)
+            {
+                dogPoundStatusText = statusText;
+                return;
+            }
+        }
+
+        dogPoundStatusText = dogPoundStatusTexts.Count > 0 ? dogPoundStatusTexts[0] : null;
+    }
+
+    void ConfigurePoundSlotButton(int slotIndex, UnityEngine.Events.UnityAction action)
+    {
+        if (slotIndex < 0 || slotIndex >= poundDogSelectButtons.Length || poundDogSelectButtons[slotIndex] == null)
+        {
+            return;
+        }
+
+        poundDogSelectButtons[slotIndex].onClick.RemoveListener(action);
+        poundDogSelectButtons[slotIndex].onClick.AddListener(action);
+    }
+
+    void ConfigurePoundButton(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(action);
+        button.onClick.AddListener(action);
+    }
+
+    bool EnsureDogManager()
+    {
+        if (dogManager == null)
+        {
+            dogManager = GetComponent<DogManager>();
+        }
+
+        if (dogManager == null)
+        {
+            dogManager = FindFirstObjectByType<DogManager>();
+        }
+
+        return dogManager != null;
+    }
+
+    void LoadOrCreateDogPoundInventory()
+    {
+        if (!DogPoundSettings.TryLoadInventory(out dogPoundInventory, out dogPoundLastRefreshUtc) ||
+            !IsDogPoundInventoryValid(dogPoundInventory))
+        {
+            GenerateNewDogPoundInventory();
+            return;
+        }
+
+        if (IsDogPoundRefreshReady())
+        {
+            GenerateNewDogPoundInventory();
+        }
+    }
+
+    bool IsDogPoundInventoryValid(DogPoundInventoryData inventory)
+    {
+        if (inventory == null || inventory.offers == null || inventory.offers.Count != DogPoundSlotCount)
+        {
+            return false;
+        }
+
+        foreach (DogPoundOfferData offer in inventory.offers)
+        {
+            if (offer == null || offer.dog == null || offer.tokenCost < 1 ||
+                string.IsNullOrWhiteSpace(offer.dog.dogId) ||
+                string.IsNullOrWhiteSpace(offer.dog.dogName) ||
+                string.IsNullOrWhiteSpace(offer.dog.breed))
+            {
+                return false;
+            }
+        }
+
+        return dogPoundLastRefreshUtc != default;
+    }
+
+    void GenerateNewDogPoundInventory()
+    {
+        if (!EnsureDogManager())
+        {
+            return;
+        }
+
+        DogPoundInventoryData newInventory = new DogPoundInventoryData();
+        int generationSeed = UnityEngine.Random.Range(1000, 100000);
+
+        for (int slotIndex = 0; slotIndex < DogPoundSlotCount; slotIndex++)
+        {
+            DogGender gender = slotIndex == 1 ? DogGender.Female : DogGender.Male;
+            Dog poundDog = dogManager.CreateDogPoundCandidate(generationSeed + slotIndex, gender);
+
+            if (poundDog == null)
+            {
+                Debug.LogWarning("Dog Pound could not generate a dog offer.");
+                return;
+            }
+
+            newInventory.offers.Add(new DogPoundOfferData
+            {
+                dog = dogManager.CreateDogSaveData(poundDog),
+                tokenCost = CalculateDogPoundTokenCost(poundDog),
+                adopted = false
+            });
+        }
+
+        dogPoundInventory = newInventory;
+        dogPoundLastRefreshUtc = DateTime.UtcNow;
+        SaveDogPoundInventory();
+    }
+
+    void SaveDogPoundInventory()
+    {
+        if (dogPoundInventory == null || dogPoundLastRefreshUtc == default)
+        {
+            return;
+        }
+
+        DogPoundSettings.SaveInventory(dogPoundInventory, dogPoundLastRefreshUtc.Ticks);
+    }
+
+    int CalculateDogPoundTokenCost(Dog dog)
+    {
+        if (dog == null)
+        {
+            return 2;
+        }
+
+        int cost = 2;
+        int potentialScore = dog.GetPotentialScore();
+
+        if (potentialScore >= 85)
+        {
+            cost++;
+        }
+
+        if (potentialScore >= 100)
+        {
+            cost++;
+        }
+
+        if (dog.primaryTrait != DogTrait.None || dog.secondaryTrait != DogTrait.None)
+        {
+            cost++;
+        }
+
+        return Mathf.Clamp(cost, 2, 5);
+    }
+
+    void SelectPoundDogSlot(int slotIndex)
+    {
+        LoadOrCreateDogPoundInventory();
+        Debug.Log($"Dog Pound slot selected: {slotIndex}. Tokens: {DogPoundSettings.TokenCount}.");
+
+        if (!TryGetAvailablePoundOffer(slotIndex, out DogPoundOfferData offer))
+        {
+            RefreshDogPoundUI();
+            SetDogPoundStatus("Selected dog data is missing.");
+            Debug.LogWarning($"Dog Pound selection failed. Slot {slotIndex} is unavailable or missing data.");
+            return;
+        }
+
+        selectedPoundDogSlot = slotIndex;
+        string dogName = string.IsNullOrWhiteSpace(offer.dog.dogName) ? "Dog" : offer.dog.dogName;
+        Debug.Log($"Dog Pound selected dog cost: {offer.tokenCost}. Token count: {DogPoundSettings.TokenCount}.");
+        RefreshDogPoundUI();
+        SetDogPoundStatus($"Selected {dogName}.");
+    }
+
+    bool TryGetAvailablePoundOffer(int slotIndex, out DogPoundOfferData offer)
+    {
+        offer = null;
+
+        if (dogPoundInventory == null || dogPoundInventory.offers == null ||
+            slotIndex < 0 || slotIndex >= dogPoundInventory.offers.Count)
+        {
+            return false;
+        }
+
+        DogPoundOfferData candidate = dogPoundInventory.offers[slotIndex];
+
+        if (candidate == null || candidate.adopted || candidate.dog == null)
+        {
+            return false;
+        }
+
+        offer = candidate;
+        return true;
+    }
+
+    void RefreshDogPoundUI()
+    {
+        BindDogPoundSceneReferencesIfMissing();
+
+        if (dogPoundTokenText != null)
+        {
+            dogPoundTokenText.text = $"Dog Pound Tokens: {DogPoundSettings.TokenCount}";
+        }
+
+        UpdateDogPoundTimerText();
+
+        for (int slotIndex = 0; slotIndex < DogPoundSlotCount; slotIndex++)
+        {
+            DogPoundOfferData offer = GetPoundOffer(slotIndex);
+            bool isAvailable = offer != null && !offer.adopted && offer.dog != null;
+
+            if (slotIndex < poundDogSlots.Length && poundDogSlots[slotIndex] != null)
+            {
+                poundDogSlots[slotIndex].SetActive(isAvailable);
+            }
+
+            if (isAvailable)
+            {
+                SetPoundDogSlotText(slotIndex, offer);
+            }
+
+            if (slotIndex < poundDogSelectButtons.Length && poundDogSelectButtons[slotIndex] != null)
+            {
+                poundDogSelectButtons[slotIndex].interactable = isAvailable;
+            }
+        }
+
+        if (adoptButton != null)
+        {
+            // Leave the button clickable so the player receives a clear reason when adoption cannot proceed.
+            adoptButton.interactable = true;
+        }
+
+        UpdatePoundDogSlotSelectionVisuals();
+
+        if (!HasAvailablePoundDogs())
+        {
+            SetDogPoundStatus($"All pound dogs adopted. New dogs arrive in {GetDogPoundRefreshRemainingText()}.");
+        }
+    }
+
+    DogPoundOfferData GetPoundOffer(int slotIndex)
+    {
+        if (dogPoundInventory == null || dogPoundInventory.offers == null ||
+            slotIndex < 0 || slotIndex >= dogPoundInventory.offers.Count)
+        {
+            return null;
+        }
+
+        return dogPoundInventory.offers[slotIndex];
+    }
+
+    void SetPoundDogSlotText(int slotIndex, DogPoundOfferData offer)
+    {
+        DogSaveData dog = offer.dog;
+        SetTextAtIndex(poundDogNameTexts, slotIndex, string.IsNullOrWhiteSpace(dog.dogName) ? "Unknown Dog" : dog.dogName);
+        SetTextAtIndex(poundDogBreedTexts, slotIndex, $"Breed: {GetDisplayText(dog.breed, "Unknown Breed")}");
+        SetTextAtIndex(poundDogSexTexts, slotIndex, $"Sex: {dog.gender}");
+        SetTextAtIndex(poundDogStatsTexts, slotIndex,
+            $"STR {dog.strength}  AGI {dog.agility}\nSTA {dog.stamina}  INT {GetSavedDogIntelligence(dog)}");
+        SetTextAtIndex(poundDogStrategyTexts, slotIndex, $"Style: {dog.fightStyle}");
+        SetTextAtIndex(poundDogTraitsTexts, slotIndex, $"Traits: {GetSavedDogTraitSummary(dog)}");
+        SetTextAtIndex(poundDogCostTexts, slotIndex, $"Cost: {offer.tokenCost} Tokens");
+    }
+
+    void SetTextAtIndex(TextMeshProUGUI[] texts, int index, string value)
+    {
+        if (texts != null && index >= 0 && index < texts.Length && texts[index] != null)
+        {
+            texts[index].text = value;
+        }
+    }
+
+    void UpdatePoundDogSlotSelectionVisuals()
+    {
+        for (int slotIndex = 0; slotIndex < DogPoundSlotCount; slotIndex++)
+        {
+            if (slotIndex >= poundDogSlots.Length || poundDogSlots[slotIndex] == null)
+            {
+                continue;
+            }
+
+            Image slotBackground = poundDogSlots[slotIndex].GetComponent<Image>();
+
+            if (slotBackground == null)
+            {
+                continue;
+            }
+
+            if (!poundDogSlotBaseColorsCaptured[slotIndex])
+            {
+                poundDogSlotBaseColors[slotIndex] = slotBackground.color;
+                poundDogSlotBaseColorsCaptured[slotIndex] = true;
+            }
+
+            bool isSelected = selectedPoundDogSlot == slotIndex &&
+                              TryGetAvailablePoundOffer(slotIndex, out _);
+            slotBackground.color = isSelected
+                ? Color.Lerp(poundDogSlotBaseColors[slotIndex], new Color(0.2f, 0.9f, 1f, 1f), 0.55f)
+                : poundDogSlotBaseColors[slotIndex];
+        }
+    }
+
+    int GetSavedDogIntelligence(DogSaveData dog)
+    {
+        return dog.intelligence > 0 ? dog.intelligence : Dog.DefaultIntelligence;
+    }
+
+    string GetSavedDogTraitSummary(DogSaveData dog)
+    {
+        bool hasPrimary = dog.primaryTrait != DogTrait.None;
+        bool hasSecondary = dog.secondaryTrait != DogTrait.None;
+
+        if (!hasPrimary && !hasSecondary)
+        {
+            return "No Traits";
+        }
+
+        if (!hasPrimary || dog.primaryTrait == dog.secondaryTrait)
+        {
+            return dog.secondaryTrait.ToString();
+        }
+
+        if (!hasSecondary)
+        {
+            return dog.primaryTrait.ToString();
+        }
+
+        return $"{dog.primaryTrait} / {dog.secondaryTrait}";
+    }
+
+    string GetDisplayText(string value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    bool HasAvailablePoundDogs()
+    {
+        if (dogPoundInventory == null || dogPoundInventory.offers == null)
+        {
+            return false;
+        }
+
+        foreach (DogPoundOfferData offer in dogPoundInventory.offers)
+        {
+            if (offer != null && !offer.adopted && offer.dog != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool IsDogPoundRefreshReady()
+    {
+        return dogPoundLastRefreshUtc == default || DateTime.UtcNow >= dogPoundLastRefreshUtc + DogPoundRefreshPeriod;
+    }
+
+    string GetDogPoundRefreshRemainingText()
+    {
+        TimeSpan remaining = dogPoundLastRefreshUtc + DogPoundRefreshPeriod - DateTime.UtcNow;
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            return "0h 0m";
+        }
+
+        int totalMinutes = Mathf.CeilToInt((float)remaining.TotalMinutes);
+        int hours = totalMinutes / 60;
+        int minutes = totalMinutes % 60;
+        return $"{hours}h {minutes}m";
+    }
+
+    void UpdateDogPoundTimerText()
+    {
+        if (dogPoundTimerText == null || dogPoundLastRefreshUtc == default)
+        {
+            return;
+        }
+
+        dogPoundTimerText.text = IsDogPoundRefreshReady()
+            ? "New pound dogs are ready."
+            : $"New dogs in {GetDogPoundRefreshRemainingText()}";
+    }
+
+    void SetDogPoundStatus(string message)
+    {
+        foreach (TextMeshProUGUI statusText in dogPoundStatusTexts)
+        {
+            if (statusText != null)
+            {
+                statusText.text = message;
+            }
+        }
+
+        if (dogPoundStatusTexts.Count == 0 && dogPoundStatusText != null)
+        {
+            dogPoundStatusText.text = message;
+        }
+    }
+
+    void ReportDogPoundAdoptionFailure(string message)
+    {
+        SetDogPoundStatus(message);
+        Debug.LogWarning($"Dog Pound adoption failed. {message} Selected slot: {selectedPoundDogSlot}. Tokens: {DogPoundSettings.TokenCount}.");
+    }
+
+    void HideNarratorForDogPound()
+    {
+        if (narratorPanel == null)
+        {
+            return;
+        }
+
+        narratorWasVisibleBeforeDogPound = narratorPanel.activeSelf;
+        narratorPanel.SetActive(false);
+    }
+
+    void RestoreNarratorAfterDogPound()
+    {
+        if (narratorPanel != null && narratorWasVisibleBeforeDogPound)
+        {
+            narratorPanel.SetActive(true);
+        }
+
+        narratorWasVisibleBeforeDogPound = false;
+    }
+
+    GameObject FindSceneObjectByTrimmedName(string objectName)
+    {
+        foreach (GameObject sceneObject in Resources.FindObjectsOfTypeAll<GameObject>())
+        {
+            if (sceneObject.scene.IsValid() && string.Equals(sceneObject.name.Trim(), objectName, StringComparison.Ordinal))
+            {
+                return sceneObject;
+            }
+        }
+
+        return null;
+    }
+
+    GameObject FindGameObjectInTree(Transform root, string objectName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (string.Equals(child.name.Trim(), objectName, StringComparison.Ordinal))
+            {
+                return child.gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    TextMeshProUGUI FindTextInTree(Transform root, string objectName)
+    {
+        GameObject textObject = FindGameObjectInTree(root, objectName);
+        return textObject != null ? textObject.GetComponent<TextMeshProUGUI>() : null;
+    }
+
+    Button FindButtonInTree(Transform root, params string[] objectNames)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            foreach (string objectName in objectNames)
+            {
+                if (string.Equals(child.name.Trim(), objectName, StringComparison.Ordinal))
+                {
+                    return child.GetComponent<Button>();
+                }
+            }
+        }
+
+        return null;
     }
 
     void ConfigureSettingsControls()
@@ -397,4 +1208,93 @@ public static class DigitalDogSettings
         ApplyAudioSettings();
         PlayerPrefs.Save();
     }
+}
+
+public static class DogPoundSettings
+{
+    public const string TokenCountKey = "DigitalDogArena.DogPound.Tokens";
+    public const string InventoryKey = "DigitalDogArena.DogPound.Inventory";
+    public const string LastRefreshUtcTicksKey = "DigitalDogArena.DogPound.LastRefreshUtcTicks";
+
+    public static int TokenCount
+    {
+        get
+        {
+            return Mathf.Max(0, PlayerPrefs.GetInt(TokenCountKey, 0));
+        }
+        set
+        {
+            PlayerPrefs.SetInt(TokenCountKey, Mathf.Max(0, value));
+            PlayerPrefs.Save();
+        }
+    }
+
+    public static void AddTokens(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        TokenCount += amount;
+    }
+
+    public static bool TryLoadInventory(out DogPoundInventoryData inventory, out DateTime lastRefreshUtc)
+    {
+        inventory = null;
+        lastRefreshUtc = default;
+
+        if (!PlayerPrefs.HasKey(InventoryKey) || !PlayerPrefs.HasKey(LastRefreshUtcTicksKey))
+        {
+            return false;
+        }
+
+        try
+        {
+            string json = PlayerPrefs.GetString(InventoryKey, string.Empty);
+            string savedTicks = PlayerPrefs.GetString(LastRefreshUtcTicksKey, string.Empty);
+
+            if (string.IsNullOrWhiteSpace(json) || !long.TryParse(savedTicks, out long utcTicks))
+            {
+                return false;
+            }
+
+            inventory = JsonUtility.FromJson<DogPoundInventoryData>(json);
+            lastRefreshUtc = new DateTime(utcTicks, DateTimeKind.Utc);
+            return inventory != null;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning($"Dog Pound save data was invalid and will be regenerated. {exception.Message}");
+            inventory = null;
+            lastRefreshUtc = default;
+            return false;
+        }
+    }
+
+    public static void SaveInventory(DogPoundInventoryData inventory, long lastRefreshUtcTicks)
+    {
+        if (inventory == null || lastRefreshUtcTicks <= 0)
+        {
+            return;
+        }
+
+        PlayerPrefs.SetString(InventoryKey, JsonUtility.ToJson(inventory));
+        PlayerPrefs.SetString(LastRefreshUtcTicksKey, lastRefreshUtcTicks.ToString());
+        PlayerPrefs.Save();
+    }
+}
+
+[Serializable]
+public class DogPoundInventoryData
+{
+    public List<DogPoundOfferData> offers = new List<DogPoundOfferData>();
+}
+
+[Serializable]
+public class DogPoundOfferData
+{
+    public DogSaveData dog;
+    public int tokenCost;
+    public bool adopted;
 }

@@ -47,6 +47,7 @@ public class FightManager : MonoBehaviour
     private int fighter1WinsBeforeFight;
     private int fighter2WinsBeforeFight;
     private bool fightIntroInProgress;
+    private bool dogPoundTokensAwardedForActiveFight;
 
     void Awake()
     {
@@ -199,6 +200,7 @@ public class FightManager : MonoBehaviour
         fighter2WasBehind = false;
         fighter1WinsBeforeFight = activeFighter1.wins;
         fighter2WinsBeforeFight = activeFighter2.wins;
+        dogPoundTokensAwardedForActiveFight = false;
 
         FightStrategy strategy1 = dogManager.fighter1Strategy;
         FightStrategy strategy2 = dogManager.fighter2Strategy;
@@ -475,6 +477,8 @@ public class FightManager : MonoBehaviour
             ref runningFightLog
         );
 
+        AwardDogPoundTokensForFightResult();
+
         int presentationHealth1;
         int presentationHealth2;
         GetResultPresentationHealth(out presentationHealth1, out presentationHealth2);
@@ -531,6 +535,27 @@ public class FightManager : MonoBehaviour
         }
 
         return $"Fight complete - {activeFighter1.dogName} and {activeFighter2.dogName} fought to a draw.";
+    }
+
+    void AwardDogPoundTokensForFightResult()
+    {
+        if (dogPoundTokensAwardedForActiveFight || activeFighter1 == null || activeFighter2 == null)
+        {
+            return;
+        }
+
+        bool fighter1Won = activeFighter1.wins > fighter1WinsBeforeFight;
+        bool fighter2Won = activeFighter2.wins > fighter2WinsBeforeFight;
+        int tokenAward = 1;
+
+        if (fighter1Won || (!activeFightIsRival && fighter2Won))
+        {
+            tokenAward = 2;
+        }
+
+        DogPoundSettings.AddTokens(tokenAward);
+        dogPoundTokensAwardedForActiveFight = true;
+        Debug.Log($"Dog Pound Tokens awarded: +{tokenAward}.");
     }
 
     void GetResultPresentationHealth(out int presentationHealth1, out int presentationHealth2)

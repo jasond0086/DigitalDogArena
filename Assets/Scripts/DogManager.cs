@@ -339,6 +339,18 @@ public class DogManager : MonoBehaviour
         return dog;
     }
 
+    public Dog CreateDogPoundCandidate(int generatedIndex, DogGender gender)
+    {
+        Dog dog = CreateGeneratedStarterDog(gender, generatedIndex);
+
+        if (dog != null)
+        {
+            dog.dogId = $"pound_{System.Guid.NewGuid().ToString("N")}";
+        }
+
+        return dog;
+    }
+
     string ChooseStarterBreedName(int generatedIndex)
     {
         List<string> breedNames = BreedLibrary.GetBaseBreedNames();
@@ -1918,6 +1930,85 @@ public class DogManager : MonoBehaviour
         Debug.Log($"New dog added to stable: {newDog.dogName}");
     }
 
+    public DogSaveData CreateDogSaveData(Dog dog)
+    {
+        if (dog == null)
+        {
+            return null;
+        }
+
+        EnsureDogHasStableId(dog);
+
+        return new DogSaveData
+        {
+            dogId = dog.dogId,
+            dogName = dog.dogName,
+            breed = dog.breed,
+            gender = dog.gender,
+
+            generation = dog.generation,
+            parentAId = string.IsNullOrWhiteSpace(dog.parentAId) ? dog.parent1Id : dog.parentAId,
+            parentBId = string.IsNullOrWhiteSpace(dog.parentBId) ? dog.parent2Id : dog.parentBId,
+            parent1Id = dog.parent1Id,
+            parent2Id = dog.parent2Id,
+            fatherId = dog.fatherId,
+            motherId = dog.motherId,
+            parentAName = dog.parentAName,
+            parentBName = dog.parentBName,
+            parentABreed = dog.parentABreed,
+            parentBBreed = dog.parentBBreed,
+            parentASex = dog.parentASex,
+            parentBSex = dog.parentBSex,
+            lastBredWeek = dog.lastBredWeek,
+
+            bloodlineName = dog.bloodlineName,
+            ancestorStrengthBonus = dog.ancestorStrengthBonus,
+            ancestorAgilityBonus = dog.ancestorAgilityBonus,
+            ancestorStaminaBonus = dog.ancestorStaminaBonus,
+            ancestorBonusSummary = dog.ancestorBonusSummary,
+            isBloodlineCarrier = dog.isBloodlineCarrier,
+
+            age = dog.age,
+            isDead = dog.isDead,
+            isRetired = dog.isRetired,
+
+            strength = dog.strength,
+            agility = dog.agility,
+            stamina = dog.stamina,
+            intelligence = dog.GetIntelligence(),
+
+            strengthPotential = dog.strengthPotential,
+            agilityPotential = dog.agilityPotential,
+            staminaPotential = dog.staminaPotential,
+            intelligencePotential = dog.GetIntelligencePotential(),
+
+            growthRate = dog.growthRate,
+            fightStyle = dog.fightStyle,
+            primaryTrait = dog.primaryTrait,
+            secondaryTrait = dog.secondaryTrait,
+
+            level = dog.level,
+            xp = dog.xp,
+            xpToNextLevel = dog.xpToNextLevel,
+
+            wins = dog.wins,
+            losses = dog.losses,
+            totalFights = dog.totalFights
+        };
+    }
+
+    public Dog CreateDogFromSaveData(DogSaveData savedDog)
+    {
+        if (savedDog == null)
+        {
+            return null;
+        }
+
+        Dog dog = ScriptableObject.CreateInstance<Dog>();
+        ApplySaveDataToDog(dog, savedDog);
+        return dog;
+    }
+
     public void OpenDogDetail(Dog dog)
     {
         if (dog == null)
@@ -2059,62 +2150,7 @@ public class DogManager : MonoBehaviour
 
             EnsureDogHasStableId(dog);
 
-            DogSaveData dogData = new DogSaveData
-            {
-                dogId = dog.dogId,
-                dogName = dog.dogName,
-                breed = dog.breed,
-                gender = dog.gender,
-
-                generation = dog.generation,
-                parentAId = string.IsNullOrWhiteSpace(dog.parentAId) ? dog.parent1Id : dog.parentAId,
-                parentBId = string.IsNullOrWhiteSpace(dog.parentBId) ? dog.parent2Id : dog.parentBId,
-                parent1Id = dog.parent1Id,
-                parent2Id = dog.parent2Id,
-                fatherId = dog.fatherId,
-                motherId = dog.motherId,
-                parentAName = dog.parentAName,
-                parentBName = dog.parentBName,
-                parentABreed = dog.parentABreed,
-                parentBBreed = dog.parentBBreed,
-                parentASex = dog.parentASex,
-                parentBSex = dog.parentBSex,
-                lastBredWeek = dog.lastBredWeek,
-
-                bloodlineName = dog.bloodlineName,
-                ancestorStrengthBonus = dog.ancestorStrengthBonus,
-                ancestorAgilityBonus = dog.ancestorAgilityBonus,
-                ancestorStaminaBonus = dog.ancestorStaminaBonus,
-                ancestorBonusSummary = dog.ancestorBonusSummary,
-                isBloodlineCarrier = dog.isBloodlineCarrier,
-
-                age = dog.age,
-                isDead = dog.isDead,
-                isRetired = dog.isRetired,
-
-                strength = dog.strength,
-                agility = dog.agility,
-                stamina = dog.stamina,
-                intelligence = dog.GetIntelligence(),
-
-                strengthPotential = dog.strengthPotential,
-                agilityPotential = dog.agilityPotential,
-                staminaPotential = dog.staminaPotential,
-                intelligencePotential = dog.GetIntelligencePotential(),
-
-                growthRate = dog.growthRate,
-                fightStyle = dog.fightStyle,
-                primaryTrait = dog.primaryTrait,
-                secondaryTrait = dog.secondaryTrait,
-
-                level = dog.level,
-                xp = dog.xp,
-                xpToNextLevel = dog.xpToNextLevel,
-
-                wins = dog.wins,
-                losses = dog.losses,
-                totalFights = dog.totalFights
-            };
+            DogSaveData dogData = CreateDogSaveData(dog);
 
             saveData.dogs.Add(dogData);
         }
