@@ -35,6 +35,7 @@ public class StorySaveData
     public int reputation;
     public int undergroundReputation;
     public float riskModifier;
+    public int storyStep;
     public List<string> seenEventIds = new List<string>();
 }
 
@@ -56,10 +57,35 @@ public class StoryManager : MonoBehaviour
     public TextMeshProUGUI choice2Text;
     public TextMeshProUGUI choice3Text;
 
+    [Header("Story Mode V1 UI")]
+    public GameObject storyModePage;
+    public PageManager pageManager;
+    public RivalManager rivalManager;
+    public FightManager fightManager;
+    public TextMeshProUGUI storyModeTitleText;
+    public TextMeshProUGUI storyModeChapterText;
+    public TextMeshProUGUI storyModeObjectiveText;
+    public TextMeshProUGUI storyModeFightTitleText;
+    public TextMeshProUGUI opponentKennelValueText;
+    public TextMeshProUGUI opponentKennelLabelText;
+    public TextMeshProUGUI opponentDogValueText;
+    public TextMeshProUGUI opponentDogLabelText;
+    public TextMeshProUGUI difficultyValueText;
+    public TextMeshProUGUI difficultyLabelText;
+    public TextMeshProUGUI rewardValueText;
+    public TextMeshProUGUI rewardLabelText;
+    public TextMeshProUGUI requirementValueText;
+    public TextMeshProUGUI requirementLabelText;
+    public Button acceptFightButton;
+    public Button trainFirstButton;
+    public Button storyModeBackButton;
+    public Button clearStorySaveButton;
+
     [Header("Story State")]
     public int reputation = 0;
     public int undergroundReputation = 0;
     public float riskModifier = 0f;
+    public int storyStep = 0;
 
     [Header("Story Events")]
     public List<StoryEventData> storyEvents = new List<StoryEventData>();
@@ -83,6 +109,8 @@ public class StoryManager : MonoBehaviour
             narratorManager = GetComponent<NarratorManager>();
         }
 
+        BindStoryModeSceneReferencesIfMissing();
+        ConfigureStoryModeControls();
         InitializeDefaultEvents();
         LoadStoryState();
         RefreshStoryUI();
@@ -90,6 +118,8 @@ public class StoryManager : MonoBehaviour
 
     void Start()
     {
+        BindStoryModeSceneReferencesIfMissing();
+        ConfigureStoryModeControls();
         RefreshStoryUI();
     }
 
@@ -335,7 +365,8 @@ public class StoryManager : MonoBehaviour
         {
             reputation = reputation,
             undergroundReputation = undergroundReputation,
-            riskModifier = riskModifier
+            riskModifier = riskModifier,
+            storyStep = storyStep
         };
 
         foreach (StoryEventData storyEvent in storyEvents)
@@ -369,6 +400,7 @@ public class StoryManager : MonoBehaviour
         reputation = saveData.reputation;
         undergroundReputation = saveData.undergroundReputation;
         riskModifier = saveData.riskModifier;
+        storyStep = Mathf.Max(0, saveData.storyStep);
 
         foreach (StoryEventData storyEvent in storyEvents)
         {
@@ -386,6 +418,7 @@ public class StoryManager : MonoBehaviour
         reputation = 0;
         undergroundReputation = 0;
         riskModifier = 0f;
+        storyStep = 0;
         activeStoryEvent = null;
 
         InitializeDefaultEvents();
@@ -400,6 +433,68 @@ public class StoryManager : MonoBehaviour
 
         SaveStoryState();
         ShowNextAvailableEvent();
+    }
+
+    public void AcceptStoryFight()
+    {
+        BindStoryModeSceneReferencesIfMissing();
+
+        if (storyStep != 0)
+        {
+            SetNarration("No story fight is currently available.");
+            RefreshStoryModeOfferUI();
+            return;
+        }
+
+        if (fightManager == null)
+        {
+            SetNarration("Fight Manager is missing. The story fight could not start.");
+            return;
+        }
+
+        if (!fightManager.QueueStoryFight(FightManager.StoryFightStep0Id))
+        {
+            SetNarration("Story fight data missing.");
+            return;
+        }
+
+        if (pageManager != null)
+        {
+            pageManager.ShowFightPage();
+        }
+
+        SetNarration("Story fight ready. Select any owned dog, then press Start Fight.");
+    }
+
+    public void CompleteCurrentStoryFight()
+    {
+        if (storyStep != 0)
+        {
+            return;
+        }
+
+        storyStep = 1;
+        SaveStoryState();
+        RefreshStoryUI();
+        SetNarration("Story Step 1 unlocked.");
+    }
+
+    public void TrainFirstForStoryFight()
+    {
+        if (pageManager != null)
+        {
+            pageManager.ShowStablePage();
+        }
+
+        SetNarration("Choose and prepare a stable dog before accepting the story fight.");
+    }
+
+    public void BackFromStoryMode()
+    {
+        if (pageManager != null)
+        {
+            pageManager.BackFromStoryPage();
+        }
     }
 
     public void AddReputation(int amount)
@@ -442,6 +537,7 @@ public class StoryManager : MonoBehaviour
             ConfigureChoiceButton(choice1Button, choice1Text, null, -1);
             ConfigureChoiceButton(choice2Button, choice2Text, null, -1);
             ConfigureChoiceButton(choice3Button, choice3Text, null, -1);
+            RefreshStoryModeOfferUI();
             return;
         }
 
@@ -456,6 +552,7 @@ public class StoryManager : MonoBehaviour
         ConfigureChoiceButton(choice1Button, choice1Text, GetChoiceAtIndex(0), 0);
         ConfigureChoiceButton(choice2Button, choice2Text, GetChoiceAtIndex(1), 1);
         ConfigureChoiceButton(choice3Button, choice3Text, GetChoiceAtIndex(2), 2);
+        RefreshStoryModeOfferUI();
     }
 
     void ShowChoiceResult(StoryChoiceData choice)
@@ -479,6 +576,214 @@ public class StoryManager : MonoBehaviour
         ConfigureChoiceButton(choice1Button, choice1Text, null, -1);
         ConfigureChoiceButton(choice2Button, choice2Text, null, -1);
         ConfigureChoiceButton(choice3Button, choice3Text, null, -1);
+        RefreshStoryModeOfferUI();
+    }
+
+    void BindStoryModeSceneReferencesIfMissing()
+    {
+        if (pageManager == null)
+        {
+            pageManager = GetComponent<PageManager>();
+        }
+
+        if (rivalManager == null)
+        {
+            rivalManager = GetComponent<RivalManager>();
+        }
+
+        if (fightManager == null)
+        {
+            fightManager = GetComponent<FightManager>();
+        }
+
+        if (storyModePage == null && pageManager != null)
+        {
+            storyModePage = pageManager.storyPage;
+        }
+
+        if (storyModePage == null)
+        {
+            storyModePage = FindSceneObjectByTrimmedName("StoryModePage");
+        }
+
+        if (storyModePage == null)
+        {
+            Debug.LogWarning("Story Mode UI could not bind because StoryModePage was not found.");
+            return;
+        }
+
+        Transform pageRoot = storyModePage.transform;
+        storyModeTitleText = storyModeTitleText ?? FindTextInTree(pageRoot, "TitleText");
+        storyModeChapterText = storyModeChapterText ?? FindTextInTree(pageRoot, "ChapterText");
+        storyModeObjectiveText = storyModeObjectiveText ?? FindTextInTree(pageRoot, "ObjectiveText");
+        storyModeFightTitleText = storyModeFightTitleText ?? FindTextInTree(pageRoot, "FightTitleText");
+        opponentKennelValueText = opponentKennelValueText ?? FindTextInTree(pageRoot, "OpponentKennelValueText");
+        opponentKennelLabelText = opponentKennelLabelText ?? FindTextInTree(pageRoot, "OpponentKennelLabelText");
+        opponentDogValueText = opponentDogValueText ?? FindTextInTree(pageRoot, "OpponentDogValueText");
+        opponentDogLabelText = opponentDogLabelText ?? FindTextInTree(pageRoot, "OpponentDogLabelText");
+        difficultyValueText = difficultyValueText ?? FindTextInTree(pageRoot, "DifficultyValueText");
+        difficultyLabelText = difficultyLabelText ?? FindTextInTree(pageRoot, "DifficultyLabelText");
+        rewardValueText = rewardValueText ?? FindTextInTree(pageRoot, "RewardValueText");
+        rewardLabelText = rewardLabelText ?? FindTextInTree(pageRoot, "RewardLabelText");
+        requirementValueText = requirementValueText ?? FindTextInTree(pageRoot, "RequirementValueText");
+        requirementLabelText = requirementLabelText ?? FindTextInTree(pageRoot, "RequirementLabelText");
+        acceptFightButton = acceptFightButton ?? FindButtonInTree(pageRoot, "AcceptFightButton");
+        trainFirstButton = trainFirstButton ?? FindButtonInTree(pageRoot, "TrainFirstButton");
+        storyModeBackButton = storyModeBackButton ?? FindButtonInTree(pageRoot, "BackButton");
+        clearStorySaveButton = clearStorySaveButton ?? FindButtonInTree(pageRoot, "ClearStorySaveButton");
+    }
+
+    void ConfigureStoryModeControls()
+    {
+        ConfigureStoryModeButton(acceptFightButton, AcceptStoryFight);
+        ConfigureStoryModeButton(trainFirstButton, TrainFirstForStoryFight);
+        ConfigureStoryModeButton(storyModeBackButton, BackFromStoryMode);
+        ConfigureStoryModeButton(clearStorySaveButton, ClearStorySave);
+    }
+
+    void ConfigureStoryModeButton(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(action);
+
+        if (button.onClick.GetPersistentEventCount() == 0)
+        {
+            button.onClick.AddListener(action);
+        }
+    }
+
+    void RefreshStoryModeOfferUI()
+    {
+        if (storyModePage == null)
+        {
+            return;
+        }
+
+        SetText(storyModeTitleText, "STORY MODE");
+        SetText(storyModeChapterText, GetStoryModeChapterText());
+
+        if (storyStep != 0)
+        {
+            SetText(storyModeObjectiveText, "OBJECTIVE: Story Step 1 complete.");
+            SetText(storyModeFightTitleText, "STORY STEP 1 UNLOCKED");
+            SetText(opponentKennelLabelText, "OPPONENT KENNEL");
+            SetText(opponentKennelValueText, "Rust Yard cleared");
+            SetText(opponentDogLabelText, "OPPONENT DOG");
+            SetText(opponentDogValueText, "CHAINSAW encounter complete");
+            SetText(difficultyLabelText, "DIFFICULTY");
+            SetText(difficultyValueText, "Beginner complete");
+            SetText(rewardLabelText, "REWARD");
+            SetText(rewardValueText, "Story progress saved");
+            SetText(requirementLabelText, "REQUIREMENT");
+            SetText(requirementValueText, "Await the next terminal signal.");
+
+            if (acceptFightButton != null)
+            {
+                acceptFightButton.interactable = false;
+            }
+
+            return;
+        }
+
+        SetText(storyModeObjectiveText, "OBJECTIVE: Complete your first digital story fight.");
+        SetText(storyModeFightTitleText, "STORY FIGHT // RUST YARD");
+        SetText(opponentKennelLabelText, "OPPONENT KENNEL");
+        SetText(opponentKennelValueText, "Rust Yard");
+        SetText(opponentDogLabelText, "OPPONENT DOG");
+        SetText(opponentDogValueText, "CHAINSAW // Bully Striker");
+        SetText(difficultyLabelText, "DIFFICULTY");
+        SetText(difficultyValueText, "Beginner");
+        SetText(rewardLabelText, "REWARD");
+        SetText(rewardValueText, "+2 Dog Pound Tokens / +10 Kennel Reputation");
+        SetText(requirementLabelText, "REQUIREMENT");
+        SetText(requirementValueText, "Use any owned dog.");
+
+        if (acceptFightButton != null)
+        {
+            acceptFightButton.interactable = true;
+        }
+    }
+
+    string GetStoryModeChapterText()
+    {
+        if (storyStep == 0)
+        {
+            return "CHAPTER 1 // THE TERMINAL WAKES";
+        }
+
+        if (storyStep == 1)
+        {
+            return "CHAPTER 2 // RUST YARD AFTERMATH";
+        }
+
+        if (activeStoryEvent == null)
+        {
+            return "STORY TERMINAL";
+        }
+
+        int chapterNumber = storyEvents.IndexOf(activeStoryEvent) + 1;
+        return $"CHAPTER {chapterNumber} // {activeStoryEvent.title.ToUpperInvariant()}";
+    }
+
+    void SetText(TextMeshProUGUI text, string value)
+    {
+        if (text != null)
+        {
+            text.text = value;
+        }
+    }
+
+    GameObject FindSceneObjectByTrimmedName(string objectName)
+    {
+        foreach (GameObject sceneObject in Resources.FindObjectsOfTypeAll<GameObject>())
+        {
+            if (sceneObject.scene.IsValid() && string.Equals(sceneObject.name.Trim(), objectName, System.StringComparison.Ordinal))
+            {
+                return sceneObject;
+            }
+        }
+
+        return null;
+    }
+
+    TextMeshProUGUI FindTextInTree(Transform root, string objectName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        foreach (TextMeshProUGUI text in root.GetComponentsInChildren<TextMeshProUGUI>(true))
+        {
+            if (string.Equals(text.name.Trim(), objectName, System.StringComparison.Ordinal))
+            {
+                return text;
+            }
+        }
+
+        return null;
+    }
+
+    Button FindButtonInTree(Transform root, string objectName)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (string.Equals(child.name.Trim(), objectName, System.StringComparison.Ordinal))
+            {
+                return child.GetComponent<Button>();
+            }
+        }
+
+        return null;
     }
 
     void SetStoryText(string text)

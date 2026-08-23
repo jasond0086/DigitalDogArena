@@ -13,6 +13,7 @@ public class PageManager : MonoBehaviour
     public GameObject leaguePage;
     public GameObject storyPage;
     public GameObject settingsPage;
+    public StoryManager storyManager;
 
     [Header("Settings UI")]
     public Slider volumeSlider;
@@ -91,7 +92,23 @@ public class PageManager : MonoBehaviour
 
     public void ShowStoryPage()
     {
+        previousPage = currentPage != storyPage ? currentPage : previousPage;
         SetPage(storyPage);
+
+        if (storyManager == null)
+        {
+            storyManager = GetComponent<StoryManager>();
+        }
+
+        if (storyManager != null)
+        {
+            storyManager.RefreshStoryUI();
+        }
+    }
+
+    public void BackFromStoryPage()
+    {
+        ShowPreviousPage();
     }
 
     public void ShowSettingsPage()

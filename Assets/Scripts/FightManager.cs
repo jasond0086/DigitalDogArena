@@ -28,6 +28,7 @@ public class FightManager : MonoBehaviour
     private const float DecisionDrawThreshold = 0.03f;
     private const float GlancingDodgeDamageMultiplier = 0.30f;
     private const float SecondWindHealingCapPercent = 0.65f;
+    public const string StoryFightStep0Id = "story_step_0_rust_yard";
 
     [Header("Active Fight State")]
     public bool fightInProgress;
@@ -44,6 +45,12 @@ public class FightManager : MonoBehaviour
     private bool fighter2WasBehind;
     private bool activeFightIsRival;
     private RivalHandlerData activeRival;
+    [Header("Story Fight State")]
+    public bool pendingStoryFight;
+    [SerializeField] string pendingStoryFightId;
+    Dog pendingStoryOpponent;
+    bool activeFightIsStory;
+    string activeStoryFightId;
     private int fighter1WinsBeforeFight;
     private int fighter2WinsBeforeFight;
     private bool fightIntroInProgress;
@@ -113,6 +120,12 @@ public class FightManager : MonoBehaviour
             return;
         }
 
+        if (pendingStoryFight)
+        {
+            StartPendingStoryFight();
+            return;
+        }
+
         if (dogManager == null)
         {
             SetLog("DogManager is missing!");
@@ -136,6 +149,40 @@ public class FightManager : MonoBehaviour
 
         InitializeFight(dog1, dog2, false, null);
         BeginFightIntroThenFirstRound();
+    }
+
+    public bool QueueStoryFight(string storyFightId)
+    {
+        if (fightInProgress)
+        {
+            ReportStoryFightStartFailure("Finish the current fight before starting a story fight.");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(storyFightId))
+        {
+            ReportStoryFightStartFailure("Story fight data missing.");
+            return false;
+        }
+
+        Dog storyOpponent = CreateStoryFightOpponent(storyFightId);
+
+        if (storyOpponent == null)
+        {
+            ReportStoryFightStartFailure("No opponent available.");
+            return false;
+        }
+
+        pendingStoryFight = true;
+        pendingStoryFightId = storyFightId;
+        pendingStoryOpponent = storyOpponent;
+
+        string message = "Story fight queued: Rust Yard versus CHAINSAW. Select any owned dog, then press Start Fight.";
+        SetLog(message);
+        SetFightNarration("Story fight queued.", message);
+        UpdateFightUIState("Story fight pending - select one dog, then start the fight.");
+        Debug.Log($"Story fight queued: {pendingStoryFightId} against {pendingStoryOpponent.dogName}.");
+        return true;
     }
 
     public void StartRivalFight()
@@ -184,6 +231,54 @@ public class FightManager : MonoBehaviour
         BeginFightIntroThenFirstRound();
     }
 
+    void StartPendingStoryFight()
+    {
+        if (string.IsNullOrWhiteSpace(pendingStoryFightId))
+        {
+            ReportStoryFightStartFailure("Story fight data missing.");
+            return;
+        }
+
+        if (dogManager == null)
+        {
+            ReportStoryFightStartFailure("Story fight data missing.");
+            return;
+        }
+
+        Dog playerDog = dogManager.selectedFighter1;
+
+        if (playerDog == null)
+        {
+            ReportStoryFightStartFailure("Select a dog first.");
+            return;
+        }
+
+        if (!playerDog.CanFight())
+        {
+            ReportStoryFightStartFailure($"{playerDog.dogName} cannot enter the arena.");
+            return;
+        }
+
+        if (pendingStoryOpponent == null)
+        {
+            ReportStoryFightStartFailure("No opponent available.");
+            return;
+        }
+
+        string storyFightId = pendingStoryFightId;
+        Dog storyOpponent = pendingStoryOpponent;
+        pendingStoryFight = false;
+        pendingStoryFightId = string.Empty;
+        pendingStoryOpponent = null;
+
+        InitializeFight(playerDog, storyOpponent, false, null);
+        activeFightIsStory = true;
+        activeStoryFightId = storyFightId;
+        runningFightLog = $"<b>STORY FIGHT: RUST YARD</b>\n" + runningFightLog;
+        SetLog(runningFightLog);
+        BeginFightIntroThenFirstRound();
+    }
+
     void InitializeFight(Dog fighter1, Dog fighter2, bool isRivalFight, RivalHandlerData rival)
     {
         activeFighter1 = fighter1;
@@ -191,6 +286,8 @@ public class FightManager : MonoBehaviour
 
         activeFightIsRival = isRivalFight;
         activeRival = rival;
+        activeFightIsStory = false;
+        activeStoryFightId = string.Empty;
         currentRound = 0;
         startingFighter1Health = CalculateStartingHealth(activeFighter1);
         startingFighter2Health = CalculateStartingHealth(activeFighter2);
@@ -497,7 +594,11 @@ public class FightManager : MonoBehaviour
         fightIntroInProgress = false;
         string finalStatus = GetFinalFightStatus();
 
-        if (activeFightIsRival)
+        if (activeFightIsStory)
+        {
+            FinishStoryFight();
+        }
+        else if (activeFightIsRival)
         {
             FinishRivalFight();
         }
@@ -505,6 +606,9 @@ public class FightManager : MonoBehaviour
         {
             FinishNormalFight();
         }
+
+        activeFightIsStory = false;
+        activeStoryFightId = string.Empty;
 
         SetLog(runningFightLog);
 
@@ -548,7 +652,7 @@ public class FightManager : MonoBehaviour
         bool fighter2Won = activeFighter2.wins > fighter2WinsBeforeFight;
         int tokenAward = 1;
 
-        if (fighter1Won || (!activeFightIsRival && fighter2Won))
+        if (fighter1Won || (!activeFightIsRival && !activeFightIsStory && fighter2Won))
         {
             tokenAward = 2;
         }
@@ -699,6 +803,65 @@ public class FightManager : MonoBehaviour
         }
 
         rivalManager.RefreshRivalStatusUI();
+    }
+
+    void FinishStoryFight()
+    {
+        bool playerWon = activeFighter1.wins > fighter1WinsBeforeFight;
+
+        if (storyManager != null)
+        {
+            storyManager.CompleteCurrentStoryFight();
+
+            if (playerWon)
+            {
+                storyManager.AddReputation(10);
+            }
+        }
+
+        string resultText = playerWon
+            ? $"Story Fight complete: {activeFighter1.dogName} defeated CHAINSAW. +10 Kennel Reputation."
+            : $"Story Fight complete: CHAINSAW held the Rust Yard. Story Step 1 unlocked.";
+
+        runningFightLog += $"\n{resultText}\n";
+        SetFightNarration(resultText, runningFightLog);
+        Debug.Log($"Story fight resolved: {activeStoryFightId}. Player won: {playerWon}.");
+    }
+
+    Dog CreateStoryFightOpponent(string storyFightId)
+    {
+        if (storyFightId != StoryFightStep0Id)
+        {
+            return null;
+        }
+
+        Dog opponent = ScriptableObject.CreateInstance<Dog>();
+        opponent.dogId = "story_rust_yard_chainsaw";
+        opponent.dogName = "CHAINSAW";
+        opponent.breed = "Bully Striker";
+        opponent.gender = DogGender.Male;
+        opponent.strength = 24;
+        opponent.agility = 20;
+        opponent.stamina = 24;
+        opponent.intelligence = 18;
+        opponent.strengthPotential = 60;
+        opponent.agilityPotential = 56;
+        opponent.staminaPotential = 60;
+        opponent.intelligencePotential = 52;
+        opponent.fightStyle = FightStyle.Rushdown;
+        opponent.primaryTrait = DogTrait.Aggressive;
+        opponent.secondaryTrait = DogTrait.None;
+        opponent.level = 1;
+        opponent.NormalizeLegacyStats();
+        return opponent;
+    }
+
+    void ReportStoryFightStartFailure(string message)
+    {
+        SetLog(message);
+        SetFightNarration("Story fight unavailable.", message);
+        UpdateFightUIState(message);
+        Debug.LogWarning($"Story fight could not start: {message}");
     }
 
     int CalculateStartingHealth(Dog dog)
