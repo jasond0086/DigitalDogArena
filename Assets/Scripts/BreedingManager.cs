@@ -41,6 +41,8 @@ public class BreedingManager : MonoBehaviour
 
     Dog lastDisplayedParent1;
     Dog lastDisplayedParent2;
+    bool parent1PreviewTextIsRuntimeFallback;
+    bool parent2PreviewTextIsRuntimeFallback;
 
     void Awake()
     {
@@ -60,13 +62,9 @@ public class BreedingManager : MonoBehaviour
         }
 
         FindBreedingPreviewReferences();
-        ConfigurePortraitImage(parent1PortraitImage);
-        ConfigurePortraitImage(parent2PortraitImage);
-        ConfigurePortraitImage(puppyPreviewImage);
-        ConfigurePuppyPreviewText();
         FindParentPreviewTextReferences();
-        ConfigureParentPreviewText(parent1PreviewText);
-        ConfigureParentPreviewText(parent2PreviewText);
+        ConfigureParentPreviewText(parent1PreviewText, parent1PreviewTextIsRuntimeFallback);
+        ConfigureParentPreviewText(parent2PreviewText, parent2PreviewTextIsRuntimeFallback);
     }
 
     void Start()
@@ -1128,17 +1126,6 @@ public class BreedingManager : MonoBehaviour
         SetPreviewImage(portraitImage, portraitSprite);
     }
 
-    void ConfigurePortraitImage(Image portraitImage)
-    {
-        if (portraitImage == null)
-        {
-            return;
-        }
-
-        portraitImage.raycastTarget = false;
-        portraitImage.preserveAspect = true;
-    }
-
     void FindBreedingPreviewReferences()
     {
         if (parent1PortraitImage == null)
@@ -1179,11 +1166,13 @@ public class BreedingManager : MonoBehaviour
         if (parent1PreviewText == null && createMissingPreviewFallbacks)
         {
             parent1PreviewText = CreateMissingParentPreviewTextFallback("Parent1PreviewText", parent1PortraitImage, true);
+            parent1PreviewTextIsRuntimeFallback = parent1PreviewText != null;
         }
 
         if (parent2PreviewText == null && createMissingPreviewFallbacks)
         {
             parent2PreviewText = CreateMissingParentPreviewTextFallback("Parent2PreviewText", parent2PortraitImage, false);
+            parent2PreviewTextIsRuntimeFallback = parent2PreviewText != null;
         }
     }
 
@@ -1223,18 +1212,22 @@ public class BreedingManager : MonoBehaviour
 
         TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
         RectTransform rectTransform = text.rectTransform;
-        Vector2 textSize = new Vector2(230f, 150f);
+        Vector2 textSize = new Vector2(150f, 140f);
+        TextMeshProUGUI titleText = FindSceneComponentByName<TextMeshProUGUI>(
+            isLeftSide ? "Parent1Title" : "Parent2Title");
+
+        if (titleText != null)
+        {
+            text.font = titleText.font;
+            text.fontSharedMaterial = titleText.fontSharedMaterial;
+        }
 
         if (anchorImage != null)
         {
-            RectTransform anchorRect = anchorImage.rectTransform;
-            float portraitWidth = Mathf.Max(70f, Mathf.Abs(anchorRect.sizeDelta.x));
-            float horizontalGap = (portraitWidth * 0.5f) + (textSize.x * 0.5f) + 18f;
-
-            rectTransform.anchorMin = anchorRect.anchorMin;
-            rectTransform.anchorMax = anchorRect.anchorMax;
-            rectTransform.pivot = anchorRect.pivot;
-            rectTransform.anchoredPosition = anchorRect.anchoredPosition + new Vector2(isLeftSide ? horizontalGap : -horizontalGap, -8f);
+            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.anchoredPosition = new Vector2(isLeftSide ? 140f : -140f, -72f);
         }
         else
         {
@@ -1247,19 +1240,6 @@ public class BreedingManager : MonoBehaviour
         rectTransform.sizeDelta = textSize;
 
         return text;
-    }
-
-    void ConfigurePuppyPreviewText()
-    {
-        if (puppyPreviewText == null)
-        {
-            return;
-        }
-
-        puppyPreviewText.raycastTarget = false;
-        puppyPreviewText.alignment = TextAlignmentOptions.TopLeft;
-        puppyPreviewText.textWrappingMode = TextWrappingModes.Normal;
-        puppyPreviewText.overflowMode = TextOverflowModes.Truncate;
     }
 
     void FindPuppyPreviewTextReference()
@@ -1306,9 +1286,9 @@ public class BreedingManager : MonoBehaviour
         return null;
     }
 
-    void ConfigureParentPreviewText(TextMeshProUGUI text)
+    void ConfigureParentPreviewText(TextMeshProUGUI text, bool isRuntimeFallback)
     {
-        if (text == null)
+        if (text == null || !isRuntimeFallback)
         {
             return;
         }
@@ -1317,8 +1297,58 @@ public class BreedingManager : MonoBehaviour
         text.alignment = TextAlignmentOptions.TopLeft;
         text.textWrappingMode = TextWrappingModes.Normal;
         text.overflowMode = TextOverflowModes.Truncate;
-        text.fontSize = 13f;
-        text.color = new Color(0.9f, 0.96f, 1f, 1f);
+        text.fontSize = 11f;
+        text.color = Color.white;
+        text.margin = new Vector4(2f, 2f, 2f, 2f);
+
+        ConfigureParentPreviewTextRect(text);
+    }
+
+    void ConfigureParentPreviewTextRect(TextMeshProUGUI text)
+    {
+        if (text == null || text.rectTransform == null)
+        {
+            return;
+        }
+
+        bool isParent1Preview = text.gameObject.name.IndexOf("Parent1", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        bool isParent2Preview = text.gameObject.name.IndexOf("Parent2", System.StringComparison.OrdinalIgnoreCase) >= 0;
+
+        if (!isParent1Preview && !isParent2Preview)
+        {
+            return;
+        }
+
+        RectTransform panelRect = text.transform.parent as RectTransform;
+
+        if (panelRect == null ||
+            (panelRect.gameObject.name != "Parent1Panel" && panelRect.gameObject.name != "Parent2Panel"))
+        {
+            return;
+        }
+
+        Image portraitImage = isParent1Preview ? parent1PortraitImage : parent2PortraitImage;
+        RectTransform portraitRect = portraitImage != null ? portraitImage.rectTransform : null;
+        const float panelPadding = 14f;
+        const float portraitPadding = 10f;
+
+        float leftEdge = panelRect.rect.xMin + panelPadding;
+        float rightEdge = panelRect.rect.xMax - panelPadding;
+
+        if (portraitRect != null && portraitRect.parent == panelRect)
+        {
+            float portraitRightEdge = portraitRect.anchoredPosition.x +
+                (portraitRect.rect.width * (1f - portraitRect.pivot.x));
+            leftEdge = Mathf.Max(leftEdge, portraitRightEdge + portraitPadding);
+        }
+
+        float previewWidth = Mathf.Max(1f, rightEdge - leftEdge);
+        RectTransform textRect = text.rectTransform;
+        textRect.anchorMin = new Vector2(0.5f, 0.5f);
+        textRect.anchorMax = new Vector2(0.5f, 0.5f);
+        textRect.pivot = new Vector2(0.5f, 0.5f);
+        textRect.anchoredPosition = new Vector2(leftEdge + (previewWidth * 0.5f), -72f);
+        textRect.sizeDelta = new Vector2(previewWidth, 140f);
     }
 
     void SetParentPreviewText(TextMeshProUGUI text, Dog selectedDog)
@@ -1392,10 +1422,9 @@ public class BreedingManager : MonoBehaviour
         builder.AppendLine($"<color=#7CF6FF><b>{GetParentRoleLabel(dog)}</b></color>");
         builder.AppendLine(GetSafeDogName(dog));
         builder.AppendLine($"{dog.gender} - {GetDisplayBreedName(dog.breed)}");
-        builder.AppendLine($"STR {dog.strength}/{dog.strengthPotential}  AGI {dog.agility}/{dog.agilityPotential}");
-        builder.AppendLine($"STA {dog.stamina}/{dog.staminaPotential}  INT {dog.GetIntelligence()}/{dog.GetIntelligencePotential()}");
-        builder.AppendLine($"Strategy: {GetBreedingPreviewStrategyText(dog)}");
-        builder.Append($"Traits: {BuildKeyTraitText(dog)}");
+        builder.AppendLine(DogPreviewTextFormatter.GetCompactStats(dog));
+        builder.AppendLine($"Style: {dog.fightStyle} | {GetBreedingPreviewStrategyText(dog)}");
+        builder.Append($"{DogPreviewTextFormatter.GetGenerationLabel(dog)} | Traits: {DogPreviewTextFormatter.GetShortTraitSummary(dog)}");
         return builder.ToString();
     }
 
@@ -1667,7 +1696,6 @@ public class BreedingManager : MonoBehaviour
         if (puppyPreviewText == null)
         {
             FindPuppyPreviewTextReference();
-            ConfigurePuppyPreviewText();
         }
 
         if (puppyPreviewText != null)
@@ -1686,10 +1714,7 @@ public class BreedingManager : MonoBehaviour
         }
 
         image.sprite = sprite;
-        image.color = Color.white;
         image.enabled = sprite != null;
-        image.raycastTarget = false;
-        image.preserveAspect = true;
     }
 
     string GetBreedFamilyLabel(string breedName, Dog parent1, Dog parent2)

@@ -35,11 +35,13 @@ public class FightPresentationManager : MonoBehaviour
     private const string DigitalRimGlowPrefix = "DigitalRimGlow_";
     private const string DigitalScanlinePrefix = "DigitalScanline_";
     private const string DigitalGlitchBlockPrefix = "DigitalGlitchBlock_";
-    private const string ResultVictoryGlowPrefix = "ResultVictoryGlow_";
-    private const string ResultCorruptionBlockPrefix = "ResultCorruptionBlock_";
-    private const string ResultDrawFlickerPrefix = "ResultDrawFlicker_";
+    private const string ResultVictoryGlowPrefix = "FightResult_VictoryGlow_";
+    private const string ResultCorruptionBlockPrefix = "FightResult_CorruptionFade_";
+    private const string ResultDrawFlickerPrefix = "FightResult_DrawFlicker_";
     private const int MaxBreedArchetypeVariantNumber = 10;
-    private const bool ShowDogPortraitPlaceholders = false;
+    private static readonly bool ShowDogPortraitPlaceholders = false;
+    private static readonly Vector3 FighterAHomePosition = new Vector3(-1.75f, 0.62f, -0.6f);
+    private static readonly Vector3 FighterBHomePosition = new Vector3(1.75f, 0.62f, 0.6f);
     private const float DogArtGroundY = 0.16f;
     private const float DogArtGroundPadding = 0.02f;
     private const float ContactShadowY = DogArtGroundY + 0.01f;
@@ -47,11 +49,11 @@ public class FightPresentationManager : MonoBehaviour
     private const float DogImprintFallbackVerticalOffset = -0.48f;
     private const float BreedArchetypeArtForwardOffset = -0.42f;
     private const float ContactShadowForwardOffset = BreedArchetypeArtForwardOffset * 0.45f;
-    private const float BreedArchetypeArtBaseScale = 0.9f;
-    private const float BreedArchetypeSpriteTargetHeight = 1.56f;
-    private const float BreedArchetypeSpriteMaxWidth = 2f;
-    private const float DogIdentitySpriteTargetHeight = 1.48f;
-    private const float DogIdentitySpriteMaxWidth = 1.82f;
+    private const float BreedArchetypeArtBaseScale = 1.42f;
+    private const float BreedArchetypeSpriteTargetHeight = 2.3f;
+    private const float BreedArchetypeSpriteMaxWidth = 2.9f;
+    private const float DogIdentitySpriteTargetHeight = 2.18f;
+    private const float DogIdentitySpriteMaxWidth = 2.65f;
     private const float FightIntroWalkInSeconds = 1f;
     private const float FightIntroScanPulseSeconds = 1f;
     private const float FightIntroCopySeconds = 1.35f;
@@ -281,6 +283,52 @@ public class FightPresentationManager : MonoBehaviour
         SetFightPresentationViewportVisible(false);
     }
 
+    public void ClearFightPresentation()
+    {
+        if (scanIntroCoroutine != null)
+        {
+            StopCoroutine(scanIntroCoroutine);
+            scanIntroCoroutine = null;
+        }
+
+        StopRoundAnimationIfRunning();
+        StopDelayedResultPresentationIfRunning();
+        StopCameraBeatIfRunning();
+        StopCinematicCameraIfRunning();
+        StopArenaPulseIfRunning();
+        HideScanChamber();
+        HideMonitorTransition();
+        SetScanChamberEffectsVisible(false);
+        SetScanDigitalCopiesVisible(false);
+        HideImpactEffects();
+        HideStrategyEffects();
+        HideRoundStatusBanner();
+        HideClashText();
+        HideArenaResultLabels();
+        ClearResultEffectChildren(fighterADogImprintArt);
+        ClearResultEffectChildren(fighterBDogImprintArt);
+        ClearResultEffectChildren(fighterADogIdentityArt);
+        ClearResultEffectChildren(fighterBDogIdentityArt);
+        ClearResultEffectChildren(fighterABreedArchetypeArt);
+        ClearResultEffectChildren(fighterBBreedArchetypeArt);
+
+        if (fighterATransform != null)
+        {
+            ClearResultEffectChildren(fighterATransform.gameObject);
+        }
+
+        if (fighterBTransform != null)
+        {
+            ClearResultEffectChildren(fighterBTransform.gameObject);
+        }
+
+        UpdateCorruptionNodes(imprintCorruptionNodesA, null, 0f);
+        UpdateCorruptionNodes(imprintCorruptionNodesB, null, 0f);
+        ResetVisualHealthTracking();
+        HideArena();
+        Debug.Log("Fight presentation cleared.");
+    }
+
     public void PlayScanIntroThenShowArena(Dog dogA, Dog dogB)
     {
         PlayFightIntroSequence(dogA, dogB, null);
@@ -399,19 +447,20 @@ public class FightPresentationManager : MonoBehaviour
         arenaRoot.SetActive(true);
         FrameArena();
 
+        Vector3 attackDir = (FighterBHomePosition - FighterAHomePosition).normalized;
         float roundStep = Mathf.Clamp(roundNumber, 1, 6) * 0.08f;
-        float pulse = roundNumber % 2 == 0 ? 1.12f : 0.95f;
+        float pulse = roundNumber % 2 == 0 ? 1.06f : 0.98f;
 
         if (fighterATransform != null)
         {
-            fighterATransform.localPosition = new Vector3(-1.75f + roundStep, 0.6f, 0f);
-            fighterATransform.localScale = new Vector3(0.46f * pulse, 0.84f * pulse, 0.46f * pulse);
+            fighterATransform.localPosition = FighterAHomePosition + (attackDir * roundStep);
+            fighterATransform.localScale = new Vector3(0.55f * pulse, 0.95f * pulse, 0.55f * pulse);
         }
 
         if (fighterBTransform != null)
         {
-            fighterBTransform.localPosition = new Vector3(1.75f - roundStep, 0.6f, 0f);
-            fighterBTransform.localScale = new Vector3(0.46f * pulse, 0.84f * pulse, 0.46f * pulse);
+            fighterBTransform.localPosition = FighterBHomePosition - (attackDir * roundStep);
+            fighterBTransform.localScale = new Vector3(0.55f * pulse, 0.95f * pulse, 0.55f * pulse);
         }
 
         UpdateDogPortraitBillboards(dogA, dogB);
@@ -1159,8 +1208,8 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         presentationCamera.clearFlags = CameraClearFlags.SolidColor;
-        presentationCamera.backgroundColor = new Color(0.01f, 0.015f, 0.025f);
-        presentationCamera.fieldOfView = 50f;
+        presentationCamera.backgroundColor = new Color(0.008f, 0.012f, 0.02f);
+        presentationCamera.fieldOfView = 44f;
         presentationCamera.nearClipPlane = 0.1f;
         presentationCamera.farClipPlane = 100f;
         presentationCamera.depth = 5f;
@@ -1201,12 +1250,12 @@ public class FightPresentationManager : MonoBehaviour
 
     Vector3 GetArenaCameraPosition()
     {
-        return new Vector3(0f, 4.2f, -7.2f);
+        return new Vector3(0f, 3.65f, -6.6f);
     }
 
     Vector3 GetArenaLookAtPosition()
     {
-        return new Vector3(0f, 0.75f, 0.25f);
+        return new Vector3(0f, 0.85f, 0.1f);
     }
 
     Vector3 GetArenaWorldPoint(Vector3 localPoint)
@@ -1531,12 +1580,12 @@ public class FightPresentationManager : MonoBehaviour
 
         if (fighterATransform == null)
         {
-            fighterATransform = CreateFighterPlaceholder("FighterA_Imprint", new Vector3(-1.75f, 0.6f, 0f), new Color(0f, 0.58f, 0.78f)).transform;
+            fighterATransform = CreateFighterPlaceholder("FighterA_Imprint", FighterAHomePosition, new Color(0f, 0.58f, 0.78f)).transform;
         }
 
         if (fighterBTransform == null)
         {
-            fighterBTransform = CreateFighterPlaceholder("FighterB_Imprint", new Vector3(1.75f, 0.6f, 0f), new Color(0.78f, 0.1f, 0.68f)).transform;
+            fighterBTransform = CreateFighterPlaceholder("FighterB_Imprint", FighterBHomePosition, new Color(0.78f, 0.1f, 0.68f)).transform;
         }
 
         CreateDogImprintArtIfNeeded();
@@ -6926,27 +6975,169 @@ public class FightPresentationManager : MonoBehaviour
     void CreateArenaSurfaceVisuals()
     {
         CreatePresentationBackdrop();
+        CreateHologramWallSystem();
         CreatePlatform();
-        CreateWall("BackGridWall", new Vector3(0f, 1.35f, 2.65f), new Vector3(5.8f, 2.25f, 0.08f), new Color(0.015f, 0.035f, 0.055f));
+        CreateFighterCombatPads();
         CreateGridLines();
+        CreateArenaPillars();
+        CreateArenaFloatingDataAccents();
+    }
+
+    void CreateHologramWallSystem()
+    {
+        // Central main display wall
+        GameObject centerWall = GetOrCreateArenaCube("BackHologramWall_Center");
+        centerWall.transform.localPosition = new Vector3(0f, 1.85f, 2.95f);
+        centerWall.transform.localRotation = Quaternion.identity;
+        centerWall.transform.localScale = new Vector3(4.8f, 2.7f, 0.06f);
+        SetObjectUnlitColor(centerWall, new Color(0.012f, 0.024f, 0.042f));
+
+        // Angled Left Hologram Wing (Player side - Cyan theme)
+        GameObject leftWing = GetOrCreateArenaCube("BackHologramWall_LeftWing");
+        leftWing.transform.localPosition = new Vector3(-3.05f, 1.85f, 2.45f);
+        leftWing.transform.localRotation = Quaternion.Euler(0f, 26f, 0f);
+        leftWing.transform.localScale = new Vector3(2.5f, 2.7f, 0.06f);
+        SetObjectUnlitColor(leftWing, new Color(0.01f, 0.026f, 0.045f));
+
+        // Angled Right Hologram Wing (Opponent side - Magenta theme)
+        GameObject rightWing = GetOrCreateArenaCube("BackHologramWall_RightWing");
+        rightWing.transform.localPosition = new Vector3(3.05f, 1.85f, 2.45f);
+        rightWing.transform.localRotation = Quaternion.Euler(0f, -26f, 0f);
+        rightWing.transform.localScale = new Vector3(2.5f, 2.7f, 0.06f);
+        SetObjectUnlitColor(rightWing, new Color(0.028f, 0.014f, 0.035f));
+
+        // Top glowing trim rails
+        GameObject centerTrim = GetOrCreateArenaCube("HologramWallTrim_Center");
+        centerTrim.transform.localPosition = new Vector3(0f, 3.22f, 2.95f);
+        centerTrim.transform.localRotation = Quaternion.identity;
+        centerTrim.transform.localScale = new Vector3(4.85f, 0.05f, 0.08f);
+        SetObjectUnlitColor(centerTrim, new Color(0f, 0.85f, 1f));
+
+        GameObject leftTrim = GetOrCreateArenaCube("HologramWallTrim_Left");
+        leftTrim.transform.localPosition = new Vector3(-3.05f, 3.22f, 2.45f);
+        leftTrim.transform.localRotation = Quaternion.Euler(0f, 26f, 0f);
+        leftTrim.transform.localScale = new Vector3(2.55f, 0.05f, 0.08f);
+        SetObjectUnlitColor(leftTrim, new Color(0f, 0.75f, 1f));
+
+        GameObject rightTrim = GetOrCreateArenaCube("HologramWallTrim_Right");
+        rightTrim.transform.localPosition = new Vector3(3.05f, 3.22f, 2.45f);
+        rightTrim.transform.localRotation = Quaternion.Euler(0f, -26f, 0f);
+        rightTrim.transform.localScale = new Vector3(2.55f, 0.05f, 0.08f);
+        SetObjectUnlitColor(rightTrim, new Color(1f, 0.25f, 0.65f));
+    }
+
+    void CreateFighterCombatPads()
+    {
+        // 3D holographic combat pads directly beneath each fighter's home spot
+        GameObject padA = GetOrCreateArenaPrimitive("FighterA_CombatPad", PrimitiveType.Cylinder);
+        padA.transform.localPosition = new Vector3(FighterAHomePosition.x, 0.02f, FighterAHomePosition.z);
+        padA.transform.localRotation = Quaternion.identity;
+        padA.transform.localScale = new Vector3(1.65f, 0.005f, 1.65f);
+        SetObjectUnlitColor(padA, new Color(0f, 0.75f, 1f, 0.5f));
+
+        GameObject ringA = GetOrCreateArenaPrimitive("FighterA_CombatRing", PrimitiveType.Cylinder);
+        ringA.transform.localPosition = new Vector3(FighterAHomePosition.x, 0.03f, FighterAHomePosition.z);
+        ringA.transform.localRotation = Quaternion.identity;
+        ringA.transform.localScale = new Vector3(1.85f, 0.004f, 1.85f);
+        SetObjectUnlitColor(ringA, new Color(0.2f, 0.95f, 1f, 0.7f));
+
+        GameObject padB = GetOrCreateArenaPrimitive("FighterB_CombatPad", PrimitiveType.Cylinder);
+        padB.transform.localPosition = new Vector3(FighterBHomePosition.x, 0.02f, FighterBHomePosition.z);
+        padB.transform.localRotation = Quaternion.identity;
+        padB.transform.localScale = new Vector3(1.65f, 0.005f, 1.65f);
+        SetObjectUnlitColor(padB, new Color(1f, 0.2f, 0.65f, 0.5f));
+
+        GameObject ringB = GetOrCreateArenaPrimitive("FighterB_CombatRing", PrimitiveType.Cylinder);
+        ringB.transform.localPosition = new Vector3(FighterBHomePosition.x, 0.03f, FighterBHomePosition.z);
+        ringB.transform.localRotation = Quaternion.identity;
+        ringB.transform.localScale = new Vector3(1.85f, 0.004f, 1.85f);
+        SetObjectUnlitColor(ringB, new Color(1f, 0.45f, 0.35f, 0.7f));
+    }
+
+    void CreateArenaPillars()
+    {
+        // 6 3D Perimeter Light Towers
+        CreateCornerPillar("ArenaPillar_NW", new Vector3(-3.75f, 0.85f, 2.35f), new Color(0f, 0.85f, 1f));
+        CreateCornerPillar("ArenaPillar_SW", new Vector3(-3.75f, 0.85f, -2.15f), new Color(0f, 0.65f, 1f));
+        CreateCornerPillar("ArenaPillar_W_Mid", new Vector3(-3.85f, 0.85f, 0.1f), new Color(0.2f, 0.95f, 1f));
+
+        CreateCornerPillar("ArenaPillar_NE", new Vector3(3.75f, 0.85f, 2.35f), new Color(1f, 0.25f, 0.65f));
+        CreateCornerPillar("ArenaPillar_SE", new Vector3(3.75f, 0.85f, -2.15f), new Color(1f, 0.45f, 0.15f));
+        CreateCornerPillar("ArenaPillar_E_Mid", new Vector3(3.85f, 0.85f, 0.1f), new Color(1f, 0.2f, 0.45f));
+    }
+
+    void CreateCornerPillar(string pillarName, Vector3 position, Color glowColor)
+    {
+        GameObject pillar = GetOrCreateArenaPrimitive(pillarName, PrimitiveType.Cylinder);
+        pillar.transform.localPosition = position;
+        pillar.transform.localRotation = Quaternion.identity;
+        pillar.transform.localScale = new Vector3(0.18f, 0.88f, 0.18f);
+        SetObjectUnlitColor(pillar, new Color(0.04f, 0.06f, 0.09f));
+
+        string beaconName = pillarName + "_Beacon";
+        GameObject beacon = GetOrCreateArenaPrimitive(beaconName, PrimitiveType.Sphere);
+        beacon.transform.localPosition = position + new Vector3(0f, 0.92f, 0f);
+        beacon.transform.localRotation = Quaternion.identity;
+        beacon.transform.localScale = new Vector3(0.26f, 0.26f, 0.26f);
+        SetObjectUnlitColor(beacon, glowColor);
+    }
+
+    void CreateArenaFloatingDataAccents()
+    {
+        CreateDataAccentNode("DataNode_Left_0", new Vector3(-2.8f, 1.95f, 2.7f), new Vector3(0.65f, 0.02f, 0.02f), new Color(0f, 0.85f, 1f, 0.7f));
+        CreateDataAccentNode("DataNode_Left_1", new Vector3(-2.4f, 2.3f, 2.7f), new Vector3(0.35f, 0.02f, 0.02f), new Color(0f, 0.65f, 0.95f, 0.5f));
+        CreateDataAccentNode("DataNode_Right_0", new Vector3(2.8f, 1.95f, 2.7f), new Vector3(0.65f, 0.02f, 0.02f), new Color(1f, 0.35f, 0.65f, 0.7f));
+        CreateDataAccentNode("DataNode_Right_1", new Vector3(2.4f, 2.3f, 2.7f), new Vector3(0.35f, 0.02f, 0.02f), new Color(1f, 0.55f, 0.25f, 0.5f));
+        CreateDataAccentNode("DataNode_Center_Scanline", new Vector3(0f, 2.65f, 2.85f), new Vector3(5.8f, 0.015f, 0.015f), new Color(0.1f, 0.55f, 0.8f, 0.4f));
+    }
+
+    void CreateDataAccentNode(string nodeName, Vector3 position, Vector3 scale, Color color)
+    {
+        GameObject node = GetOrCreateArenaCube(nodeName);
+        node.transform.localPosition = position;
+        node.transform.localRotation = Quaternion.identity;
+        node.transform.localScale = scale;
+        SetObjectUnlitColor(node, color);
     }
 
     void CreatePresentationBackdrop()
     {
         GameObject backdrop = GetOrCreateArenaCube("PresentationBackdrop");
-        backdrop.transform.localPosition = new Vector3(0f, 1.45f, 3.05f);
+        backdrop.transform.localPosition = new Vector3(0f, 1.8f, 3.8f);
         backdrop.transform.localRotation = Quaternion.identity;
-        backdrop.transform.localScale = new Vector3(7.6f, 4.2f, 0.12f);
-        SetObjectUnlitColor(backdrop, new Color(0.005f, 0.008f, 0.014f));
+        backdrop.transform.localScale = new Vector3(11.5f, 5.5f, 0.12f);
+        SetObjectUnlitColor(backdrop, new Color(0.003f, 0.005f, 0.009f));
     }
 
     void CreatePlatform()
     {
+        // Lower Sub-Platform / Foundation
+        GameObject subPlatform = GetOrCreateArenaCube("ArenaPlatform_Sub");
+        subPlatform.transform.localPosition = new Vector3(0f, -0.12f, 0.15f);
+        subPlatform.transform.localRotation = Quaternion.identity;
+        subPlatform.transform.localScale = new Vector3(8.8f, 0.14f, 5.8f);
+        SetObjectUnlitColor(subPlatform, new Color(0.006f, 0.009f, 0.014f));
+
+        // Main Elevated Combat Stage
         GameObject platform = GetOrCreateArenaCube("DigitalArenaPlatform");
-        platform.transform.localPosition = new Vector3(0f, -0.04f, 0f);
+        platform.transform.localPosition = new Vector3(0f, -0.03f, 0.1f);
         platform.transform.localRotation = Quaternion.identity;
-        platform.transform.localScale = new Vector3(5.8f, 0.08f, 3.55f);
-        SetObjectUnlitColor(platform, new Color(0.01f, 0.014f, 0.022f));
+        platform.transform.localScale = new Vector3(7.6f, 0.08f, 4.8f);
+        SetObjectUnlitColor(platform, new Color(0.012f, 0.018f, 0.028f));
+
+        // Center Arena Holographic Ring
+        GameObject centerRing = GetOrCreateArenaPrimitive("ArenaCenterRing", PrimitiveType.Cylinder);
+        centerRing.transform.localPosition = new Vector3(0f, 0.02f, 0.1f);
+        centerRing.transform.localRotation = Quaternion.identity;
+        centerRing.transform.localScale = new Vector3(2.5f, 0.005f, 2.5f);
+        SetObjectUnlitColor(centerRing, new Color(0.15f, 0.85f, 0.95f, 0.55f));
+
+        // Center Core Diamond
+        GameObject centerCore = GetOrCreateArenaPrimitive("ArenaCenterCore", PrimitiveType.Sphere);
+        centerCore.transform.localPosition = new Vector3(0f, 0.04f, 0.1f);
+        centerCore.transform.localRotation = Quaternion.identity;
+        centerCore.transform.localScale = new Vector3(0.35f, 0.025f, 0.35f);
+        SetObjectUnlitColor(centerCore, new Color(0.45f, 1f, 1f));
     }
 
     GameObject CreateFighterPlaceholder(string objectName, Vector3 position, Color color)
@@ -7120,12 +7311,12 @@ public class FightPresentationManager : MonoBehaviour
             return;
         }
 
-        impactSparkA = CreateArenaImpactEffectObject("ImpactSparkA", PrimitiveType.Sphere, new Vector3(0.32f, 0.32f, 0.32f), Color.red);
-        impactSparkB = CreateArenaImpactEffectObject("ImpactSparkB", PrimitiveType.Sphere, new Vector3(0.32f, 0.32f, 0.32f), Color.red);
-        corruptionNodeA = CreateArenaImpactEffectObject("CorruptionNodeA", PrimitiveType.Cube, new Vector3(0.24f, 0.24f, 0.24f), new Color(0.75f, 0.1f, 1f));
-        corruptionNodeB = CreateArenaImpactEffectObject("CorruptionNodeB", PrimitiveType.Cube, new Vector3(0.24f, 0.24f, 0.24f), new Color(0.75f, 0.1f, 1f));
-        impactRingA = CreateArenaImpactEffectObject("ImpactRingA", PrimitiveType.Cylinder, new Vector3(0.62f, 0.025f, 0.62f), new Color(1f, 0.45f, 0.05f));
-        impactRingB = CreateArenaImpactEffectObject("ImpactRingB", PrimitiveType.Cylinder, new Vector3(0.62f, 0.025f, 0.62f), new Color(1f, 0.45f, 0.05f));
+        impactSparkA = CreateArenaImpactEffectObject("FightImpact_DigitalSpark_A", PrimitiveType.Sphere, new Vector3(0.32f, 0.32f, 0.32f), Color.red);
+        impactSparkB = CreateArenaImpactEffectObject("FightImpact_DigitalSpark_B", PrimitiveType.Sphere, new Vector3(0.32f, 0.32f, 0.32f), Color.red);
+        corruptionNodeA = CreateArenaImpactEffectObject("FightImpact_GlitchBurst_A", PrimitiveType.Cube, new Vector3(0.24f, 0.24f, 0.24f), new Color(0.75f, 0.1f, 1f));
+        corruptionNodeB = CreateArenaImpactEffectObject("FightImpact_GlitchBurst_B", PrimitiveType.Cube, new Vector3(0.24f, 0.24f, 0.24f), new Color(0.75f, 0.1f, 1f));
+        impactRingA = CreateArenaImpactEffectObject("FightImpact_Ring_A", PrimitiveType.Cylinder, new Vector3(0.62f, 0.025f, 0.62f), new Color(1f, 0.45f, 0.05f));
+        impactRingB = CreateArenaImpactEffectObject("FightImpact_Ring_B", PrimitiveType.Cylinder, new Vector3(0.62f, 0.025f, 0.62f), new Color(1f, 0.45f, 0.05f));
 
         arenaImpactEffectsCreated = true;
         HideImpactEffects();
@@ -8026,8 +8217,10 @@ public class FightPresentationManager : MonoBehaviour
             yield break;
         }
 
-        Vector3 fighterAHome = new Vector3(-1.75f, 0.6f, 0f);
-        Vector3 fighterBHome = new Vector3(1.75f, 0.6f, 0f);
+        Vector3 fighterAHome = FighterAHomePosition;
+        Vector3 fighterBHome = FighterBHomePosition;
+        Vector3 combatLine = (fighterBHome - fighterAHome).normalized;
+        Vector3 sideLine = Vector3.Cross(combatLine, Vector3.up).normalized;
 
         float dogALunge = GetStrategyLungeDistance(dogAStrategy, dogAImpact, roundNumber) * GetStyleLungeMultiplier(dogAStyle);
         float dogBLunge = GetStrategyLungeDistance(dogBStrategy, dogBImpact, roundNumber) * GetStyleLungeMultiplier(dogBStyle);
@@ -8036,13 +8229,13 @@ public class FightPresentationManager : MonoBehaviour
         float dogASideOffset = GetStyleSideOffset(dogAStyle, roundNumber, 1f);
         float dogBSideOffset = GetStyleSideOffset(dogBStyle, roundNumber, -1f);
 
-        Vector3 fighterAImpactPosition = fighterAHome + new Vector3(dogALunge - dogARecoil, 0f, dogASideOffset);
-        Vector3 fighterBImpactPosition = fighterBHome + new Vector3(-dogBLunge + dogBRecoil, 0f, dogBSideOffset);
-        Vector3 fighterAWindupPosition = GetStrategyWindupPosition(fighterAHome, dogAStrategy, 1f) + GetStyleWindupOffset(dogAStyle, 1f);
-        Vector3 fighterBWindupPosition = GetStrategyWindupPosition(fighterBHome, dogBStrategy, -1f) + GetStyleWindupOffset(dogBStyle, -1f);
+        Vector3 fighterAImpactPosition = fighterAHome + (combatLine * (dogALunge - dogARecoil)) + (sideLine * dogASideOffset);
+        Vector3 fighterBImpactPosition = fighterBHome + (-combatLine * (dogBLunge - dogBRecoil)) + (sideLine * dogBSideOffset);
+        Vector3 fighterAWindupPosition = GetStrategyWindupPosition(fighterAHome, combatLine, dogAStrategy, 1f) + (sideLine * GetStyleWindupOffset(dogAStyle, 1f).z);
+        Vector3 fighterBWindupPosition = GetStrategyWindupPosition(fighterBHome, combatLine, dogBStrategy, -1f) + (sideLine * GetStyleWindupOffset(dogBStyle, -1f).z);
 
-        fighterAImpactPosition.x = Mathf.Clamp(fighterAImpactPosition.x, -2.4f, -0.35f);
-        fighterBImpactPosition.x = Mathf.Clamp(fighterBImpactPosition.x, 0.35f, 2.4f);
+        fighterAImpactPosition.x = Mathf.Clamp(fighterAImpactPosition.x, -2.8f, -0.2f);
+        fighterBImpactPosition.x = Mathf.Clamp(fighterBImpactPosition.x, 0.2f, 2.8f);
 
         CreateArenaImpactEffectsIfNeeded();
         CreateStrategyEffectsIfNeeded();
@@ -8054,8 +8247,8 @@ public class FightPresentationManager : MonoBehaviour
 
         if (!hasWindup && (dogAImpact > 0 || dogBImpact > 0))
         {
-            fighterAWindupPosition = GetDefaultReadableWindupPosition(fighterAHome, 1f, dogAImpact);
-            fighterBWindupPosition = GetDefaultReadableWindupPosition(fighterBHome, -1f, dogBImpact);
+            fighterAWindupPosition = GetDefaultReadableWindupPosition(fighterAHome, combatLine, 1f, dogAImpact);
+            fighterBWindupPosition = GetDefaultReadableWindupPosition(fighterBHome, combatLine, -1f, dogBImpact);
             hasWindup = true;
         }
 
@@ -8246,15 +8439,15 @@ public class FightPresentationManager : MonoBehaviour
     {
         if (fighterATransform != null)
         {
-            fighterATransform.localPosition = new Vector3(-1.75f, 0.6f, 0f);
-            fighterATransform.localScale = new Vector3(0.46f, 0.84f, 0.46f);
+            fighterATransform.localPosition = FighterAHomePosition;
+            fighterATransform.localScale = new Vector3(0.55f, 0.95f, 0.55f);
             SetObjectUnlitColor(fighterATransform.gameObject, new Color(0f, 0.58f, 0.78f));
         }
 
         if (fighterBTransform != null)
         {
-            fighterBTransform.localPosition = new Vector3(1.75f, 0.6f, 0f);
-            fighterBTransform.localScale = new Vector3(0.46f, 0.84f, 0.46f);
+            fighterBTransform.localPosition = FighterBHomePosition;
+            fighterBTransform.localScale = new Vector3(0.55f, 0.95f, 0.55f);
             SetObjectUnlitColor(fighterBTransform.gameObject, new Color(0.78f, 0.1f, 0.68f));
         }
 
@@ -8327,18 +8520,18 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
-    Vector3 GetStrategyWindupPosition(Vector3 homePosition, FightStrategy strategy, float forwardDirection)
+    Vector3 GetStrategyWindupPosition(Vector3 homePosition, Vector3 combatLine, FightStrategy strategy, float forwardDirection)
     {
         switch (strategy)
         {
             case FightStrategy.CounterPlan:
-                return homePosition + new Vector3(-forwardDirection * 0.42f, 0f, 0f);
+                return homePosition + (-combatLine * (forwardDirection * 0.42f));
 
             case FightStrategy.AllIn:
-                return homePosition + new Vector3(-forwardDirection * 0.22f, 0f, 0f);
+                return homePosition + (-combatLine * (forwardDirection * 0.22f));
 
             case FightStrategy.DefensiveShell:
-                return homePosition + new Vector3(-forwardDirection * 0.08f, 0f, 0f);
+                return homePosition + (-combatLine * (forwardDirection * 0.08f));
 
             case FightStrategy.RushEarly:
             case FightStrategy.WearDown:
@@ -8348,7 +8541,7 @@ public class FightPresentationManager : MonoBehaviour
         }
     }
 
-    Vector3 GetDefaultReadableWindupPosition(Vector3 homePosition, float forwardDirection, int impact)
+    Vector3 GetDefaultReadableWindupPosition(Vector3 homePosition, Vector3 combatLine, float forwardDirection, int impact)
     {
         if (impact <= 0)
         {
@@ -8356,7 +8549,7 @@ public class FightPresentationManager : MonoBehaviour
         }
 
         float pullbackDistance = Mathf.Clamp(0.16f + (impact * 0.004f), 0.16f, 0.28f);
-        return homePosition + new Vector3(-forwardDirection * pullbackDistance, 0f, 0f);
+        return homePosition + (-combatLine * (forwardDirection * pullbackDistance));
     }
 
     void ShowRoundImpactEffects(
@@ -8485,35 +8678,35 @@ public class FightPresentationManager : MonoBehaviour
 
     void CreateGridLines()
     {
-        Color gridColor = new Color(0f, 0.78f, 1f);
-        Color borderColor = new Color(0.25f, 1f, 1f);
-        float gridHeight = 0.09f;
-        float gridThickness = 0.065f;
+        Color gridColor = new Color(0f, 0.78f, 1f, 0.85f);
+        Color borderColor = new Color(0.25f, 1f, 1f, 0.95f);
+        float gridHeight = 0.08f;
+        float gridThickness = 0.055f;
+
+        for (int i = -4; i <= 4; i++)
+        {
+            CreateBrightWall(
+                $"GridLine_X_{i}",
+                new Vector3(i * 0.9f, gridHeight, 0.1f),
+                new Vector3(gridThickness, 0.02f, 4.7f),
+                gridColor
+            );
+        }
 
         for (int i = -3; i <= 3; i++)
         {
             CreateBrightWall(
-                $"GridLine_X_{i}",
-                new Vector3(i, gridHeight, 0f),
-                new Vector3(gridThickness, 0.035f, 3.65f),
-                gridColor
-            );
-        }
-
-        for (int i = -2; i <= 2; i++)
-        {
-            CreateBrightWall(
                 $"GridLine_Z_{i}",
-                new Vector3(0f, gridHeight, i),
-                new Vector3(5.95f, 0.035f, gridThickness),
+                new Vector3(0f, gridHeight, 0.1f + (i * 0.75f)),
+                new Vector3(7.5f, 0.02f, gridThickness),
                 gridColor
             );
         }
 
-        CreateBrightWall("ArenaBorder_North", new Vector3(0f, gridHeight + 0.025f, 1.85f), new Vector3(6.15f, 0.075f, 0.11f), borderColor);
-        CreateBrightWall("ArenaBorder_South", new Vector3(0f, gridHeight + 0.025f, -1.85f), new Vector3(6.15f, 0.075f, 0.11f), borderColor);
-        CreateBrightWall("ArenaBorder_East", new Vector3(3f, gridHeight + 0.025f, 0f), new Vector3(0.11f, 0.075f, 3.75f), borderColor);
-        CreateBrightWall("ArenaBorder_West", new Vector3(-3f, gridHeight + 0.025f, 0f), new Vector3(0.11f, 0.075f, 3.75f), borderColor);
+        CreateBrightWall("ArenaBorder_North", new Vector3(0f, gridHeight + 0.02f, 2.45f), new Vector3(7.65f, 0.06f, 0.1f), borderColor);
+        CreateBrightWall("ArenaBorder_South", new Vector3(0f, gridHeight + 0.02f, -2.25f), new Vector3(7.65f, 0.06f, 0.1f), borderColor);
+        CreateBrightWall("ArenaBorder_East", new Vector3(3.8f, gridHeight + 0.02f, 0.1f), new Vector3(0.1f, 0.06f, 4.8f), new Color(1f, 0.35f, 0.75f));
+        CreateBrightWall("ArenaBorder_West", new Vector3(-3.8f, gridHeight + 0.02f, 0.1f), new Vector3(0.1f, 0.06f, 4.8f), borderColor);
     }
 
     void CreateBrightWall(string objectName, Vector3 position, Vector3 scale, Color color)
@@ -8565,7 +8758,7 @@ public class FightPresentationManager : MonoBehaviour
 
     void SetArenaPulseVisual(float pulse, int severity, Color accentColor)
     {
-        Color platformBaseColor = new Color(0.01f, 0.014f, 0.022f);
+        Color platformBaseColor = new Color(0.012f, 0.018f, 0.028f);
         Color gridBaseColor = new Color(0f, 0.78f, 1f);
         Color borderBaseColor = new Color(0.25f, 1f, 1f);
         float strength = Mathf.Lerp(0.08f, 0.22f, Mathf.InverseLerp(1f, 3f, severity)) * pulse;
@@ -8574,24 +8767,29 @@ public class FightPresentationManager : MonoBehaviour
 
         if (platform != null)
         {
-            platform.transform.localScale = Vector3.Lerp(new Vector3(5.8f, 0.08f, 3.55f), new Vector3(5.88f, 0.082f, 3.6f), strength);
+            platform.transform.localScale = Vector3.Lerp(new Vector3(7.6f, 0.08f, 4.8f), new Vector3(7.7f, 0.082f, 4.86f), strength);
             SetObjectUnlitColor(platform, Color.Lerp(platformBaseColor, accentColor, strength * 0.28f));
+        }
+
+        for (int i = -4; i <= 4; i++)
+        {
+            ApplyArenaLinePulse($"GridLine_X_{i}", new Vector3(0.055f, 0.02f, 4.7f), Color.Lerp(gridColorBase(i), accentColor, strength));
         }
 
         for (int i = -3; i <= 3; i++)
         {
-            ApplyArenaLinePulse($"GridLine_X_{i}", new Vector3(0.065f, 0.035f, 3.65f), Color.Lerp(gridBaseColor, accentColor, strength));
+            ApplyArenaLinePulse($"GridLine_Z_{i}", new Vector3(7.5f, 0.02f, 0.055f), Color.Lerp(gridBaseColor, accentColor, strength));
         }
 
-        for (int i = -2; i <= 2; i++)
-        {
-            ApplyArenaLinePulse($"GridLine_Z_{i}", new Vector3(5.95f, 0.035f, 0.065f), Color.Lerp(gridBaseColor, accentColor, strength));
-        }
+        ApplyArenaLinePulse("ArenaBorder_North", new Vector3(7.65f, 0.06f, 0.1f), Color.Lerp(borderBaseColor, accentColor, strength));
+        ApplyArenaLinePulse("ArenaBorder_South", new Vector3(7.65f, 0.06f, 0.1f), Color.Lerp(borderBaseColor, accentColor, strength));
+        ApplyArenaLinePulse("ArenaBorder_East", new Vector3(0.1f, 0.06f, 4.8f), Color.Lerp(new Color(1f, 0.35f, 0.75f), accentColor, strength));
+        ApplyArenaLinePulse("ArenaBorder_West", new Vector3(0.1f, 0.06f, 4.8f), Color.Lerp(borderBaseColor, accentColor, strength));
+    }
 
-        ApplyArenaLinePulse("ArenaBorder_North", new Vector3(6.15f, 0.075f, 0.11f), Color.Lerp(borderBaseColor, accentColor, strength));
-        ApplyArenaLinePulse("ArenaBorder_South", new Vector3(6.15f, 0.075f, 0.11f), Color.Lerp(borderBaseColor, accentColor, strength));
-        ApplyArenaLinePulse("ArenaBorder_East", new Vector3(0.11f, 0.075f, 3.75f), Color.Lerp(borderBaseColor, accentColor, strength));
-        ApplyArenaLinePulse("ArenaBorder_West", new Vector3(0.11f, 0.075f, 3.75f), Color.Lerp(borderBaseColor, accentColor, strength));
+    Color gridColorBase(int index)
+    {
+        return index >= 1 ? new Color(0.8f, 0.3f, 0.7f, 0.85f) : new Color(0f, 0.78f, 1f, 0.85f);
     }
 
     void ApplyArenaLinePulse(string objectName, Vector3 baseScale, Color color)
@@ -8652,6 +8850,11 @@ public class FightPresentationManager : MonoBehaviour
 
     GameObject GetOrCreateArenaCube(string objectName)
     {
+        return GetOrCreateArenaPrimitive(objectName, PrimitiveType.Cube);
+    }
+
+    GameObject GetOrCreateArenaPrimitive(string objectName, PrimitiveType primitiveType)
+    {
         Transform existingObject = arenaRoot.transform.Find(objectName);
 
         if (existingObject != null)
@@ -8660,7 +8863,7 @@ public class FightPresentationManager : MonoBehaviour
             return existingObject.gameObject;
         }
 
-        GameObject createdObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        GameObject createdObject = GameObject.CreatePrimitive(primitiveType);
         createdObject.name = objectName;
         createdObject.transform.SetParent(arenaRoot.transform);
         createdObject.hideFlags = HideFlags.DontSave;

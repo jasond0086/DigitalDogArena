@@ -42,6 +42,7 @@ public class StorySaveData
 public class StoryManager : MonoBehaviour
 {
     private const string StorySaveKey = "STORY_STATE_SAVE";
+    private const string LegacyStoryStepKey = "DigitalDogArena.Story.Step";
 
     [Header("References")]
     public DogManager dogManager;
@@ -413,7 +414,13 @@ public class StoryManager : MonoBehaviour
 
     public void ClearStorySave()
     {
+        ResetStoryProgress();
+    }
+
+    public void ResetStoryProgress()
+    {
         PlayerPrefs.DeleteKey(StorySaveKey);
+        PlayerPrefs.DeleteKey(LegacyStoryStepKey);
 
         reputation = 0;
         undergroundReputation = 0;
@@ -431,8 +438,19 @@ public class StoryManager : MonoBehaviour
             }
         }
 
+        if (fightManager == null)
+        {
+            fightManager = GetComponent<FightManager>();
+        }
+
+        if (fightManager != null)
+        {
+            fightManager.ClearStoryFightState();
+        }
+
         SaveStoryState();
         ShowNextAvailableEvent();
+        Debug.Log("Story progress reset to Step 0.");
     }
 
     public void AcceptStoryFight()
@@ -689,8 +707,8 @@ public class StoryManager : MonoBehaviour
             return;
         }
 
-        SetText(storyModeObjectiveText, "OBJECTIVE: Complete your first digital story fight.");
-        SetText(storyModeFightTitleText, "STORY FIGHT // RUST YARD");
+        SetText(storyModeObjectiveText, "STEP 0: Complete your first digital story fight.");
+        SetText(storyModeFightTitleText, "RUST YARD CHALLENGE");
         SetText(opponentKennelLabelText, "OPPONENT KENNEL");
         SetText(opponentKennelValueText, "Rust Yard");
         SetText(opponentDogLabelText, "OPPONENT DOG");
@@ -712,12 +730,12 @@ public class StoryManager : MonoBehaviour
     {
         if (storyStep == 0)
         {
-            return "CHAPTER 1 // THE TERMINAL WAKES";
+            return "CHAPTER 1: THE TERMINAL WAKES";
         }
 
         if (storyStep == 1)
         {
-            return "CHAPTER 2 // RUST YARD AFTERMATH";
+            return "CHAPTER 2: RUST YARD AFTERMATH";
         }
 
         if (activeStoryEvent == null)

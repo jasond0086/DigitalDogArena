@@ -565,3 +565,46 @@ public class DogCardUI : MonoBehaviour, IPointerClickHandler
         return builder.ToString();
     }
 }
+
+public static class DogPreviewTextFormatter
+{
+    public static string GetCompactStats(Dog dog)
+    {
+        if (dog == null)
+        {
+            return "STR - / AGI - / STA - / INT -";
+        }
+
+        return $"STR {dog.strength} / AGI {dog.agility} / STA {dog.stamina} / INT {dog.GetIntelligence()}";
+    }
+
+    public static string GetGenerationLabel(Dog dog)
+    {
+        if (dog == null || dog.generation <= 0)
+        {
+            return "Foundation";
+        }
+
+        return $"Gen {dog.generation}";
+    }
+
+    public static string GetShortTraitSummary(Dog dog, int maximumLength = 42)
+    {
+        string traitSummary = dog == null ? string.Empty : dog.GetTraitSummary();
+
+        if (string.IsNullOrWhiteSpace(traitSummary) ||
+            string.Equals(traitSummary, "No Traits", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return "None discovered";
+        }
+
+        traitSummary = traitSummary.Trim();
+
+        if (traitSummary.Length <= maximumLength)
+        {
+            return traitSummary;
+        }
+
+        return traitSummary.Substring(0, System.Math.Max(1, maximumLength - 3)).TrimEnd() + "...";
+    }
+}

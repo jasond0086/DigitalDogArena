@@ -14,11 +14,22 @@ public class FightManager : MonoBehaviour
     public FightPresentationManager fightPresentationManager;
     public TextMeshProUGUI fightLog;
     public ScrollRect fightLogScrollRect;
+    public RectTransform fightLogPanel;
+    public RectTransform fightLogViewport;
 
     [Header("Fight Controls")]
     public Button startFightButton;
     public Button nextRoundButton;
+    public Button endFightButton;
     public TextMeshProUGUI roundStatusText;
+
+    [Header("Fight Preview UI")]
+    public RectTransform playerFightPreviewPanel;
+    public RectTransform opponentFightPreviewPanel;
+    public TextMeshProUGUI playerFightPreviewText;
+    public TextMeshProUGUI opponentFightPreviewText;
+    public Image playerFightDogImage;
+    public Image opponentFightDogImage;
 
     [Header("Fight Settings")]
     public int maxRounds = 6;
@@ -55,6 +66,13 @@ public class FightManager : MonoBehaviour
     private int fighter2WinsBeforeFight;
     private bool fightIntroInProgress;
     private bool dogPoundTokensAwardedForActiveFight;
+    private bool fightResultResolved;
+    private Dog lastPreviewPlayerDog;
+    private Dog lastPreviewOpponentDog;
+    private FightStrategy lastPreviewPlayerStrategy;
+    private FightStrategy lastPreviewOpponentStrategy;
+    private bool playerFightPreviewTextIsRuntimeFallback;
+    private bool opponentFightPreviewTextIsRuntimeFallback;
 
     void Awake()
     {
@@ -105,11 +123,23 @@ public class FightManager : MonoBehaviour
             GameObject presentationManagerObject = new GameObject("FightPresentationManager");
             fightPresentationManager = presentationManagerObject.AddComponent<FightPresentationManager>();
         }
+
+        FindFightPreviewReferencesIfMissing();
+        ConfigureFightPreviewText(playerFightPreviewText, playerFightPreviewTextIsRuntimeFallback);
+        ConfigureFightPreviewText(opponentFightPreviewText, opponentFightPreviewTextIsRuntimeFallback);
+        FindEndFightButtonIfMissing();
+        SetEndFightButtonVisible(false);
     }
 
     void Start()
     {
         UpdateFightUIState("Choose fighters and start a fight.");
+        RefreshFightPreviews(true);
+    }
+
+    void Update()
+    {
+        RefreshFightPreviews(false);
     }
 
     public void StartFight()
@@ -176,6 +206,7 @@ public class FightManager : MonoBehaviour
         pendingStoryFight = true;
         pendingStoryFightId = storyFightId;
         pendingStoryOpponent = storyOpponent;
+        RefreshFightPreviews(true);
 
         string message = "Story fight queued: Rust Yard versus CHAINSAW. Select any owned dog, then press Start Fight.";
         SetLog(message);
@@ -183,6 +214,73 @@ public class FightManager : MonoBehaviour
         UpdateFightUIState("Story fight pending - select one dog, then start the fight.");
         Debug.Log($"Story fight queued: {pendingStoryFightId} against {pendingStoryOpponent.dogName}.");
         return true;
+    }
+
+    public void ClearStoryFightState()
+    {
+        bool hadPendingStoryFight = pendingStoryFight;
+        bool hadActiveStoryFight = activeFightIsStory;
+
+        pendingStoryFight = false;
+        pendingStoryFightId = string.Empty;
+        pendingStoryOpponent = null;
+        activeFightIsStory = false;
+        activeStoryFightId = string.Empty;
+
+        if (!fightInProgress)
+        {
+            UpdateFightUIState();
+        }
+
+        Debug.Log($"Story fight state cleared. Pending: {hadPendingStoryFight}. Active: {hadActiveStoryFight}.");
+    }
+
+    public void EndCurrentFight()
+    {
+        if (fightInProgress || fightIntroInProgress)
+        {
+            Debug.LogWarning("End fight cleanup was requested before the fight result resolved.");
+            return;
+        }
+
+        if (!fightResultResolved)
+        {
+            Debug.LogWarning("End fight cleanup was requested, but there is no resolved fight to clear.");
+            return;
+        }
+
+        Debug.Log("End fight cleanup started.");
+
+        if (fightPresentationManager != null)
+        {
+            fightPresentationManager.ClearFightPresentation();
+        }
+        else
+        {
+            Debug.LogWarning("Fight presentation cleanup was skipped because FightPresentationManager is missing.");
+        }
+
+        activeFighter1 = null;
+        activeFighter2 = null;
+        activeRival = null;
+        activeFightIsRival = false;
+        activeFightIsStory = false;
+        activeStoryFightId = string.Empty;
+        currentRound = 0;
+        currentFighter1Health = 0;
+        currentFighter2Health = 0;
+        startingFighter1Health = 0;
+        startingFighter2Health = 0;
+        fighter1WasBehind = false;
+        fighter2WasBehind = false;
+        dogPoundTokensAwardedForActiveFight = false;
+        fightResultResolved = false;
+
+        SetEndFightButtonVisible(false);
+        SetLog("Ready for a new fight.");
+        UpdateFightUIState("Choose fighters and start a fight.");
+        RefreshFightPreviews(true);
+        Debug.Log("Fight returned to the ready state.");
     }
 
     public void StartRivalFight()
@@ -288,6 +386,8 @@ public class FightManager : MonoBehaviour
         activeRival = rival;
         activeFightIsStory = false;
         activeStoryFightId = string.Empty;
+        fightResultResolved = false;
+        SetEndFightButtonVisible(false);
         currentRound = 0;
         startingFighter1Health = CalculateStartingHealth(activeFighter1);
         startingFighter2Health = CalculateStartingHealth(activeFighter2);
@@ -624,6 +724,9 @@ public class FightManager : MonoBehaviour
         }
 
         UpdateFightUIState(finalStatus);
+        fightResultResolved = true;
+        SetEndFightButtonVisible(true);
+        Debug.Log("Fight resolved. EndFightButton is now available.");
     }
 
     string GetFinalFightStatus()
@@ -1704,48 +1807,244 @@ public class FightManager : MonoBehaviour
         }
 
         RectTransform fightLogRect = fightLog.rectTransform;
-        RectTransform panelRect = fightLogRect.parent as RectTransform;
+        RectTransform panelRect = fightLogPanel != null
+            ? fightLogPanel
+            : FindSceneComponentByName<RectTransform>("FightLogPanel");
 
         if (panelRect == null)
+        {
+            panelRect = fightLogRect.parent as RectTransform;
+        }
+
+        if (panelRect == null)
+        {
+            Debug.LogWarning("Fight log could not be constrained because FightLogPanel is missing.");
+            return;
+        }
+
+        fightLogPanel = panelRect;
+        RectTransform viewportRect = fightLogViewport != null ? fightLogViewport : panelRect;
+
+        if (viewportRect.GetComponent<RectMask2D>() == null)
+        {
+            viewportRect.gameObject.AddComponent<RectMask2D>();
+        }
+    }
+
+    void FindFightPreviewReferencesIfMissing()
+    {
+        if (playerFightPreviewPanel == null)
+        {
+            playerFightPreviewPanel = FindSceneComponentByName<RectTransform>("PlayerFightPreviewPanel") ??
+                                      FindSceneComponentByName<RectTransform>("Fighter1Panel");
+        }
+
+        if (opponentFightPreviewPanel == null)
+        {
+            opponentFightPreviewPanel = FindSceneComponentByName<RectTransform>("OpponentFightPreviewPanel") ??
+                                        FindSceneComponentByName<RectTransform>("Fighter2Panel");
+        }
+
+        if (playerFightPreviewText == null)
+        {
+            playerFightPreviewText = FindSceneComponentByName<TextMeshProUGUI>("PlayerFightPreviewText");
+        }
+
+        if (opponentFightPreviewText == null)
+        {
+            opponentFightPreviewText = FindSceneComponentByName<TextMeshProUGUI>("OpponentFightPreviewText");
+        }
+
+        if (playerFightPreviewText == null)
+        {
+            playerFightPreviewText = CreateFightPreviewTextFallback("PlayerFightPreviewText", playerFightPreviewPanel, "Fighter1Title");
+            playerFightPreviewTextIsRuntimeFallback = playerFightPreviewText != null;
+        }
+
+        if (opponentFightPreviewText == null)
+        {
+            opponentFightPreviewText = CreateFightPreviewTextFallback("OpponentFightPreviewText", opponentFightPreviewPanel, "Fighter2Title");
+            opponentFightPreviewTextIsRuntimeFallback = opponentFightPreviewText != null;
+        }
+
+        if (playerFightDogImage == null)
+        {
+            playerFightDogImage = FindSceneComponentByName<Image>("PlayerFightDogImage");
+        }
+
+        if (opponentFightDogImage == null)
+        {
+            opponentFightDogImage = FindSceneComponentByName<Image>("OpponentFightDogImage");
+        }
+    }
+
+    TextMeshProUGUI CreateFightPreviewTextFallback(string objectName, RectTransform panelRect, string titleObjectName)
+    {
+        if (panelRect == null)
+        {
+            Debug.LogWarning($"{objectName} could not be created because its fight preview panel is missing.");
+            return null;
+        }
+
+        GameObject previewObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        previewObject.transform.SetParent(panelRect, false);
+
+        RectTransform previewRect = previewObject.GetComponent<RectTransform>();
+        previewRect.anchorMin = new Vector2(0f, 0f);
+        previewRect.anchorMax = new Vector2(1f, 0f);
+        previewRect.pivot = new Vector2(0.5f, 0f);
+        previewRect.anchoredPosition = new Vector2(0f, 12f);
+        previewRect.sizeDelta = new Vector2(-28f, 135f);
+
+        TextMeshProUGUI previewText = previewObject.GetComponent<TextMeshProUGUI>();
+        TextMeshProUGUI titleText = FindSceneComponentByName<TextMeshProUGUI>(titleObjectName);
+
+        if (titleText != null)
+        {
+            previewText.font = titleText.font;
+            previewText.fontSharedMaterial = titleText.fontSharedMaterial;
+        }
+
+        return previewText;
+    }
+
+    void ConfigureFightPreviewText(TextMeshProUGUI previewText, bool isRuntimeFallback)
+    {
+        if (previewText == null || !isRuntimeFallback)
         {
             return;
         }
 
-        fightLogScrollRect = panelRect.GetComponent<ScrollRect>();
+        previewText.raycastTarget = false;
+        previewText.alignment = TextAlignmentOptions.Center;
+        previewText.textWrappingMode = TextWrappingModes.Normal;
+        previewText.overflowMode = TextOverflowModes.Truncate;
+        previewText.fontSize = 12f;
+        previewText.margin = Vector4.zero;
+        previewText.color = Color.white;
+    }
 
-        if (fightLogScrollRect == null)
+    void FindEndFightButtonIfMissing()
+    {
+        if (endFightButton == null)
         {
-            fightLogScrollRect = panelRect.gameObject.AddComponent<ScrollRect>();
+            endFightButton = FindSceneComponentByName<Button>("EndFightButton");
+        }
+    }
+
+    void SetEndFightButtonVisible(bool isVisible)
+    {
+        if (endFightButton == null)
+        {
+            if (isVisible)
+            {
+                Debug.LogWarning("Fight resolved, but EndFightButton is not assigned. Create a scene button named EndFightButton and wire PageManager.EndCurrentFight().");
+            }
+
+            return;
         }
 
-        fightLogScrollRect.content = fightLogRect;
-        fightLogScrollRect.viewport = panelRect;
-        fightLogScrollRect.horizontal = false;
-        fightLogScrollRect.vertical = true;
-        fightLogScrollRect.movementType = ScrollRect.MovementType.Clamped;
-        fightLogScrollRect.scrollSensitivity = 20f;
+        endFightButton.gameObject.SetActive(isVisible);
 
-        if (panelRect.GetComponent<RectMask2D>() == null)
+        if (isVisible)
         {
-            panelRect.gameObject.AddComponent<RectMask2D>();
+            Debug.Log("EndFightButton shown.");
+        }
+    }
+
+    public void RefreshFightPreviews(bool forceRefresh = false)
+    {
+        Dog playerDog = activeFighter1 != null ? activeFighter1 : dogManager != null ? dogManager.selectedFighter1 : null;
+        Dog opponentDog = activeFighter2 != null
+            ? activeFighter2
+            : pendingStoryFight && pendingStoryOpponent != null
+                ? pendingStoryOpponent
+                : dogManager != null ? dogManager.selectedFighter2 : null;
+
+        FightStrategy playerStrategy = dogManager != null ? dogManager.fighter1Strategy : FightStrategy.Balanced;
+        FightStrategy opponentStrategy = dogManager != null ? dogManager.fighter2Strategy : FightStrategy.Balanced;
+
+        if (!forceRefresh &&
+            playerDog == lastPreviewPlayerDog &&
+            opponentDog == lastPreviewOpponentDog &&
+            playerStrategy == lastPreviewPlayerStrategy &&
+            opponentStrategy == lastPreviewOpponentStrategy)
+        {
+            return;
         }
 
-        ContentSizeFitter sizeFitter = fightLog.GetComponent<ContentSizeFitter>();
+        lastPreviewPlayerDog = playerDog;
+        lastPreviewOpponentDog = opponentDog;
+        lastPreviewPlayerStrategy = playerStrategy;
+        lastPreviewOpponentStrategy = opponentStrategy;
 
-        if (sizeFitter == null)
+        SetFightPreviewText(playerFightPreviewText, playerDog, playerStrategy, "PLAYER FIGHTER");
+        SetFightPreviewText(opponentFightPreviewText, opponentDog, opponentStrategy, "OPPONENT FIGHTER");
+        SetFightPreviewDogImage(playerFightDogImage, playerDog);
+        SetFightPreviewDogImage(opponentFightDogImage, opponentDog);
+    }
+
+    void SetFightPreviewText(TextMeshProUGUI previewText, Dog dog, FightStrategy strategy, string heading)
+    {
+        if (previewText == null)
         {
-            sizeFitter = fightLog.gameObject.AddComponent<ContentSizeFitter>();
+            return;
         }
 
-        sizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        sizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        if (dog == null)
+        {
+            previewText.text = $"<b>{heading}</b>\nSelect a dog.";
+            return;
+        }
 
-        fightLogRect.anchorMin = new Vector2(0f, 1f);
-        fightLogRect.anchorMax = new Vector2(1f, 1f);
-        fightLogRect.pivot = new Vector2(0.5f, 1f);
-        fightLogRect.anchoredPosition = Vector2.zero;
-        fightLogRect.sizeDelta = Vector2.zero;
-        fightLog.alignment = TextAlignmentOptions.TopLeft;
+        string dogName = string.IsNullOrWhiteSpace(dog.dogName) ? "Unnamed Dog" : dog.dogName.Trim();
+        string breed = string.IsNullOrWhiteSpace(dog.breed) ? "Unknown Breed" : dog.breed.Trim();
+
+        previewText.text =
+            $"<b>{heading}</b>\n" +
+            $"<color=#7CF6FF>{dogName}</color>\n" +
+            $"{dog.gender} | {breed}\n" +
+            $"{DogPreviewTextFormatter.GetCompactStats(dog)}\n" +
+            $"Style: {dog.fightStyle} | Strategy: {strategy}\n" +
+            $"{DogPreviewTextFormatter.GetGenerationLabel(dog)} | Traits: {DogPreviewTextFormatter.GetShortTraitSummary(dog)}";
+    }
+
+    void SetFightPreviewDogImage(Image image, Dog dog)
+    {
+        if (image == null)
+        {
+            return;
+        }
+
+        Sprite portraitSprite = dog == null
+            ? null
+            : DogPortraitLibrary.ChooseStableCardPortrait(dog, dog.dogSprite, null);
+
+        image.sprite = portraitSprite;
+        image.enabled = portraitSprite != null;
+    }
+
+    T FindSceneComponentByName<T>(string objectName) where T : Component
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+        {
+            return null;
+        }
+
+        T[] components = Resources.FindObjectsOfTypeAll<T>();
+
+        for (int i = 0; i < components.Length; i++)
+        {
+            T component = components[i];
+
+            if (component != null && component.gameObject != null &&
+                component.gameObject.scene.IsValid() && component.gameObject.name == objectName)
+            {
+                return component;
+            }
+        }
+
+        return null;
     }
 
     void SetFightNarration(string headline, string details)

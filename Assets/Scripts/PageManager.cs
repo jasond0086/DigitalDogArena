@@ -14,6 +14,7 @@ public class PageManager : MonoBehaviour
     public GameObject storyPage;
     public GameObject settingsPage;
     public StoryManager storyManager;
+    public FightManager fightManager;
 
     [Header("Settings UI")]
     public Slider volumeSlider;
@@ -78,6 +79,16 @@ public class PageManager : MonoBehaviour
     public void ShowFightPage()
     {
         SetPage(fightPage);
+
+        if (fightManager == null)
+        {
+            fightManager = GetComponent<FightManager>();
+        }
+
+        if (fightManager != null)
+        {
+            fightManager.RefreshFightPreviews(true);
+        }
     }
 
     public void ShowBreedPage()
@@ -109,6 +120,38 @@ public class PageManager : MonoBehaviour
     public void BackFromStoryPage()
     {
         ShowPreviousPage();
+    }
+
+    public void ResetStoryProgress()
+    {
+        if (storyManager == null)
+        {
+            storyManager = GetComponent<StoryManager>();
+        }
+
+        if (storyManager == null)
+        {
+            Debug.LogWarning("PageManager.ResetStoryProgress could not find StoryManager.");
+            return;
+        }
+
+        storyManager.ResetStoryProgress();
+    }
+
+    public void EndCurrentFight()
+    {
+        if (fightManager == null)
+        {
+            fightManager = GetComponent<FightManager>();
+        }
+
+        if (fightManager == null)
+        {
+            Debug.LogWarning("PageManager.EndCurrentFight could not find FightManager.");
+            return;
+        }
+
+        fightManager.EndCurrentFight();
     }
 
     public void ShowSettingsPage()
