@@ -25,6 +25,21 @@ public class PageManager : MonoBehaviour
     public Button backButton;
     public TextMeshProUGUI settingsStatusText;
 
+    [Header("Training Page")]
+    public GameObject trainingPage;
+    public Button trainingButton;
+    public TMP_Dropdown trainingDogDropdown;
+    public Image trainingDogImage;
+    public TextMeshProUGUI trainingDogNameText;
+    public TextMeshProUGUI trainingDogBreedText;
+    public TextMeshProUGUI trainingDogStatsText;
+    public TextMeshProUGUI trainingStatusText;
+    public Button powerDrillButton;
+    public Button sprintDrillButton;
+    public Button enduranceDrillButton;
+    public Button focusDrillButton;
+    public Button trainingBackButton;
+
     [Header("Dog Pound Page")]
     public GameObject dogPoundPage;
     public Button dogPoundButton;
@@ -60,12 +75,26 @@ public class PageManager : MonoBehaviour
     readonly List<TextMeshProUGUI> dogPoundStatusTexts = new List<TextMeshProUGUI>();
     readonly Color[] poundDogSlotBaseColors = new Color[DogPoundSlotCount];
     readonly bool[] poundDogSlotBaseColorsCaptured = new bool[DogPoundSlotCount];
+    readonly List<Dog> trainingDogs = new List<Dog>();
+    int selectedTrainingDogIndex = -1;
+    bool narratorWasVisibleBeforeTraining;
+    bool reportedMissingTrainingSceneReferences;
+
+    enum TrainingDrill
+    {
+        Power,
+        Sprint,
+        Endurance,
+        Focus
+    }
 
     void Start()
     {
         DigitalDogSettings.ApplyAudioSettings();
         ConfigureSettingsControls();
         LoadSettingsIntoUI();
+        BindTrainingSceneReferencesIfMissing();
+        ConfigureTrainingControls();
         BindDogPoundSceneReferencesIfMissing();
         ConfigureDogPoundControls();
         ShowStablePage();
@@ -192,6 +221,71 @@ public class PageManager : MonoBehaviour
         HideNarratorForDogPound();
         RefreshDogPoundUI();
         SetPage(dogPoundPage);
+    }
+
+    public void ShowTrainingPage()
+    {
+        BindTrainingSceneReferencesIfMissing();
+        ConfigureTrainingControls();
+
+        if (trainingPage == null)
+        {
+            Debug.LogWarning("PageManager.ShowTrainingPage was called, but TrainingPage is not assigned or found.");
+            return;
+        }
+
+        ReportMissingTrainingSceneReferences();
+        previousPage = currentPage != trainingPage ? currentPage : previousPage;
+        HideNarratorForTraining();
+        SetPage(trainingPage);
+        PopulateTrainingDogDropdown();
+    }
+
+    public void BackFromTraining()
+    {
+        selectedTrainingDogIndex = -1;
+        trainingDogs.Clear();
+        RestoreNarratorAfterTraining();
+        ShowPreviousPage();
+    }
+
+    public void SelectTrainingDog(int optionIndex)
+    {
+        if (optionIndex < 0 || optionIndex >= trainingDogs.Count)
+        {
+            selectedTrainingDogIndex = -1;
+            RefreshTrainingDogPreview();
+            SetTrainingStatus("Select a dog first.");
+            return;
+        }
+
+        selectedTrainingDogIndex = optionIndex;
+        RefreshTrainingDogPreview();
+
+        Dog selectedDog = GetSelectedTrainingDog();
+        SetTrainingStatus(selectedDog != null
+            ? $"Choose a drill for {GetTrainingDogName(selectedDog)}."
+            : "Select a dog first.");
+    }
+
+    public void TrainStrength()
+    {
+        TrainSelectedDog(TrainingDrill.Power, "Power Drill", "STR");
+    }
+
+    public void TrainAgility()
+    {
+        TrainSelectedDog(TrainingDrill.Sprint, "Sprint Drill", "AGI");
+    }
+
+    public void TrainStamina()
+    {
+        TrainSelectedDog(TrainingDrill.Endurance, "Endurance Drill", "STA");
+    }
+
+    public void TrainIntelligence()
+    {
+        TrainSelectedDog(TrainingDrill.Focus, "Focus Drill", "INT");
     }
 
     public void BackFromDogPound()
@@ -388,6 +482,17 @@ public class PageManager : MonoBehaviour
             settingsPage.SetActive(pageToShow == settingsPage);
         }
 
+        if (trainingPage != null)
+        {
+            bool showingTraining = pageToShow == trainingPage;
+            trainingPage.SetActive(showingTraining);
+
+            if (!showingTraining)
+            {
+                RestoreNarratorAfterTraining();
+            }
+        }
+
         if (dogPoundPage != null)
         {
             bool showingDogPound = pageToShow == dogPoundPage;
@@ -411,6 +516,347 @@ public class PageManager : MonoBehaviour
         {
             UpdateDogPoundTimerText();
         }
+    }
+
+    void BindTrainingSceneReferencesIfMissing()
+    {
+        if (trainingPage == null)
+        {
+            trainingPage = FindSceneObjectByTrimmedName("TrainingPage");
+        }
+
+        if (trainingButton == null)
+        {
+            GameObject buttonObject = FindSceneObjectByTrimmedName("TrainingButton") ??
+                                      FindSceneObjectByTrimmedName("TrainingTabButton");
+            trainingButton = buttonObject != null ? buttonObject.GetComponent<Button>() : null;
+        }
+
+        if (narratorPanel == null)
+        {
+            narratorPanel = FindSceneObjectByTrimmedName("NarratorPanel");
+        }
+
+        if (trainingPage == null)
+        {
+            return;
+        }
+
+        Transform pageRoot = trainingPage.transform;
+        trainingDogDropdown = trainingDogDropdown ??
+                              (FindGameObjectInTree(pageRoot, "DogDropdown") ??
+                               FindGameObjectInTree(pageRoot, "DogDropDown"))?.GetComponent<TMP_Dropdown>();
+        trainingDogImage = trainingDogImage ?? FindGameObjectInTree(pageRoot, "DogImage")?.GetComponent<Image>();
+        trainingDogNameText = trainingDogNameText ?? FindTextInTree(pageRoot, "DogNameText");
+        trainingDogBreedText = trainingDogBreedText ?? FindTextInTree(pageRoot, "DogBreedText");
+        trainingDogStatsText = trainingDogStatsText ?? FindTextInTree(pageRoot, "DogStatsText");
+        trainingStatusText = trainingStatusText ?? FindTextInTree(pageRoot, "TrainingStatusText");
+        powerDrillButton = powerDrillButton ?? FindButtonInTree(pageRoot, "PowerDrillButton");
+        sprintDrillButton = sprintDrillButton ?? FindButtonInTree(pageRoot, "SprintDrillButton");
+        enduranceDrillButton = enduranceDrillButton ?? FindButtonInTree(pageRoot, "EnduranceDrillButton");
+        focusDrillButton = focusDrillButton ?? FindButtonInTree(pageRoot, "FocusDrillButton");
+        trainingBackButton = trainingBackButton ?? FindButtonInTree(pageRoot, "BackButton");
+    }
+
+    void ConfigureTrainingControls()
+    {
+        if (trainingButton != null)
+        {
+            trainingButton.onClick.RemoveListener(ShowTrainingPage);
+            trainingButton.onClick.AddListener(ShowTrainingPage);
+        }
+
+        if (trainingDogDropdown != null)
+        {
+            trainingDogDropdown.onValueChanged.RemoveListener(SelectTrainingDog);
+            trainingDogDropdown.onValueChanged.AddListener(SelectTrainingDog);
+        }
+
+        ConfigureTrainingButton(powerDrillButton, TrainStrength);
+        ConfigureTrainingButton(sprintDrillButton, TrainAgility);
+        ConfigureTrainingButton(enduranceDrillButton, TrainStamina);
+        ConfigureTrainingButton(focusDrillButton, TrainIntelligence);
+        ConfigureTrainingButton(trainingBackButton, BackFromTraining);
+    }
+
+    void ConfigureTrainingButton(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(action);
+        button.onClick.AddListener(action);
+    }
+
+    void PopulateTrainingDogDropdown()
+    {
+        trainingDogs.Clear();
+        selectedTrainingDogIndex = -1;
+
+        if (!EnsureDogManager())
+        {
+            ClearTrainingDogDropdown();
+            RefreshTrainingDogPreview();
+            SetTrainingStatus("No dogs available to train.");
+            return;
+        }
+
+        foreach (Dog dog in dogManager.ownedDogs)
+        {
+            if (dog != null)
+            {
+                trainingDogs.Add(dog);
+            }
+        }
+
+        if (trainingDogDropdown != null)
+        {
+            trainingDogDropdown.ClearOptions();
+
+            List<string> dogNames = new List<string>();
+            foreach (Dog dog in trainingDogs)
+            {
+                dogNames.Add(GetTrainingDogName(dog));
+            }
+
+            trainingDogDropdown.AddOptions(dogNames);
+            trainingDogDropdown.interactable = trainingDogs.Count > 0;
+        }
+
+        if (trainingDogs.Count == 0)
+        {
+            RefreshTrainingDogPreview();
+            SetTrainingStatus("No dogs available to train.");
+            return;
+        }
+
+        selectedTrainingDogIndex = 0;
+
+        if (trainingDogDropdown != null)
+        {
+            trainingDogDropdown.SetValueWithoutNotify(selectedTrainingDogIndex);
+            trainingDogDropdown.RefreshShownValue();
+        }
+
+        RefreshTrainingDogPreview();
+        SetTrainingStatus("Choose a dog to train.");
+    }
+
+    void ClearTrainingDogDropdown()
+    {
+        if (trainingDogDropdown == null)
+        {
+            return;
+        }
+
+        trainingDogDropdown.ClearOptions();
+        trainingDogDropdown.interactable = false;
+        trainingDogDropdown.RefreshShownValue();
+    }
+
+    void RefreshTrainingDogPreview()
+    {
+        Dog selectedDog = GetSelectedTrainingDog();
+        bool hasSelectedDog = selectedDog != null;
+
+        SetTrainingDrillButtonsInteractable(hasSelectedDog);
+
+        if (!hasSelectedDog)
+        {
+            SetTrainingPreviewText("No dog selected", "Breed: --", "STR -- / AGI --\nSTA -- / INT --");
+            SetTrainingDogImage(null);
+            return;
+        }
+
+        SetTrainingPreviewText(
+            GetTrainingDogName(selectedDog),
+            string.IsNullOrWhiteSpace(selectedDog.breed) ? "Unknown breed" : selectedDog.breed.Trim(),
+            $"STR {selectedDog.strength} / AGI {selectedDog.agility}\nSTA {selectedDog.stamina} / INT {selectedDog.GetIntelligence()}");
+        SetTrainingDogImage(selectedDog);
+    }
+
+    void SetTrainingPreviewText(string dogName, string breed, string stats)
+    {
+        if (trainingDogNameText != null)
+        {
+            trainingDogNameText.text = dogName;
+        }
+
+        if (trainingDogBreedText != null)
+        {
+            trainingDogBreedText.text = breed;
+        }
+
+        if (trainingDogStatsText != null)
+        {
+            trainingDogStatsText.text = stats;
+        }
+    }
+
+    void SetTrainingDogImage(Dog dog)
+    {
+        if (trainingDogImage == null)
+        {
+            return;
+        }
+
+        Sprite portrait = dog != null
+            ? DogPortraitLibrary.ChooseStableCardPortrait(dog, dog.dogSprite, null)
+            : null;
+
+        trainingDogImage.sprite = portrait;
+        trainingDogImage.enabled = portrait != null;
+    }
+
+    void SetTrainingDrillButtonsInteractable(bool isInteractable)
+    {
+        if (powerDrillButton != null)
+        {
+            powerDrillButton.interactable = isInteractable;
+        }
+
+        if (sprintDrillButton != null)
+        {
+            sprintDrillButton.interactable = isInteractable;
+        }
+
+        if (enduranceDrillButton != null)
+        {
+            enduranceDrillButton.interactable = isInteractable;
+        }
+
+        if (focusDrillButton != null)
+        {
+            focusDrillButton.interactable = isInteractable;
+        }
+    }
+
+    Dog GetSelectedTrainingDog()
+    {
+        if (selectedTrainingDogIndex < 0 || selectedTrainingDogIndex >= trainingDogs.Count)
+        {
+            return null;
+        }
+
+        return trainingDogs[selectedTrainingDogIndex];
+    }
+
+    void TrainSelectedDog(TrainingDrill drill, string drillName, string statLabel)
+    {
+        if (!EnsureDogManager())
+        {
+            SetTrainingStatus("No dogs available to train.");
+            return;
+        }
+
+        Dog selectedDog = GetSelectedTrainingDog();
+
+        if (selectedDog == null || !dogManager.ownedDogs.Contains(selectedDog))
+        {
+            SetTrainingStatus("Select a dog first.");
+            return;
+        }
+
+        int updatedStat;
+
+        switch (drill)
+        {
+            case TrainingDrill.Power:
+                selectedDog.strength += 1;
+                updatedStat = selectedDog.strength;
+                break;
+
+            case TrainingDrill.Sprint:
+                selectedDog.agility += 1;
+                updatedStat = selectedDog.agility;
+                break;
+
+            case TrainingDrill.Endurance:
+                selectedDog.stamina += 1;
+                updatedStat = selectedDog.stamina;
+                break;
+
+            default:
+                selectedDog.intelligence += 1;
+                updatedStat = selectedDog.GetIntelligence();
+                break;
+        }
+
+        dogManager.SaveStable();
+        dogManager.DisplayDogs();
+        RefreshTrainingDogPreview();
+        SetTrainingStatus($"{GetTrainingDogName(selectedDog)} completed {drillName}. {statLabel} increased to {updatedStat}.");
+        Debug.Log($"Training complete: {GetTrainingDogName(selectedDog)} completed {drillName}. {statLabel}: {updatedStat}.");
+    }
+
+    string GetTrainingDogName(Dog dog)
+    {
+        return dog == null || string.IsNullOrWhiteSpace(dog.dogName) ? "Dog" : dog.dogName.Trim();
+    }
+
+    void SetTrainingStatus(string message)
+    {
+        if (trainingStatusText != null)
+        {
+            trainingStatusText.text = message;
+        }
+    }
+
+    void ReportMissingTrainingSceneReferences()
+    {
+        if (reportedMissingTrainingSceneReferences)
+        {
+            return;
+        }
+
+        List<string> missingReferences = new List<string>();
+
+        if (trainingDogDropdown == null) missingReferences.Add("DogDropdown");
+        if (trainingDogImage == null) missingReferences.Add("DogImage");
+        if (trainingDogNameText == null) missingReferences.Add("DogNameText");
+        if (trainingDogBreedText == null) missingReferences.Add("DogBreedText");
+        if (trainingDogStatsText == null) missingReferences.Add("DogStatsText");
+        if (trainingStatusText == null) missingReferences.Add("TrainingStatusText");
+        if (powerDrillButton == null) missingReferences.Add("PowerDrillButton");
+        if (sprintDrillButton == null) missingReferences.Add("SprintDrillButton");
+        if (enduranceDrillButton == null) missingReferences.Add("EnduranceDrillButton");
+        if (focusDrillButton == null) missingReferences.Add("FocusDrillButton");
+        if (trainingBackButton == null) missingReferences.Add("BackButton");
+
+        if (missingReferences.Count > 0)
+        {
+            Debug.LogWarning($"TrainingPage is missing scene references: {string.Join(", ", missingReferences)}.");
+        }
+
+        reportedMissingTrainingSceneReferences = true;
+    }
+
+    void HideNarratorForTraining()
+    {
+        if (narratorPanel == null)
+        {
+            narratorPanel = FindSceneObjectByTrimmedName("NarratorPanel");
+        }
+
+        if (narratorPanel == null)
+        {
+            return;
+        }
+
+        narratorWasVisibleBeforeTraining = narratorPanel.activeSelf;
+        narratorPanel.SetActive(false);
+    }
+
+    void RestoreNarratorAfterTraining()
+    {
+        if (narratorPanel != null && narratorWasVisibleBeforeTraining)
+        {
+            narratorPanel.SetActive(true);
+        }
+
+        narratorWasVisibleBeforeTraining = false;
     }
 
     void BindDogPoundSceneReferencesIfMissing()
