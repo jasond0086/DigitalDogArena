@@ -1,0 +1,582 @@
+fileFormatVersion: 2
+guid: 6a775328ef7136840994c50544d1a7be
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 248838050604180754
+    second: TrainingUI3_0
+  - first:
+      213: -1717098984683912524
+    second: TrainingUI3_1
+  - first:
+      213: -2040422902626219654
+    second: TrainingUI3_2
+  - first:
+      213: -8960570941025870162
+    second: TrainingUI3_3
+  - first:
+      213: 6037035203768709761
+    second: TrainingUI3_4
+  - first:
+      213: 5107895472939075732
+    second: TrainingUI3_5
+  - first:
+      213: 7827683239996279620
+    second: TrainingUI3_6
+  - first:
+      213: -9058931869404348324
+    second: TrainingUI3_7
+  - first:
+      213: 8649117136977629656
+    second: TrainingUI3_8
+  - first:
+      213: -5994284520907605544
+    second: TrainingUI3_9
+  - first:
+      213: 8229938138132268508
+    second: TrainingUI3_10
+  - first:
+      213: 8544206900893013228
+    second: TrainingUI3_11
+  - first:
+      213: 212429744221261216
+    second: TrainingUI3_12
+  - first:
+      213: -711538765505212350
+    second: TrainingUI3_13
+  - first:
+      213: -5194090329189616165
+    second: TrainingUI3_14
+  - first:
+      213: 3916889470258833207
+    second: TrainingUI3_15
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: iOS
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: TrainingUI3_0
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 627
+        width: 1421
+        height: 439
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 215ecdc73ec047300800000000000000
+      internalID: 248838050604180754
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_1
+      rect:
+        serializedVersion: 2
+        x: 545
+        y: 1018
+        width: 31
+        height: 21
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b24bbd2293ab28e0800000000000000
+      internalID: -1717098984683912524
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_2
+      rect:
+        serializedVersion: 2
+        x: 635
+        y: 1020
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7984614e26fea3e0800000000000000
+      internalID: -2040422902626219654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_3
+      rect:
+        serializedVersion: 2
+        x: 666
+        y: 1018
+        width: 17
+        height: 12
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eae177b4438a5a380800000000000000
+      internalID: -8960570941025870162
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_4
+      rect:
+        serializedVersion: 2
+        x: 706
+        y: 1020
+        width: 11
+        height: 13
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1827921488bd7c350800000000000000
+      internalID: 6037035203768709761
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_5
+      rect:
+        serializedVersion: 2
+        x: 820
+        y: 1020
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4980c5eaed3e2e640800000000000000
+      internalID: 5107895472939075732
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_6
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 680
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 44bc1461f6481ac60800000000000000
+      internalID: 7827683239996279620
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_7
+      rect:
+        serializedVersion: 2
+        x: 507
+        y: 682
+        width: 23
+        height: 25
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c5040b70675384280800000000000000
+      internalID: -9058931869404348324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_8
+      rect:
+        serializedVersion: 2
+        x: 531
+        y: 670
+        width: 15
+        height: 19
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8d19b4a0636d70870800000000000000
+      internalID: 8649117136977629656
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_9
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 388
+        width: 854
+        height: 285
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8d9fda0ccf500dca0800000000000000
+      internalID: -5994284520907605544
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_10
+      rect:
+        serializedVersion: 2
+        x: 547
+        y: 665
+        width: 7
+        height: 10
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cd540dee12d963270800000000000000
+      internalID: 8229938138132268508
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_11
+      rect:
+        serializedVersion: 2
+        x: 881
+        y: 406
+        width: 520
+        height: 214
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce45b2f38ee139670800000000000000
+      internalID: 8544206900893013228
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_12
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 818
+        height: 397
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0ad09041ab3b2f200800000000000000
+      internalID: 212429744221261216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_13
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 315
+        width: 5
+        height: 13
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 240542e334b1026f0800000000000000
+      internalID: -711538765505212350
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_14
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 256
+        width: 5
+        height: 21
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bd57c557d52eae7b0800000000000000
+      internalID: -5194090329189616165
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_15
+      rect:
+        serializedVersion: 2
+        x: 358
+        y: 0
+        width: 72
+        height: 5
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 737ee3b78369b5630800000000000000
+      internalID: 3916889470258833207
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TrainingUI3_16
+      rect:
+        serializedVersion: 2
+        x: 833
+        y: 17
+        width: 594
+        height: 359
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 40b5100f3e08f28418b85c2dbbddaa9a
+      internalID: -1029269927
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 0b2b82a3331999b479cfd00d416c2555
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      TrainingUI3_0: 248838050604180754
+      TrainingUI3_1: -1717098984683912524
+      TrainingUI3_10: 8229938138132268508
+      TrainingUI3_11: 8544206900893013228
+      TrainingUI3_12: 212429744221261216
+      TrainingUI3_13: -711538765505212350
+      TrainingUI3_14: -5194090329189616165
+      TrainingUI3_15: 3916889470258833207
+      TrainingUI3_16: -1029269927
+      TrainingUI3_2: -2040422902626219654
+      TrainingUI3_3: -8960570941025870162
+      TrainingUI3_4: 6037035203768709761
+      TrainingUI3_5: 5107895472939075732
+      TrainingUI3_6: 7827683239996279620
+      TrainingUI3_7: -9058931869404348324
+      TrainingUI3_8: 8649117136977629656
+      TrainingUI3_9: -5994284520907605544
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
