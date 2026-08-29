@@ -911,10 +911,16 @@ public class FightManager : MonoBehaviour
     void FinishStoryFight()
     {
         bool playerWon = activeFighter1.wins > fighter1WinsBeforeFight;
+        bool kennelReputationAwarded = false;
 
         if (storyManager != null)
         {
-            storyManager.CompleteCurrentStoryFight();
+            bool storyFightCompleted = storyManager.CompleteCurrentStoryFight();
+
+            if (storyFightCompleted)
+            {
+                kennelReputationAwarded = storyManager.TryAwardStoryFightKennelReputation(activeStoryFightId);
+            }
 
             if (playerWon)
             {
@@ -922,13 +928,14 @@ public class FightManager : MonoBehaviour
             }
         }
 
+        string reputationRewardText = kennelReputationAwarded ? " +10 Kennel Reputation." : string.Empty;
         string resultText = playerWon
-            ? $"Story Fight complete: {activeFighter1.dogName} defeated CHAINSAW. +10 Kennel Reputation."
-            : $"Story Fight complete: CHAINSAW held the Rust Yard. Story Step 1 unlocked.";
+            ? $"Story Fight complete: {activeFighter1.dogName} defeated CHAINSAW.{reputationRewardText}"
+            : $"Story Fight complete: CHAINSAW held the Rust Yard. Story Step 1 unlocked.{reputationRewardText}";
 
         runningFightLog += $"\n{resultText}\n";
         SetFightNarration(resultText, runningFightLog);
-        Debug.Log($"Story fight resolved: {activeStoryFightId}. Player won: {playerWon}.");
+        Debug.Log($"Story fight resolved: {activeStoryFightId}. Player won: {playerWon}. Kennel Reputation awarded: {kennelReputationAwarded}.");
     }
 
     Dog CreateStoryFightOpponent(string storyFightId)

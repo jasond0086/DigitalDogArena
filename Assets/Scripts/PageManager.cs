@@ -167,6 +167,23 @@ public class PageManager : MonoBehaviour
         storyManager.ResetStoryProgress();
     }
 
+    public void DebugAddKennelReputation()
+    {
+        if (storyManager == null)
+        {
+            storyManager = GetComponent<StoryManager>();
+        }
+
+        if (storyManager == null)
+        {
+            Debug.LogWarning("PageManager.DebugAddKennelReputation could not find StoryManager.");
+            return;
+        }
+
+        storyManager.AddKennelReputation(25);
+        Debug.Log($"Debug Kennel Reputation added. Total: {storyManager.GetKennelReputation()}.");
+    }
+
     public void EndCurrentFight()
     {
         if (fightManager == null)

@@ -43,6 +43,20 @@ public class StoryManager : MonoBehaviour
 {
     private const string StorySaveKey = "STORY_STATE_SAVE";
     private const string LegacyStoryStepKey = "DigitalDogArena.Story.Step";
+    private const string KennelReputationKey = "DigitalDogArena.Kennel.Reputation";
+    private const string StoryFightRewardKeyPrefix = "DigitalDogArena.Kennel.StoryFightReward.";
+    private const int FirstStoryFightKennelReputationReward = 10;
+
+    private static readonly int[] KennelRankThresholds = { 0, 25, 75, 150, 300, 600 };
+    private static readonly string[] KennelRankNames =
+    {
+        "Unknown Kennel",
+        "Local Prospect",
+        "Circuit Contender",
+        "Digital Threat",
+        "Champion Kennel",
+        "Legendary Bloodline"
+    };
 
     [Header("References")]
     public DogManager dogManager;
@@ -81,6 +95,11 @@ public class StoryManager : MonoBehaviour
     public Button trainFirstButton;
     public Button storyModeBackButton;
     public Button clearStorySaveButton;
+
+    [Header("Kennel Rank UI")]
+    public TextMeshProUGUI kennelRankText;
+    public TextMeshProUGUI kennelReputationText;
+    public TextMeshProUGUI nextRankText;
 
     [Header("Story State")]
     public int reputation = 0;
@@ -484,17 +503,99 @@ public class StoryManager : MonoBehaviour
         SetNarration("Story fight ready. Select any owned dog, then press Start Fight.");
     }
 
-    public void CompleteCurrentStoryFight()
+    public bool CompleteCurrentStoryFight()
     {
         if (storyStep != 0)
         {
-            return;
+            return false;
         }
 
         storyStep = 1;
         SaveStoryState();
         RefreshStoryUI();
         SetNarration("Story Step 1 unlocked.");
+        return true;
+    }
+
+    public int GetKennelReputation()
+    {
+        return Mathf.Max(0, PlayerPrefs.GetInt(KennelReputationKey, 0));
+    }
+
+    public void AddKennelReputation(int amount)
+    {
+        if (amount == 0)
+        {
+            return;
+        }
+
+        int updatedReputation = Mathf.Max(0, GetKennelReputation() + amount);
+        PlayerPrefs.SetInt(KennelReputationKey, updatedReputation);
+        PlayerPrefs.Save();
+        RefreshKennelRankUI();
+    }
+
+    public string GetKennelRankName(int kennelReputation)
+    {
+        int safeReputation = Mathf.Max(0, kennelReputation);
+        int rankIndex = 0;
+
+        for (int index = 0; index < KennelRankThresholds.Length; index++)
+        {
+            if (safeReputation >= KennelRankThresholds[index])
+            {
+                rankIndex = index;
+            }
+        }
+
+        return KennelRankNames[rankIndex];
+    }
+
+    public string GetNextRankText(int kennelReputation)
+    {
+        int safeReputation = Mathf.Max(0, kennelReputation);
+
+        for (int index = 0; index < KennelRankThresholds.Length; index++)
+        {
+            if (safeReputation < KennelRankThresholds[index])
+            {
+                return $"NEXT: {KennelRankThresholds[index]} REP";
+            }
+        }
+
+        return "MAX RANK";
+    }
+
+    public void RefreshKennelRankUI()
+    {
+        BindStoryModeSceneReferencesIfMissing();
+
+        int kennelReputation = GetKennelReputation();
+        SetText(kennelRankText, $"RANK: {GetKennelRankName(kennelReputation)}");
+        SetText(kennelReputationText, $"REP: {kennelReputation}");
+        SetText(nextRankText, GetNextRankText(kennelReputation));
+    }
+
+    public bool TryAwardStoryFightKennelReputation(string storyFightId)
+    {
+        if (string.IsNullOrWhiteSpace(storyFightId))
+        {
+            Debug.LogWarning("Kennel Reputation was not awarded because the story fight ID is missing.");
+            return false;
+        }
+
+        string rewardKey = StoryFightRewardKeyPrefix + storyFightId.Trim();
+
+        if (PlayerPrefs.GetInt(rewardKey, 0) == 1)
+        {
+            Debug.Log($"Kennel Reputation reward already claimed for story fight: {storyFightId}.");
+            return false;
+        }
+
+        PlayerPrefs.SetInt(rewardKey, 1);
+        AddKennelReputation(FirstStoryFightKennelReputationReward);
+        Debug.Log($"Kennel Reputation awarded: +{FirstStoryFightKennelReputationReward} for story fight {storyFightId}. Total: {GetKennelReputation()}.");
+        return true;
     }
 
     public void TrainFirstForStoryFight()
@@ -645,6 +746,9 @@ public class StoryManager : MonoBehaviour
         rewardLabelText = rewardLabelText ?? FindTextInTree(pageRoot, "RewardLabelText");
         requirementValueText = requirementValueText ?? FindTextInTree(pageRoot, "RequirementValueText");
         requirementLabelText = requirementLabelText ?? FindTextInTree(pageRoot, "RequirementLabelText");
+        kennelRankText = kennelRankText ?? FindTextInTree(pageRoot, "KennelRankText");
+        kennelReputationText = kennelReputationText ?? FindTextInTree(pageRoot, "KennelReputationText");
+        nextRankText = nextRankText ?? FindTextInTree(pageRoot, "NextRankText");
         acceptFightButton = acceptFightButton ?? FindButtonInTree(pageRoot, "AcceptFightButton");
         trainFirstButton = trainFirstButton ?? FindButtonInTree(pageRoot, "TrainFirstButton");
         storyModeBackButton = storyModeBackButton ?? FindButtonInTree(pageRoot, "BackButton");
@@ -680,6 +784,8 @@ public class StoryManager : MonoBehaviour
         {
             return;
         }
+
+        RefreshKennelRankUI();
 
         SetText(storyModeTitleText, "STORY MODE");
         SetText(storyModeChapterText, GetStoryModeChapterText());
